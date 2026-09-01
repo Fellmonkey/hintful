@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/theme/hint_theme.dart';
@@ -50,6 +52,54 @@ void main() {
       );
       expect(data.hintTheme, same(custom));
     });
+  });
+
+  group('WCAG AA contrast (default minimal theme)', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      final lighter = math.max(la, lb);
+      final darker = math.min(la, lb);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    // Several seeds × both brightnesses: the guarantee is not a hardcoded
+    // pair but the inverseSurface pair of any ColorScheme.
+    for (final seed in [Colors.teal, Colors.deepOrange, Colors.indigo]) {
+      for (final brightness in [Brightness.light, Brightness.dark]) {
+        test('${brightness.name} $seed: title/buttons ≥ 4.5:1', () {
+          final scheme = ColorScheme.fromSeed(
+            seedColor: seed,
+            brightness: brightness,
+          );
+          final theme = HintTheme.minimal(scheme);
+          // The tooltip text and the buttons (the inverted pair) share the
+          // same two colors — one ratio covers both.
+          expect(
+            contrast(theme.tooltipForeground, theme.tooltipBackground),
+            greaterThanOrEqualTo(4.5),
+          );
+        });
+
+        test('${brightness.name} $seed: description (75% alpha) ≥ 4.5:1', () {
+          final scheme = ColorScheme.fromSeed(
+            seedColor: seed,
+            brightness: brightness,
+          );
+          final theme = HintTheme.minimal(scheme);
+          // The description is the foreground at 75% opacity over the tooltip
+          // background — blend it to get the effective color, then measure.
+          final blended = Color.alphaBlend(
+            theme.tooltipDescriptionStyle!.color!,
+            theme.tooltipBackground,
+          );
+          expect(
+            contrast(blended, theme.tooltipBackground),
+            greaterThanOrEqualTo(4.5),
+          );
+        });
+      }
+    }
   });
 
   group('copyWith / lerp', () {

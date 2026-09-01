@@ -81,6 +81,22 @@ When a hint doesn't show, you'll know why in one log line:
 Not "it just didn't appear." If you typo a `targetId`, `hintful` tells you loudly in
 debug — with the closest candidates.
 
+## Accessibility, on by default
+
+`hintful` treats accessibility as a default, not an option:
+
+- **Screen readers**: every step is announced as "Step N of M: <title>".
+- **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
+  the tour manages focus and returns it to the element you were on before
+  it started.
+- **Reduce motion**: with the system setting on, transitions are instant.
+- **Text scale**: the tooltip fits on screen at 2× text scale (content
+  scrolls instead of overflowing).
+- **Contrast**: the default theme meets WCAG AA (4.5:1) for text and
+  buttons, in light and dark.
+
+All of it is covered by tests, not just intentions.
+
 ## Works anywhere
 
 The core is framework-agnostic by construction: it imports only `dart:ui` +
@@ -94,15 +110,19 @@ Bloc/Riverpod/Provider/GetX are on the roadmap.
 - CompositedTransform tooltip + scrim — follows scroll/layout/animation for free
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
 - ThemeExtension design-system integration, light/dark by default
-- Auto-flip placement: tooltip picks the side with room and stays on screen
-- Programmatic controller: `start/next/skip/finish`; tap-overlay = next;
-  keyboard (Tab/Enter = next, Esc = skip); one-line `showHint` for a single tip
+- Smart positioning: auto-flip to the side with room, keep-in-safe-area,
+  and a tail (arrow) tying the tooltip to its target
+- Programmatic controller: `start/next/previous/goTo/skip/finish`;
+  tap-overlay = next; keyboard (Tab/Shift+Tab/Enter, Esc = skip); optional
+  `disableBackButton`; one-line `showHint` for a single tip
+- Accessibility on by default: screen-reader step announcements, keyboard
+  navigation, reduce-motion, fits at 2× text scale, WCAG AA contrast,
+  focus restored after a tour
 - Zero-idle cost: zero engine widgets in the tree until a tour actually starts
 - Hot-reload friendly; debug diagnosis of every failed show, with closest-id
   candidates when a `targetId` is a typo
 
-Roadmap: accessibility hardening, smart positioning with collisions,
-versioned hints, server-driven tours, migration guides.
+Roadmap: versioned hints, server-driven tours, migration guides.
 
 ## Getting started
 
@@ -110,7 +130,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hintful: ^0.1.0
+  hintful: ^0.2.0
 ```
 
 ```dart
@@ -127,4 +147,9 @@ deferred target that appears mid-tour, light/dark switching and `showHint`.
 Stage 0 (early engine) is complete: registry, state machine with tests, tour
 controller, CompositedTransform overlay with scrim hole that follows the target
 for free, auto-flip tooltip placement, theme integration, DX diagnosis and an
-end-to-end example.
+end-to-end example. Stage 1 is in progress: tour navigation
+(`previous`/`goTo`, `disableBackButton`), smart positioning (keep-in-safe-area,
+tooltip tail) and accessibility (reduce-motion, 2× text scale, WCAG AA
+contrast, focus restore) are done; the Bloc adapter ships as a separate
+`hintful_bloc` package. Versioned hints, server-driven tours and migration
+guides are next.

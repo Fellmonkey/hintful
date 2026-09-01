@@ -174,6 +174,10 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     with WidgetsBindingObserver {
   final FocusScopeNode _scopeNode = FocusScopeNode();
 
+  /// The node focused before the tour stole focus, to give it back on
+  /// dispose — focus must not wander off to the route when the tour ends.
+  FocusNode? _restoreFocus;
+
   @override
   void initState() {
     super.initState();
@@ -182,8 +186,15 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     // the route's scope (_ModalScopeState) and Esc/Tab/Enter never arrive
     // (worked in a bare Overlay, not in MaterialApp). An explicit
     // requestFocus post-frame after the entry mounts wins.
+    //
+    // The callback is registered from this State's initState, which runs
+    // before the FocusScope's autofocus callback (parent initState precedes
+    // child builds) — so [FocusManager.instance.primaryFocus] here is still
+    // the pre-tour node, captured before the steal.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _scopeNode.requestFocus();
+      if (!mounted) return;
+      _restoreFocus = FocusManager.instance.primaryFocus;
+      _scopeNode.requestFocus();
     });
     // System back (Android back button / route pop) interception for
     // `HintTour.disableBackButton`. A binding observer instead of
@@ -197,6 +208,14 @@ class _HintOverlayViewState extends State<_HintOverlayView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    final restore = _restoreFocus;
+    // The node may have been unmounted while the tour was active (e.g. the
+    // page navigated away): `context` is null then — requestFocus on a
+    // detached node is a no-op, skip it. `hasFocus` — already back where it
+    // belongs (nothing to do).
+    if (restore != null && restore.context != null && !restore.hasFocus) {
+      restore.requestFocus();
+    }
     _scopeNode.dispose();
     super.dispose();
   }

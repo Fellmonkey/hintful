@@ -322,6 +322,117 @@ void main() {
       h.expectIdleClean();
     });
 
+    testWidgets('reduce-motion: the tour runs instant under the system setting',
+        (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+      // The engine's reduce-motion contract: with the OS setting on, every
+      // transition is instant (zero animation) — the flow below must not
+      // need extra frames or timers beyond the immediate rebuilds.
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'rm',
+        steps: [
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(find.text('Statistics'), findsOneWidget);
+
+      await tester.tap(find.text('Next'));
+      await TourHarness.settle(tester);
+      expect(
+        h.controller.currentState,
+        HintWaiting(tour: tour, stepIndex: 1),
+      );
+      h.disposeNow(); // waiting holds a timer — release in the body
+    });
+
+    testWidgets('text scale 2.0: the tooltip still fits on screen',
+        (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      // A long description: at 2× scale it wraps into many lines — without
+      // the height cap the tooltip would overflow the screen.
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'scale',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            title: 'Statistics',
+            description: 'A deliberately long description that wraps into '
+                    'many lines at double the text scale, so the tooltip needs '
+                    'the height cap to stay on screen instead of overflowing '
+                    'past the bottom edge. ' *
+                3,
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      final tip = tester.getRect(find.byType(DefaultTooltip));
+      expect(tip.top, greaterThanOrEqualTo(0),
+          reason: 'the tooltip fits vertically (top)');
+      expect(tip.bottom, lessThanOrEqualTo(600),
+          reason: 'the tooltip fits vertically (bottom)');
+      expect(tip.left, greaterThanOrEqualTo(0));
+      expect(tip.right, lessThanOrEqualTo(800));
+
+      // The content scrolls inside the tooltip — the action stays reachable.
+      await tester.ensureVisible(find.text('Done'));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('focus returns to the element focused before the tour',
+        (tester) async {
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      final h = TourHarness(
+        targets: [HarnessTarget('stats')],
+        leading: Focus(
+          focusNode: focusNode,
+          child: const SizedBox(
+            width: 100,
+            height: 40,
+            child: Text('pre-tour element'),
+          ),
+        ),
+      );
+      final tour = HintTour(
+        id: 'focus',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+
+      // Focus the pre-tour element.
+      focusNode.requestFocus();
+      await tester.pump();
+      expect(focusNode.hasFocus, isTrue);
+
+      await h.start(tester, tour);
+      // The tour owns the keyboard while active — focus moved to its scope.
+      expect(focusNode.hasFocus, isFalse);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+      // Focus is back where it was before the tour.
+      expect(focusNode.hasFocus, isTrue);
+    });
+
     testWidgets('Escape = skip: userSkipped abort through a real overlay',
         (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);

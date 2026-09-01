@@ -77,6 +77,7 @@ class TourHarness {
     HintDiagnosticsHandler? diagnostics,
     this.scrollable = false,
     this.themeExtensions = const [],
+    this.leading,
   })  : registry = registry ?? HintTargetRegistry(),
         diagnostics = diagnostics ?? DiagnosticsRecorder();
 
@@ -88,6 +89,11 @@ class TourHarness {
   /// `ThemeData.extensions` of the scene (a custom [HintTheme] — e.g.
   /// `showTail: false`). Empty — the zero-config minimal default.
   final List<ThemeExtension<dynamic>> themeExtensions;
+
+  /// An optional widget rendered before the targets (e.g. a focusable
+  /// element for focus-restore tests). In the scrollable scene it is the
+  /// first list item; in the Stack scene — at the top-left.
+  final Widget? leading;
 
   /// true — targets sit vertically in a `ListView` (scroll scenarios:
   /// following, deferred below the edge); false — a fixed Stack. In the
@@ -201,11 +207,13 @@ class TourHarness {
         ? ListView(
             controller: scrollController,
             children: [
+              if (leading != null) leading!,
               for (final t in targets) ...[SizedBox(height: t.top), target(t)],
             ],
           )
         : Stack(
             children: [
+              if (leading != null) leading!,
               for (final t in targets)
                 Positioned(
                   left: t.left,

@@ -152,8 +152,13 @@ void main() {
       ctx: _ctx(_FakeActions(), 0, 3),
     )));
 
-    expect(find.bySemanticsLabel(RegExp(r'Step 1 of 3')), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp(r'Title')), findsOneWidget);
+    // The container announces "Step N of M: <title>"; the inner text keeps
+    // its own node (exposed separately once the content is scrollable), so
+    // assert the container label exactly.
+    expect(
+      find.bySemanticsLabel(RegExp(r'Step 1 of 3: Title')),
+      findsOneWidget,
+    );
     handle.dispose();
   });
 
