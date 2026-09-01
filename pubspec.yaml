@@ -5,7 +5,14 @@ description:
   framework-agnostic; works with any state-management stack.
 version: 0.1.0
 environment:
+  # The floor is sealed-classes machine states (Dart 3.0 = Flutter 3.10).
+  # The remaining engine contracts are covered by this minimum:
+  #   CompositedTransform + FollowerLayer.getLastTransform — since Flutter 1.0 (2017),
+  #   LayerLink.leaderSize — since 1.23 (PR #64930, Oct 2020),
+  #   ThemeExtension — since 3.0 (PR #98033, Mar 2022).
+  # Verified against the git history of a local Flutter 3.47.0 checkout.
   sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
 keywords:
   - hint
   - hints
@@ -45,10 +52,6 @@ keywords:
 dependencies:
   flutter:
     sdk: flutter
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

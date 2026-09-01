@@ -1,0 +1,230 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hintful/engine/overlay/tooltip_placement.dart';
+import 'package:hintful/engine/specs.dart';
+
+void main() {
+  const screen = Rect.fromLTWH(0, 0, 800, 600);
+
+  group('explicit side', () {
+    const hole = Rect.fromLTWH(100, 100, 200, 80); // right=300, bottom=180
+    const tooltip = Size(160, 60);
+
+    test('bottom: below the hole with a gap, centered', () {
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.bottom,
+      );
+      // x: 100 + (200-160)/2 = 120; y: 180 + 12 = 192
+      expect(
+          d.getPositionForChild(screen.size, tooltip), const Offset(120, 192));
+    });
+
+    test('top: above the hole', () {
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.top,
+      );
+      // y: 100 - 12 - 60 = 28
+      expect(
+          d.getPositionForChild(screen.size, tooltip), const Offset(120, 28));
+    });
+
+    test('right: to the right, vertically centered', () {
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.right,
+      );
+      // x: 300 + 12 = 312; y: 100 + (80-60)/2 = 110
+      expect(
+          d.getPositionForChild(screen.size, tooltip), const Offset(312, 110));
+    });
+
+    test('left: to the left', () {
+      const h = Rect.fromLTWH(300, 100, 200, 80);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.left,
+      );
+      // x: 300 - 12 - 160 = 128; y: 110
+      expect(
+          d.getPositionForChild(screen.size, tooltip), const Offset(128, 110));
+    });
+  });
+
+  group('mirroring (auto-flip)', () {
+    test('bottom does not fit at the bottom edge → top', () {
+      const h = Rect.fromLTWH(100, 500, 200, 80); // bottom=580: 580+12+60>600
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 60)),
+        const Offset(120, 428), // 500 - 12 - 60
+      );
+    });
+
+    test('top does not fit at the top edge → bottom', () {
+      const h = Rect.fromLTWH(100, 0, 200, 80);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.top,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 60)),
+        const Offset(120, 92), // 0 + 80 + 12
+      );
+    });
+
+    test('left does not fit at the left edge → right', () {
+      const h = Rect.fromLTWH(0, 100, 200, 80);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.left,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 60)),
+        const Offset(212, 110), // right: x = 200 + 12
+      );
+    });
+  });
+
+  group('auto', () {
+    test('the side with the most free space', () {
+      // Space: bottom 50, top 500, right 700, left 0 → right first.
+      const h = Rect.fromLTWH(0, 500, 100, 50);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.auto,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(80, 120)),
+        const Offset(112, 465), // x = 100+12; y = 500 + (50-120)/2
+      );
+    });
+
+    test('with equal pairs, the side with really more space wins', () {
+      // The hole is centered, but the screen is 800x600: horizontal space
+      // (350) beats vertical (250) → right.
+      const h = Rect.fromLTWH(350, 250, 100, 100);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.auto,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(100, 60)),
+        const Offset(462, 270), // x = 450 + 12; y = 250 + (100-60)/2
+      );
+    });
+  });
+
+  group('edge cases', () {
+    test('tooltip bigger than the screen → a screen corner with a margin', () {
+      const h = Rect.fromLTWH(100, 100, 200, 80);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(900, 700)),
+        const Offset(8, 8),
+      );
+    });
+
+    test('wide tooltip: centering clamped on-screen (does not overflow)', () {
+      const h = Rect.fromLTWH(700, 100, 100, 80); // the hole at the right edge
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final offset = d.getPositionForChild(screen.size, const Size(400, 60));
+      // x: 700 + (100-400)/2 = 550 → clamped to [0, 800-400=400] → 400;
+      // the right edge exactly at the screen boundary — legitimate.
+      expect(offset.dx, 400);
+    });
+
+    test(
+        'gap: the offset from the hole is exactly gap, the hole is not '
+        'covered', () {
+      const h = Rect.fromLTWH(100, 100, 200, 80);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        gap: 24,
+      );
+      final offset = d.getPositionForChild(screen.size, const Size(160, 60));
+      expect(offset.dy - h.bottom, 24);
+      // Bottom side: the tooltip is entirely below the hole — no overlap.
+      final rect = offset & const Size(160, 60);
+      expect(rect.overlaps(h), isFalse);
+    });
+
+    test('hole bigger than the screen: no crash, a screen corner', () {
+      const h = Rect.fromLTWH(0, 0, 2000, 1000); // the target > the screen
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.auto,
+      );
+      final offset = d.getPositionForChild(screen.size, const Size(160, 60));
+      expect(offset, const Offset(8, 8));
+    });
+  });
+
+  group('shouldRelayout', () {
+    const h = Rect.fromLTWH(100, 100, 200, 80);
+
+    test('equal values — false (no relayout on every build)', () {
+      final a = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final same = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      expect(a.shouldRelayout(same), isFalse);
+    });
+
+    test('a changed side/hole/screen — true', () {
+      final a = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final otherSide = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.top,
+      );
+      final moved = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h.shift(const Offset(10, 0)),
+        position: TooltipPosition.bottom,
+      );
+      final movedScreen = TooltipPlacementDelegate(
+        screenLocal: const Rect.fromLTWH(-5, 0, 800, 600),
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      expect(a.shouldRelayout(otherSide), isTrue);
+      expect(a.shouldRelayout(moved), isTrue);
+      expect(a.shouldRelayout(movedScreen), isTrue);
+    });
+  });
+}

@@ -34,7 +34,7 @@ scrolls and lays out. That model is precisely why tours break:
 | References to widget contexts | **Registry by id** — `ShowcaseTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
 | "Wait until the widget is built" by hand | **Wait-for-target** — a tour waits for a deferred target instead of dying |
 | Per-hint hard-coded styling | **ThemeExtension** — hint inherits your design system, light and dark, from `Theme.of` |
-| Tied to Bloc/Riverpod/… | **Framework-agnostic** — vanilla `ValueListenable<TourState>` in the core, thin adapters for Bloc/Riverpod/Provider/GetX |
+| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<TourState>`, no state-management imports (adapters are roadmap) |
 | Overlay mounted even when idle | **Zero-idle cost** — zero engine widgets in the tree until a tour actually starts |
 
 ## What you write
@@ -65,10 +65,10 @@ That's it.
 ## Zero-config, then total control
 
 `hintful` works with a single `ShowcaseTarget(id: ..., title: ..., desc: ...)` and a
-default theme out of the box. When you need more, the API grows through an explicit
-"ladder of customization" — tooltip styles → button builders → a fully custom
-tooltip widget → a custom overlay → painter hooks — each step optional, each
-overridable per step. Your design system, your state management, your call.
+default theme out of the box (or `showHint` for one tip without a `TourSpec`). When
+you need more, the API grows through an explicit "ladder of customization" —
+`ShowcaseTheme` styles → a fully custom tooltip through `tooltipBuilder` — each
+step optional. Your design system, your call.
 
 ## Diagnosis over mystery
 
@@ -83,28 +83,26 @@ debug — with the closest candidates.
 
 ## Works anywhere
 
-Vanilla Flutter, or the adapter for whatever you use:
-
-| State management | Adapter |
-|---|---|
-| Vanilla Flutter | `ValueListenableBuilder` — no dependency at all |
-| Bloc | `ShowcaseCubit` |
-| Riverpod | `NotifierProvider` |
-| Provider | `ChangeNotifierProvider` |
-| GetX | `GetxController` |
+The core is framework-agnostic by construction: it imports only `dart:ui` +
+`flutter/widgets`, no state-management package. Vanilla Flutter works out of the
+box via `ValueListenableBuilder` — zero dependencies. Thin adapters for
+Bloc/Riverpod/Provider/GetX are on the roadmap.
 
 ## Features
 
 - Registry-based targets (no `GlobalKey`) with self-cancellation in `dispose`
 - CompositedTransform tooltip + scrim — follows scroll/layout/animation for free
-- Wait-for-target for deferred and lazy-loaded widgets
+- Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
 - ThemeExtension design-system integration, light/dark by default
-- Accessibility-first: semantics, keyboard (Tab/Esc/Enter), reduce-motion, text-scale
-- Smart positioning: auto-flip, keep-in-safe-area, never covers the target
-- Versioned hints: "what's new in 2.3.0", shown once per feature version
-- Programmatic controller: `start/next/previous/goTo/skip/finish`
-- Tap-target / tap-overlay, tooltip tail, blur backdrop, optional pulse
-- Hot-reload friendly; debug diagnosis of every failed show
+- Auto-flip placement: tooltip picks the side with room and stays on screen
+- Programmatic controller: `start/next/skip/finish`; tap-overlay = next;
+  keyboard (Tab/Enter = next, Esc = skip); one-line `showHint` for a single tip
+- Zero-idle cost: zero engine widgets in the tree until a tour actually starts
+- Hot-reload friendly; debug diagnosis of every failed show, with closest-id
+  candidates when a `targetId` is a typo
+
+Roadmap: accessibility hardening, smart positioning with collisions,
+versioned hints, server-driven tours, migration guides.
 
 ## Getting started
 
@@ -119,14 +117,14 @@ dependencies:
 import 'package:hintful/hintful.dart';
 ```
 
-See `example/` for a complete minimal tour, and `docs/` for the design
-rationale and the migration guide from `showcaseview`.
+See `example/` for a complete tour — 4 steps with a scrollable list, a
+deferred target that appears mid-tour, light/dark switching and `showHint`.
 
 ---
 
 ### Status
 
-Early but architecturally complete: Engine (registry + state machine +
-CompositedTransform overlay + scrim). Roadmap: deployment, drop-in layer for
-`showcaseview`, 6 per-library migration guides, benchmark contract, accessibility
-and server-driven tours hardening.
+Stage 0 (early engine) is complete: registry, state machine with tests, tour
+controller, CompositedTransform overlay with scrim hole that follows the target
+for free, auto-flip tooltip placement, theme integration, DX diagnosis and an
+end-to-end example.
