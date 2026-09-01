@@ -118,11 +118,14 @@ Bloc/Riverpod/Provider/GetX are on the roadmap.
 - Accessibility on by default: screen-reader step announcements, keyboard
   navigation, reduce-motion, fits at 2× text scale, WCAG AA contrast,
   focus restored after a tour
+- Versioned hints (`HintStore`): show once per app version —
+  `shouldShow(key, minVersion:)` before start, `markShown` on exit; the
+  "show again" semantic is a version bump, not flag-wiping
 - Zero-idle cost: zero engine widgets in the tree until a tour actually starts
 - Hot-reload friendly; debug diagnosis of every failed show, with closest-id
   candidates when a `targetId` is a typo
 
-Roadmap: versioned hints, server-driven tours, migration guides.
+Roadmap: server-driven tours, migration guides.
 
 ## Getting started
 

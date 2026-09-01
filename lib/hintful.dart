@@ -14,7 +14,9 @@
 /// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
 ///   [DebugPrintDiagnostics], typo candidates);
 /// - theme ([HintTheme]) and widgets ([HintTarget], [DefaultTooltip]);
-/// - position resolver ([HintPositionResolver]) — for custom hosts.
+/// - position resolver ([HintPositionResolver]) — for custom hosts;
+/// - versioned-hints store ([HintStore], [InMemoryHintStore],
+///   [compareVersions]) — the "show once per app version" service.
 ///
 /// Deliberately NOT exported is overlay internals ([HintOverlayEngine],
 /// scrim painter, placement delegate) — mechanics that can change without
@@ -30,6 +32,7 @@ export 'engine/machine.dart' show HintActive, HintIdle, HintState, HintWaiting;
 export 'engine/position_resolver.dart';
 export 'engine/registry.dart';
 export 'engine/specs.dart';
+export 'engine/store.dart';
 export 'engine/theme/hint_theme.dart';
 export 'widgets/default_tooltip.dart';
 export 'widgets/hint_target.dart';

@@ -13,6 +13,9 @@ dependencies:
   # The only dependency on the package — through the public barrel.
   hintful:
     path: ../
+  # Versioned hints demo: the app-side persistent HintStore (the library
+  # core stays dependency-free — the app owns its storage).
+  shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:

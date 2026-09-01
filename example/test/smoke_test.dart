@@ -1,15 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hintful_example/main.dart';
 
 /// Smoke tests of the demo app: start a tour, walk all 4 steps (including
 /// the waiting phase of the deferred target), remove the overlay, showHint,
-/// light/dark.
+/// light/dark, versioned intro.
 void main() {
-  testWidgets('full tour flow: start → 4 steps → overlay removed',
-      (tester) async {
+  setUp(() {
+    // The versioned-intro demo stores shown-state on shared_preferences.
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  /// Pump the app + one extra frame for the async store init (prefs load
+  /// resolves → setState → the demo card shows the real status).
+  Future<void> pumpApp(WidgetTester tester) async {
     await tester.pumpWidget(const ExampleApp());
     await tester.pump();
+    await tester.pump();
+  }
+
+  testWidgets('full tour flow: start → 4 steps → overlay removed',
+      (tester) async {
+    await pumpApp(tester);
 
     // Idle: no engine text in the tree.
     expect(find.text('Next'), findsNothing);
@@ -59,9 +72,50 @@ void main() {
     expect(find.text('Workout list'), findsNothing);
   });
 
-  testWidgets('showHint: a single tip without a tour', (tester) async {
-    await tester.pumpWidget(const ExampleApp());
+  testWidgets('versioned intro: once per version, re-shows after a bump',
+      (tester) async {
+    await pumpApp(tester);
+    expect(find.textContaining('will show again'), findsOneWidget);
+
+    // First run: shows.
+    await tester.tap(find.byTooltip('Show tour'));
+    await tester.pump(); // frame 1: scrim (snapshot post-frame)
+    await tester.pump(); // step 1 tooltip
+    expect(find.text('Quick log'), findsOneWidget);
+
+    // Exit (skip) → marked shown for 1.0.0.
+    await tester.tap(find.text('Skip'));
     await tester.pump();
+    expect(find.text('Next'), findsNothing);
+    expect(
+        find.textContaining('already showed in this version'), findsOneWidget);
+
+    // Same version: gated — a snackbar explains, no tour starts.
+    await tester.tap(find.byTooltip('Show tour'));
+    await tester.pump();
+    expect(find.textContaining('bump the version to see it again'),
+        findsOneWidget);
+    expect(find.text('Next'), findsNothing);
+
+    // Version bump → the intro is available again.
+    await tester.tap(find.text('Bump version'));
+    await tester.pump();
+    expect(find.textContaining('will show again'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show tour'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Quick log'), findsOneWidget);
+
+    // Reset → the intro will show again.
+    await tester.tap(find.text('Skip'));
+    await tester.pump();
+    await tester.tap(find.text('Reset store'));
+    await tester.pump();
+    expect(find.textContaining('will show again'), findsWidgets);
+  });
+
+  testWidgets('showHint: a single tip without a tour', (tester) async {
+    await pumpApp(tester);
 
     await tester.tap(find.byTooltip('Show hint'));
     await tester.pump(); // frame 1: scrim (snapshot post-frame)
@@ -77,8 +131,7 @@ void main() {
 
   testWidgets('light/dark: toggling the theme does not break the app',
       (tester) async {
-    await tester.pumpWidget(const ExampleApp());
-    await tester.pump();
+    await pumpApp(tester);
 
     await tester.tap(find.byTooltip('Toggle theme'));
     await tester.pump();

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // The only import of the package — the public barrel: the engine internals,
 // overlay machinery and machine effects are not reachable from here.
 import 'package:hintful/hintful.dart';
+
+import 'shared_prefs_hint_store.dart';
 
 void main() => runApp(const ExampleApp());
 
@@ -21,9 +24,13 @@ void main() => runApp(const ExampleApp());
 ///    timeout with diagnostics — the same mechanism as for lazy tabs).
 ///
 /// Plus: light/dark (hint theming inherits the ColorScheme through
-/// HintTheme), the `showHint` quick path for a single tip, and smart
-/// positioning — the tooltip tail (arrow toward the target, on by default)
-/// and keep-in-safe-area (the tooltip never crosses system insets).
+/// HintTheme), the `showHint` quick path for a single tip, smart
+/// positioning (tooltip tail, keep-in-safe-area) and the versioned-intro
+/// pattern (N4): the intro tour shows once per app version — `shouldShow`
+/// before start, `markShown` on exit, a version bump re-shows it (demo
+/// buttons "Bump version" / "Reset store"). The store is a
+/// `shared_preferences`-backed `HintStore` living in the app — the library
+/// core stays dependency-free.
 class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
 
@@ -40,10 +47,30 @@ class _ExampleAppState extends State<ExampleApp> {
     overlayHostBuilder: defaultOverlayHost(),
   );
 
+  /// The versioned-hints store; null until `shared_preferences` loads
+  /// (async init) — the demo card shows "Loading…" and the versioned gate
+  /// is inert until it is ready.
+  HintStore? _store;
+
+  /// The demo's pretend app version — bumped by the "Bump version" button
+  /// to demonstrate the "new in this version" re-show.
+  String _appVersion = '1.0.0';
+
+  /// Set when the versioned intro starts; on the next idle (finish/skip/
+  /// timeout) it is marked shown for the current version — no nagging in
+  /// the same version.
+  bool _introStarted = false;
+
   ThemeMode _themeMode = ThemeMode.light;
   int _selectedFilter = 0; // 0 = all sets, 1 = by day
   bool _showStats = false; // the "Summary" card (deferred target of step 3)
   bool _statsRevealScheduled = false;
+
+  // The State's own context is ABOVE MaterialApp (no ScaffoldMessenger
+  // ancestor) — snackbars from the versioned-intro actions go through the
+  // app's messenger key instead.
+  final GlobalKey<ScaffoldMessengerState> _messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   static const _entries = <(String, String)>[
     ('Bench press', '80 kg × 5'),
@@ -58,6 +85,12 @@ class _ExampleAppState extends State<ExampleApp> {
   void initState() {
     super.initState();
     _controller.state.addListener(_onTourStateChanged);
+    // The app-side store: `shared_preferences` is async, the library core
+    // stays dependency-free (see shared_prefs_hint_store.dart).
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      setState(() => _store = SharedPrefsHintStore(prefs));
+    });
   }
 
   @override
@@ -68,12 +101,20 @@ class _ExampleAppState extends State<ExampleApp> {
   }
 
   /// App reaction to the tour state: on step 3 we "load" the summary (a
-  /// lazy-section simulation), and reset the flag on completion. Also
-  /// rebuilds the AppBar icons (disabled while a tour is active).
+  /// lazy-section simulation), and reset the flag on completion. When the
+  /// versioned intro exits (any way), it is marked shown for the current
+  /// app version. Also rebuilds the AppBar icons (disabled while a tour is
+  /// active).
   void _onTourStateChanged() {
     final state = _controller.currentState;
     if (state.isIdle) {
       _statsRevealScheduled = false;
+      if (_introStarted) {
+        _introStarted = false;
+        // Finished, skipped or timed out — the user has seen it; do not
+        // nag again in this version.
+        _store?.markShown('intro', _appVersion);
+      }
       if (mounted) setState(() {});
       return;
     }
@@ -114,9 +155,54 @@ class _ExampleAppState extends State<ExampleApp> {
         ],
       );
 
+  /// The versioned-intro entry: show once per app version. Gated — when the
+  /// intro already showed in [_appVersion], explain instead of showing
+  /// ("Bump version" re-enables it).
   void _startTour() {
     if (!_controller.currentState.isIdle) return; // one tour at a time
+    final store = _store;
+    if (store == null) return; // prefs not loaded yet
+    if (!store.shouldShow('intro', minVersion: _appVersion)) {
+      _messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'The intro already showed in $_appVersion — '
+            'bump the version to see it again.',
+          ),
+        ),
+      );
+      return;
+    }
+    _introStarted = true;
     _controller.start(_introTour);
+  }
+
+  /// Demo control: 1.0.0 → 1.1.0 → … — "new in this version" re-shows the
+  /// intro.
+  void _bumpVersion() {
+    setState(() {
+      final parts = _appVersion.split('.').map(int.parse).toList();
+      parts[2] += 1;
+      _appVersion = parts.join('.');
+    });
+    if (_store?.shouldShow('intro', minVersion: _appVersion) ?? false) {
+      _messengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('New version — the intro is available again.'),
+        ),
+      );
+    }
+  }
+
+  /// Demo control: hard-reset the store (the production "re-show" is a
+  /// version bump; this is the debug/dev tool).
+  void _resetStore() {
+    setState(() => _store?.clear()); // refresh the demo card's status
+    _messengerKey.currentState?.showSnackBar(
+      const SnackBar(
+        content: Text('Store cleared — the intro will show again.'),
+      ),
+    );
   }
 
   /// Quick path for a single tip: a one-step tour without the HintTour
@@ -153,6 +239,7 @@ class _ExampleAppState extends State<ExampleApp> {
     );
     return MaterialApp(
       title: 'Hintful demo',
+      scaffoldMessengerKey: _messengerKey,
       theme: ThemeData(
         colorScheme: lightScheme,
         extensions: [_hintTheme(lightScheme)],
@@ -168,9 +255,15 @@ class _ExampleAppState extends State<ExampleApp> {
         selectedFilter: _selectedFilter,
         showStats: _showStats,
         entries: _entries,
+        appVersion: _appVersion,
+        storeReady: _store != null,
+        introWillShow:
+            _store?.shouldShow('intro', minVersion: _appVersion) ?? false,
         onToggleTheme: _toggleTheme,
         onStartTour: _startTour,
         onShowHint: _showHint,
+        onBumpVersion: _bumpVersion,
+        onResetStore: _resetStore,
         onFilter: (index) => setState(() {
           _selectedFilter = index;
           _showStats = index == 1;
@@ -187,9 +280,14 @@ class _HomeScreen extends StatelessWidget {
     required this.selectedFilter,
     required this.showStats,
     required this.entries,
+    required this.appVersion,
+    required this.storeReady,
+    required this.introWillShow,
     required this.onToggleTheme,
     required this.onStartTour,
     required this.onShowHint,
+    required this.onBumpVersion,
+    required this.onResetStore,
     required this.onFilter,
   });
 
@@ -198,9 +296,14 @@ class _HomeScreen extends StatelessWidget {
   final int selectedFilter;
   final bool showStats;
   final List<(String, String)> entries;
+  final String appVersion;
+  final bool storeReady;
+  final bool introWillShow;
   final VoidCallback onToggleTheme;
   final VoidCallback onStartTour;
   final VoidCallback onShowHint;
+  final VoidCallback onBumpVersion;
+  final VoidCallback onResetStore;
   final ValueChanged<int> onFilter;
 
   @override
@@ -246,6 +349,43 @@ class _HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Versioned-intro demo (N4): the store is app-side
+          // (shared_preferences); the library ships only the contract and
+          // the in-memory default.
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Versioned intro',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    storeReady
+                        ? 'App version $appVersion — the intro '
+                            '${introWillShow ? 'will show again' : 'already showed in this version'}'
+                        : 'Loading the store…',
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: storeReady ? onBumpVersion : null,
+                        child: const Text('Bump version'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: storeReady ? onResetStore : null,
+                        child: const Text('Reset store'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
