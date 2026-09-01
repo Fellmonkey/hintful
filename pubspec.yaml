@@ -4,6 +4,7 @@ description:
   coach marks and guided walkthroughs. Registry-based, theme-aware,
   framework-agnostic; works with any state-management stack.
 version: 0.1.0
+repository: https://github.com/Fellmonkey/hintful
 environment:
   # The floor is sealed-classes machine states (Dart 3.0 = Flutter 3.10).
   # The remaining engine contracts are covered by this minimum:
