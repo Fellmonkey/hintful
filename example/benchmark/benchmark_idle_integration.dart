@@ -4,11 +4,11 @@ import 'package:hintful/engine/overlay/scrim_painter.dart';
 import 'package:hintful/hintful.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:hintful_example/main.dart';
+import 'harness.dart';
 
 /// Benchmark skeleton: checkable invariants on a live device/emulator, not
 /// numbers against other libraries (comparison methodology and goldens are
-/// future work, see `benchmark/methodology.md`).
+/// future work, see the benchmark plan).
 ///
 /// Invariants (a contract, not marketing):
 /// (a) idle: zero engine widgets in the tree (scrim/tooltip/follower) —
@@ -18,9 +18,10 @@ import 'package:hintful_example/main.dart';
 /// Plus a `Stopwatch` on the mount time: from the "Show tour" tap to the
 /// first tooltip frame — a soft bound (not hanging), not a contract.
 ///
-/// The file lives inside the example package (the only app integration_test
-/// can run against: it imports `package:hintful_example` + the SDK
-/// dependency `integration_test`).
+/// The scene is [BenchmarkApp] — the engine + targets only, no app
+/// bootstrap (no store, so no `shared_preferences` platform channel). Runs
+/// under `IntegrationTestWidgetsFlutterBinding`, so it works both on a
+/// device/emulator and in the plain VM (`flutter test`).
 ///
 /// Run: `cd example && flutter test -d <device> benchmark/benchmark_idle_integration.dart`
 /// CI: job `bench-idle`, only main/tag — it is expensive, outside the PR loop.
@@ -33,7 +34,10 @@ void main() {
 
   testWidgets('idle → active → finish: zero-idle invariants + mount time',
       (tester) async {
-    await tester.pumpWidget(const ExampleApp());
+    final controller = HintController(overlayHostBuilder: defaultOverlayHost());
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+        BenchmarkApp(controller: controller, tour: benchmarkTour()));
     await tester.pump();
 
     // (a) idle: zero engine in the tree.
@@ -52,12 +56,12 @@ void main() {
 
     // (b) after start: the scrim hole + the tooltip.
     expect(scrimFinder, findsOneWidget);
-    expect(find.text('Quick log'), findsOneWidget);
+    expect(find.text('Step one'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
 
     // A soft bound, not a contract: `flutter test` runs a debug build (the
     // web-debug measurement is ≈ 250 ms), so here just "does not hang"
-    // (a wall-clock contract belongs to profile builds, see methodology.md).
+    // (a wall-clock contract belongs to profile builds, see the plan).
     // The value is printed so a regression shows up in the CI log.
     final mountMs = stopwatch.elapsedMilliseconds;
     // ignore: avoid_print
