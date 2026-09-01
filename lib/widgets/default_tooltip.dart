@@ -76,13 +76,23 @@ class DefaultTooltip extends StatelessWidget {
                         TextStyle(fontSize: 13, color: onSurface),
                   ),
                 ],
-                // The button row is always present: Skip is optional,
-                // Next/Done is the explicit way to complete a step (the last
-                // step says Done).
+                // The button row is always present: Back (from step 2 on),
+                // Skip (optional) and Next/Done — the explicit way to move
+                // through a step (the last step says Done).
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if (ctx.stepIndex > 0) ...[
+                      TextButton(
+                        onPressed: ctx.actions.previous,
+                        style: TextButton.styleFrom(
+                          foregroundColor: onSurface,
+                        ),
+                        child: const Text('Back'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     if (step.showSkip)
                       TextButton(
                         onPressed: ctx.actions.skip,

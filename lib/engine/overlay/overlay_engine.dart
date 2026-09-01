@@ -169,7 +169,8 @@ class _TourOverlayView extends StatefulWidget {
   State<_TourOverlayView> createState() => _TourOverlayViewState();
 }
 
-class _TourOverlayViewState extends State<_TourOverlayView> {
+class _TourOverlayViewState extends State<_TourOverlayView>
+    with WidgetsBindingObserver {
   final FocusScopeNode _scopeNode = FocusScopeNode();
 
   @override
@@ -183,12 +184,29 @@ class _TourOverlayViewState extends State<_TourOverlayView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _scopeNode.requestFocus();
     });
+    // System back (Android back button / route pop) interception for
+    // `TourSpec.disableBackButton`. A binding observer instead of
+    // PopScope/WillPopScope: those register via `ModalRoute.of(context)`,
+    // and an OverlayEntry lives ABOVE routes — it has no ModalRoute
+    // ancestor, so they would be dead code. `didPopRoute` returning true
+    // consumes the pop, on every Flutter version.
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scopeNode.dispose();
     super.dispose();
+  }
+
+  @override
+  Future<bool> didPopRoute() async {
+    if (widget.state.tour?.disableBackButton ?? false) {
+      // Consumed: the tour owns the screen while active.
+      return true;
+    }
+    return false;
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -197,8 +215,15 @@ class _TourOverlayViewState extends State<_TourOverlayView> {
       widget.input.skip();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.tab ||
-        event.logicalKey == LogicalKeyboardKey.enter) {
+    if (event.logicalKey == LogicalKeyboardKey.tab) {
+      if (HardwareKeyboard.instance.isShiftPressed) {
+        widget.input.previous();
+      } else {
+        widget.input.next();
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter) {
       widget.input.next();
       return KeyEventResult.handled;
     }

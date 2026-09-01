@@ -235,6 +235,68 @@ void main() {
       // waitTimeout.
       controller.dispose();
     });
+    testWidgets('previous: next → previous returns to the previous step',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = TargetRegistry();
+      final host = _RecordingHost();
+      final controller = ShowcaseController(
+        registry: registry,
+        overlayHostBuilder: (_) => host,
+      );
+      final tour = _tour2();
+      addTearDown(controller.dispose);
+
+      registry.register(TargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+      registry.register(TargetRegistration(
+        id: 'target1',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      await controller.start(tour);
+      controller.next();
+      expect(controller.currentState, TourActive(tour: tour, stepIndex: 1));
+
+      controller.previous();
+      expect(controller.currentState, TourActive(tour: tour, stepIndex: 0));
+
+      controller.previous(); // on the first step — a no-op
+      expect(controller.currentState, TourActive(tour: tour, stepIndex: 0));
+    });
+
+    testWidgets('goTo: jump to a step; out of range — assert in debug',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = TargetRegistry();
+      final controller = ShowcaseController(registry: registry);
+      addTearDown(controller.dispose);
+
+      registry.register(TargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+      registry.register(TargetRegistration(
+        id: 'target1',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      final tour = _tour2();
+      await controller.start(tour);
+      controller.goTo(1);
+      expect(controller.currentState, TourActive(tour: tour, stepIndex: 1));
+
+      expect(
+        () => controller.goTo(99),
+        throwsA(isA<AssertionError>()),
+      );
+    });
 
     testWidgets(
         'skip on an active step — abort userSkipped with the step '

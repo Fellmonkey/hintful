@@ -14,11 +14,15 @@ final Finder _scrimFinder = find.byWidgetPredicate(
 
 class _FakeInput implements TourActions {
   int nextCalls = 0;
+  int previousCalls = 0;
   int skipCalls = 0;
   int finishCalls = 0;
 
   @override
   void next() => nextCalls++;
+
+  @override
+  void previous() => previousCalls++;
 
   @override
   void skip() => skipCalls++;
@@ -141,6 +145,81 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       expect(input.nextCalls, 2);
+    });
+
+    testWidgets('active: Shift+Tab = previous, Tab = next', (tester) async {
+      final link = LayerLink();
+      final overlayKey = GlobalKey<OverlayState>();
+      final registry = TargetRegistry();
+      final input = _FakeInput();
+
+      await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
+      final ctx = tester.element(find.byType(CompositedTransformTarget));
+      registry
+          .register(TargetRegistration(id: 'stats', link: link, context: ctx));
+
+      final engine = TourOverlayEngine(
+        registry: registry,
+        input: input,
+        overlay: overlayKey.currentState,
+      );
+      addTearDown(engine.dispose);
+      engine.update(TourActive(tour: _tour('stats'), stepIndex: 0));
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      expect(input.previousCalls, 1);
+      expect(input.nextCalls, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab); // no shift
+      expect(input.nextCalls, 1);
+      expect(input.previousCalls, 1);
+    });
+
+    testWidgets(
+        'disableBackButton: route pop is consumed while the tour is '
+        'active', (tester) async {
+      final link = LayerLink();
+      final overlayKey = GlobalKey<OverlayState>();
+      final registry = TargetRegistry();
+      final input = _FakeInput();
+
+      await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
+      final ctx = tester.element(find.byType(CompositedTransformTarget));
+      registry
+          .register(TargetRegistration(id: 'stats', link: link, context: ctx));
+
+      final engine = TourOverlayEngine(
+        registry: registry,
+        input: input,
+        overlay: overlayKey.currentState,
+      );
+      addTearDown(engine.dispose);
+
+      // Without the flag: the pop is not consumed.
+      engine.update(TourActive(tour: _tour('stats'), stepIndex: 0));
+      await tester.pump();
+      expect(await tester.binding.handlePopRoute(), isFalse);
+
+      // With the flag: the pop is consumed (returned true).
+      final blocked = TourSpec(
+        id: 't',
+        disableBackButton: true,
+        steps: [
+          StepSpec(
+              targetId: 'stats', title: 'Title', description: 'Description'),
+        ],
+      );
+      engine.update(TourActive(tour: blocked, stepIndex: 0));
+      await tester.pump();
+      expect(await tester.binding.handlePopRoute(), isTrue);
+
+      // After the tour ends (idle), the pop is not consumed any more.
+      engine.update(const TourIdle());
+      await tester.pump();
+      expect(await tester.binding.handlePopRoute(), isFalse);
     });
 
     testWidgets(

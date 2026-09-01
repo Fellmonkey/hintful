@@ -134,6 +134,46 @@ void main() {
       // the invariant check (before teardown) — release in the body.
       h.disposeNow();
     });
+    testWidgets('Back button: next → Back returns to the previous step',
+        (tester) async {
+      final h = TourHarness(targets: [
+        HarnessTarget('stats'),
+        HarnessTarget('records', top: 200),
+      ]);
+      final tour = TourSpec(
+        id: 'flow',
+        steps: [
+          StepSpec(targetId: 'stats', title: 'Statistics'),
+          StepSpec(targetId: 'records', title: 'Records'),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+
+      // No Back on the first step.
+      expect(find.text('Back'), findsNothing);
+
+      await tester.tap(find.text('Next'));
+      await TourHarness.settle(tester);
+      expect(
+        h.controller.currentState,
+        TourActive(tour: tour, stepIndex: 1),
+      );
+      expect(find.text('Back'), findsOneWidget);
+
+      await tester.tap(find.text('Back'));
+      await TourHarness.settle(tester);
+      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+      expect(find.text('Statistics'), findsOneWidget);
+      expect(find.text('Back'), findsNothing);
+
+      await tester.tap(find.text('Next'));
+      await TourHarness.settle(tester);
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
 
     testWidgets('tap on the overlay (past the tooltip) = next', (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);

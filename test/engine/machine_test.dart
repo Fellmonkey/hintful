@@ -174,6 +174,108 @@ void main() {
         effects: const [],
       ),
       (
+        name: 'previous from active step 1 → step 0 (target present)',
+        from: active1,
+        event: const UserPrevious(),
+        present: const {'target0': true},
+        expected: active0,
+        effects: const [EnterStepEffect(stepIndex: 0)],
+      ),
+      (
+        name: 'previous without step-0 target → waiting step 0 + timer',
+        from: active1,
+        event: const UserPrevious(),
+        present: const {},
+        expected: waiting0,
+        effects: const [arm3],
+      ),
+      (
+        name: 'previous on the first step — a no-op',
+        from: active0,
+        event: const UserPrevious(),
+        present: const {},
+        expected: active0,
+        effects: const [],
+      ),
+      (
+        name: 'previous from waiting step 1 → active step 0 (timer cleared)',
+        from: waiting1,
+        event: const UserPrevious(),
+        present: const {'target0': true},
+        expected: active0,
+        effects: const [
+          ClearTimeoutEffect(),
+          EnterStepEffect(stepIndex: 0),
+        ],
+      ),
+      (
+        name: 'previous from waiting without the target → re-arm on step 0',
+        from: waiting1,
+        event: const UserPrevious(),
+        present: const {},
+        expected: waiting0,
+        effects: const [arm3],
+      ),
+      (
+        name: 'previous from waiting on the first step — no-op (timer kept)',
+        from: waiting0,
+        event: const UserPrevious(),
+        present: const {},
+        expected: waiting0,
+        effects: const [],
+      ),
+      (
+        name: 'goTo(1) with the target present → active step 1',
+        from: active0,
+        event: const UserGoTo(index: 1),
+        present: const {'target1': true},
+        expected: active1,
+        effects: const [EnterStepEffect(stepIndex: 1)],
+      ),
+      (
+        name: 'goTo(1) without the target → waiting step 1 + timer',
+        from: active0,
+        event: const UserGoTo(index: 1),
+        present: const {},
+        expected: waiting1,
+        effects: const [arm3],
+      ),
+      (
+        name: 'goTo(0) from active step 1 — back by index',
+        from: active1,
+        event: const UserGoTo(index: 0),
+        present: const {'target0': true},
+        expected: active0,
+        effects: const [EnterStepEffect(stepIndex: 0)],
+      ),
+      (
+        name: 'goTo the current index — a no-op',
+        from: active1,
+        event: const UserGoTo(index: 1),
+        present: const {},
+        expected: active1,
+        effects: const [],
+      ),
+      (
+        name: 'goTo from waiting → active step (timer cleared)',
+        from: waiting0,
+        event: const UserGoTo(index: 1),
+        present: const {'target1': true},
+        expected: active1,
+        effects: const [
+          ClearTimeoutEffect(),
+          EnterStepEffect(stepIndex: 1),
+        ],
+      ),
+      (
+        name: 'goTo from waiting without the target → re-arm on target step',
+        from: waiting0,
+        event: const UserGoTo(index: 1),
+        present: const {},
+        expected: waiting1,
+        effects: const [arm3],
+      ),
+      (
         name: 'next with a present target → immediately active step',
         from: active0,
         event: const UserNext(),
@@ -295,6 +397,17 @@ void main() {
           isNot(TourWaiting(tour: tour, stepIndex: 0)));
       expect(const TourIdle(), const TourIdle());
     });
+
+    test('goTo out of range — assert in debug', () {
+      final tour = _tour();
+      final machine = TourMachine();
+      machine.dispatch(TourStart(tour: tour));
+      machine.dispatch(const TargetAppeared(targetId: 'target0'));
+      expect(
+        () => machine.dispatch(const UserGoTo(index: 99)),
+        throwsA(isA<AssertionError>()),
+      );
+    });
   });
 
   group('fuzz: random sequences', () {
@@ -338,10 +451,12 @@ TourEvent _randomEvent(
 
   if (idle) {
     // Only TourStart leaves idle; the rest checks the no-ops.
-    return switch (rng.nextInt(8)) {
+    return switch (rng.nextInt(10)) {
       0 => const UserFinish(),
       1 => const UserSkip(),
       2 => const WaitTimeout(),
+      3 => const UserPrevious(),
+      4 => UserGoTo(index: rng.nextInt(tour.steps.length)),
       _ => TourStart(tour: tour),
     };
   }
@@ -364,12 +479,14 @@ TourEvent _randomEvent(
     for (final id in ids)
       if (!present[id]!) id
   ];
-  return switch (rng.nextInt(8)) {
+  return switch (rng.nextInt(10)) {
     0 || 1 || 2 => TargetAppeared(targetId: pick(appearing, 'ghost')),
     3 => TargetVanished(targetId: pick(vanishing, 'ghost')),
     4 => const WaitTimeout(),
     5 => const UserNext(),
-    6 => const UserSkip(),
+    6 => const UserPrevious(),
+    7 => UserGoTo(index: rng.nextInt(tour.steps.length)),
+    8 => const UserSkip(),
     _ => const UserFinish(),
   };
 }

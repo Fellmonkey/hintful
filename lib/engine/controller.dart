@@ -176,6 +176,23 @@ class ShowcaseController implements TourActions {
   void next() => _dispatch(const UserNext());
 
   @override
+  void previous() => _dispatch(const UserPrevious());
+
+  /// Jump to a specific step (0-based).
+  ///
+  /// Out-of-range: assert in debug (a loud tour-authoring error), no-op in
+  /// release. In idle (no active tour) — a no-op.
+  void goTo(int index) {
+    final steps = _machine.state.tour?.steps;
+    if (steps == null) return; // no active tour
+    assert(
+      index >= 0 && index < steps.length,
+      "hintful: goTo($index) out of range 0..${steps.length - 1}",
+    );
+    _dispatch(UserGoTo(index: index));
+  }
+
+  @override
   void skip() => _dispatch(const UserSkip());
 
   @override

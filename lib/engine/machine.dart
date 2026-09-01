@@ -103,10 +103,6 @@ class TourActive extends TourState {
 // ──────────────────────────────── Events ────────────────────────────────
 
 /// External machine inputs: user commands and registry facts.
-///
-/// `previous()`/`goTo()` are deliberately not part of the public surface yet:
-/// the demo flows don't need them, and every public command is an API-surface
-/// commitment; extending the transition table is a trivial follow-up diff.
 @immutable
 sealed class TourEvent {
   const TourEvent();
@@ -145,6 +141,23 @@ class WaitTimeout extends TourEvent {
 @immutable
 class UserNext extends TourEvent {
   const UserNext();
+}
+
+/// Go one step back. On the first step — a no-op (there is nothing to go
+/// back to; the waiting timer is NOT re-armed, so spamming back does not
+/// extend the wait).
+@immutable
+class UserPrevious extends TourEvent {
+  const UserPrevious();
+}
+
+/// Jump to a specific step (0-based). Out-of-range: assert in debug, no-op
+/// in release. Same index: a no-op (no timer reset, no re-enter).
+@immutable
+class UserGoTo extends TourEvent {
+  const UserGoTo({required this.index});
+
+  final int index;
 }
 
 @immutable
@@ -316,7 +329,7 @@ class TourMachine {
     final next = switch (current) {
       TourIdle() => _reduceIdle(event, effects),
       TourWaiting(:final tour, :final stepIndex) =>
-        _reduceWaiting(tour, stepIndex, event, effects),
+        _reduceWaiting(tour, stepIndex, event, effects, targetPresent),
       TourActive(:final tour, :final stepIndex) =>
         _reduceActive(tour, stepIndex, event, effects, targetPresent),
     };
@@ -347,6 +360,7 @@ class TourMachine {
     int index,
     TourEvent event,
     List<TourEffect> effects,
+    bool Function(String targetId)? targetPresent,
   ) {
     final needed = _targetIdOf(tour, index);
     switch (event) {
@@ -354,6 +368,12 @@ class TourMachine {
         effects.add(const ClearTimeoutEffect());
         effects.add(EnterStepEffect(stepIndex: index));
         return TourActive(tour: tour, stepIndex: index);
+      case UserPrevious():
+        return _previous(tour, index, effects, targetPresent,
+            fromWaiting: true);
+      case UserGoTo(index: final toIndex):
+        return _goTo(tour, index, toIndex, effects, targetPresent,
+            fromWaiting: true);
       case WaitTimeout():
         final timeout = tour.steps[index].resolveTimeout(tour.stepTimeout);
         effects.add(const ClearTimeoutEffect());
@@ -404,6 +424,12 @@ class TourMachine {
           ),
         );
         return const TourIdle();
+      case UserPrevious():
+        return _previous(tour, index, effects, targetPresent,
+            fromWaiting: false);
+      case UserGoTo(index: final toIndex):
+        return _goTo(tour, index, toIndex, effects, targetPresent,
+            fromWaiting: false);
       case UserNext():
         final nextIndex = index + 1;
         if (nextIndex >= tour.steps.length) {
@@ -431,6 +457,59 @@ class TourMachine {
         // timer is armed on an active step) — state stays unchanged.
         return TourActive(tour: tour, stepIndex: index);
     }
+  }
+
+  /// Back from [fromIndex]: if the previous target is present, step back
+  /// immediately; otherwise wait for it (the same wait-for-target as going
+  /// forward). On the first step — a no-op. [fromWaiting] decides whether
+  /// leaving waiting must clear its timer.
+  TourState _previous(
+    TourSpec tour,
+    int fromIndex,
+    List<TourEffect> effects,
+    bool Function(String targetId)? targetPresent, {
+    required bool fromWaiting,
+  }) {
+    if (fromIndex == 0) {
+      return fromWaiting
+          ? TourWaiting(tour: tour, stepIndex: 0)
+          : TourActive(tour: tour, stepIndex: 0);
+    }
+    final prev = fromIndex - 1;
+    if (_present(targetPresent, _targetIdOf(tour, prev))) {
+      if (fromWaiting) effects.add(const ClearTimeoutEffect());
+      effects.add(EnterStepEffect(stepIndex: prev));
+      return TourActive(tour: tour, stepIndex: prev);
+    }
+    return _armWaiting(tour, prev, effects);
+  }
+
+  /// Jump to [toIndex] (0-based). Out-of-range: assert in debug, no-op in
+  /// release. Same index: a no-op (no timer reset, no re-enter).
+  /// [fromWaiting] decides whether leaving waiting must clear its timer.
+  TourState _goTo(
+    TourSpec tour,
+    int fromIndex,
+    int toIndex,
+    List<TourEffect> effects,
+    bool Function(String targetId)? targetPresent, {
+    required bool fromWaiting,
+  }) {
+    final stay = fromWaiting
+        ? TourWaiting(tour: tour, stepIndex: fromIndex)
+        : TourActive(tour: tour, stepIndex: fromIndex);
+    if (toIndex == fromIndex) return stay;
+    assert(
+      toIndex >= 0 && toIndex < tour.steps.length,
+      "hintful: goTo($toIndex) out of range 0..${tour.steps.length - 1}",
+    );
+    if (toIndex < 0 || toIndex >= tour.steps.length) return stay;
+    if (_present(targetPresent, _targetIdOf(tour, toIndex))) {
+      if (fromWaiting) effects.add(const ClearTimeoutEffect());
+      effects.add(EnterStepEffect(stepIndex: toIndex));
+      return TourActive(tour: tour, stepIndex: toIndex);
+    }
+    return _armWaiting(tour, toIndex, effects);
   }
 
   static bool _present(

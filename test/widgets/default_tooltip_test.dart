@@ -6,11 +6,15 @@ import 'package:hintful/widgets/default_tooltip.dart';
 
 class _FakeActions implements TourActions {
   int nextCalls = 0;
+  int previousCalls = 0;
   int skipCalls = 0;
   int finishCalls = 0;
 
   @override
   void next() => nextCalls++;
+
+  @override
+  void previous() => previousCalls++;
 
   @override
   void skip() => skipCalls++;
@@ -87,6 +91,26 @@ void main() {
 
     await tester.tap(find.text('Skip'));
     expect(actions.skipCalls, 1);
+  });
+
+  testWidgets(
+      'Back: hidden on the first step, shown from step 2; '
+      'Back → previous', (tester) async {
+    final actions = _FakeActions();
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      ctx: _ctx(actions, 0, 2),
+    )));
+    expect(find.text('Back'), findsNothing);
+
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      ctx: _ctx(actions, 1, 2),
+    )));
+    expect(find.text('Back'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    expect(actions.previousCalls, 1);
   });
 
   testWidgets('showSkip: false — no Skip button', (tester) async {

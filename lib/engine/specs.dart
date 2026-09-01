@@ -13,10 +13,14 @@ enum TooltipPosition { auto, top, bottom, left, right }
 /// must not depend on the implementation of control (controller) — otherwise
 /// there would be a circular dependency between pure data and mechanics.
 /// `ShowcaseController` implements this interface; a custom tooltip gets
-/// exactly the actions it needs (next/skip/finish).
+/// exactly the actions it needs (next/skip/previous/finish).
 abstract class TourActions {
   /// Move to the next step (finishes the tour on the last one).
   void next();
+
+  /// Go one step back. A no-op on the first step (and for custom tooltips
+  /// that do not want a back action — the default is safe).
+  void previous() {}
 
   /// Abort the tour (the user chose to skip).
   void skip();
@@ -109,6 +113,7 @@ class TourSpec {
     required this.id,
     required this.steps,
     this.stepTimeout = const Duration(seconds: 3),
+    this.disableBackButton = false,
   })  : assert(id != '', 'TourSpec.id must not be empty'),
         assert(steps.length > 0, 'TourSpec.steps must not be empty');
 
@@ -117,6 +122,13 @@ class TourSpec {
 
   /// Default wait-for-target timeout for all steps of the tour.
   final Duration stepTimeout;
+
+  /// Block the system back button (Android back / route pop) while the tour
+  /// is active, instead of letting it dismiss the app/screen mid-tour.
+  /// Implemented by intercepting the route pop in the overlay host, so it
+  /// works for any Flutter version (no PopScope dependency — which would
+  /// also be ineffective inside an OverlayEntry anyway).
+  final bool disableBackButton;
 
   /// Duplicated step targetIds within one tour — a tour-authoring error
   /// (one tour at a time, a duplicated target is ambiguous). The check is
