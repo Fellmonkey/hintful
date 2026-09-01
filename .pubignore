@@ -1,0 +1,5 @@
+# hintful_bloc is a separate package (own pubspec, own publication).
+# It lives in this repo as a monorepo sibling, so keep it out of the
+# hintful archive. Unlike .gitignore, .pubignore applies even to
+# files tracked by git.
+hintful_bloc/

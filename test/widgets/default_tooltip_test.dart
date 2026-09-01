@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/specs.dart';
-import 'package:hintful/engine/theme/showcase_theme.dart';
+import 'package:hintful/engine/theme/hint_theme.dart';
 import 'package:hintful/widgets/default_tooltip.dart';
 
-class _FakeActions implements TourActions {
+class _FakeActions implements HintActions {
   int nextCalls = 0;
   int previousCalls = 0;
   int skipCalls = 0;
@@ -23,12 +23,12 @@ class _FakeActions implements TourActions {
   void finish() => finishCalls++;
 }
 
-StepTooltipContext _ctx(
+HintTooltipContext _ctx(
   _FakeActions actions,
   int stepIndex,
   int totalSteps,
 ) =>
-    StepTooltipContext(
+    HintTooltipContext(
       actions: actions,
       stepIndex: stepIndex,
       totalSteps: totalSteps,
@@ -45,7 +45,7 @@ Widget _wrap(Widget child, {List<ThemeExtension<dynamic>>? extensions}) {
 }
 
 void main() {
-  final step = StepSpec(
+  final step = HintStep(
     targetId: 'stats',
     title: 'Title',
     description: 'Description',
@@ -114,7 +114,7 @@ void main() {
   });
 
   testWidgets('showSkip: false — no Skip button', (tester) async {
-    final noSkip = StepSpec(targetId: 'stats', title: 't', showSkip: false);
+    final noSkip = HintStep(targetId: 'stats', title: 't', showSkip: false);
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: noSkip,
       ctx: _ctx(_FakeActions(), 0, 1),
@@ -136,8 +136,8 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('custom theme: colors/radius from ShowcaseTheme', (tester) async {
-    const custom = ShowcaseTheme(
+  testWidgets('custom theme: colors/radius from HintTheme', (tester) async {
+    const custom = HintTheme(
       tooltipBackground: Color(0xFF103355),
       tooltipForeground: Color(0xFFEEEEEE),
       scrimColor: Color(0x80000000),

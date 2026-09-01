@@ -13,8 +13,8 @@ import '../engine/registry.dart';
 ///
 /// Identification is by string id, not GlobalKey. The State creates its own
 /// [LayerLink] (id is the external key, link is internal mechanics).
-class ShowcaseTarget extends StatefulWidget {
-  const ShowcaseTarget({
+class HintTarget extends StatefulWidget {
+  const HintTarget({
     super.key,
     required this.id,
     required this.child,
@@ -27,33 +27,33 @@ class ShowcaseTarget extends StatefulWidget {
 
   final Widget child;
 
-  /// Registry; defaults to [TargetRegistry.defaultInstance] (zero-config).
-  final TargetRegistry? registry;
+  /// Registry; defaults to [HintTargetRegistry.defaultInstance] (zero-config).
+  final HintTargetRegistry? registry;
 
   /// Screen-reader label; null — no Semantics wrapper (a cheap option that
   /// does not touch the tree in the common case).
   final String? semanticsLabel;
 
   @override
-  State<ShowcaseTarget> createState() => _ShowcaseTargetState();
+  State<HintTarget> createState() => _HintTargetState();
 }
 
-class _ShowcaseTargetState extends State<ShowcaseTarget> {
+class _HintTargetState extends State<HintTarget> {
   late LayerLink _link;
-  late TargetRegistry _registry;
-  late TargetRegistration _registration;
+  late HintTargetRegistry _registry;
+  late HintTargetRegistration _registration;
 
   @override
   void initState() {
     super.initState();
     _link = LayerLink();
-    _registry = widget.registry ?? TargetRegistry.defaultInstance;
+    _registry = widget.registry ?? HintTargetRegistry.defaultInstance;
     _registration = _buildRegistration();
     _registry.register(_registration);
   }
 
   @override
-  void didUpdateWidget(covariant ShowcaseTarget oldWidget) {
+  void didUpdateWidget(covariant HintTarget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id || oldWidget.registry != widget.registry) {
       // "Reused key": an id change means a new target. Without re-registering,
@@ -62,14 +62,14 @@ class _ShowcaseTargetState extends State<ShowcaseTarget> {
       // target entity; the old one is removed by identity (not by id).
       _registry.unregister(_registration);
       _link = LayerLink();
-      _registry = widget.registry ?? TargetRegistry.defaultInstance;
+      _registry = widget.registry ?? HintTargetRegistry.defaultInstance;
       _registration = _buildRegistration();
       _registry.register(_registration);
     }
   }
 
-  TargetRegistration _buildRegistration() =>
-      TargetRegistration(id: widget.id, link: _link, context: context);
+  HintTargetRegistration _buildRegistration() =>
+      HintTargetRegistration(id: widget.id, link: _link, context: context);
 
   @override
   void dispose() {

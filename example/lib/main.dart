@@ -21,7 +21,7 @@ void main() => runApp(const ExampleApp());
 ///    timeout with diagnostics — the same mechanism as for lazy tabs).
 ///
 /// Plus: light/dark (hint theming inherits the ColorScheme through
-/// ShowcaseTheme) and the `showHint` quick path for a single tip.
+/// HintTheme) and the `showHint` quick path for a single tip.
 class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
 
@@ -34,7 +34,7 @@ class _ExampleAppState extends State<ExampleApp> {
   // overlay of the first mounted target by itself. The host is built lazily —
   // only on the first non-idle state, absent while idle. defaultOverlayHost()
   // is the single public entry into render mechanics.
-  final ShowcaseController _controller = ShowcaseController(
+  final HintController _controller = HintController(
     overlayHostBuilder: defaultOverlayHost(),
   );
 
@@ -84,27 +84,27 @@ class _ExampleAppState extends State<ExampleApp> {
     if (mounted) setState(() {});
   }
 
-  TourSpec get _introTour => TourSpec(
+  HintTour get _introTour => HintTour(
         id: 'intro',
         steps: [
-          StepSpec(
+          HintStep(
             targetId: 'fab',
             title: 'Quick log',
             description: 'Add sets with one tap. '
                 'Next we show the day filter.',
           ),
-          StepSpec(
+          HintStep(
             targetId: 'filter-daily',
             title: 'Daily filter',
             description: 'The day summary — the next tour step.',
           ),
-          StepSpec(
+          HintStep(
             targetId: 'stats',
             title: 'Summary card',
             description: 'It appeared automatically — that is '
                 'wait-for-target for deferred sections.',
           ),
-          StepSpec(
+          HintStep(
             targetId: 'entry-0',
             title: 'Workout list',
             description: 'Every entry is a target too. Done!',
@@ -117,12 +117,12 @@ class _ExampleAppState extends State<ExampleApp> {
     _controller.start(_introTour);
   }
 
-  /// Quick path for a single tip: a one-step tour without the TourSpec
+  /// Quick path for a single tip: a one-step tour without the HintTour
   /// ceremony.
   void _showHint() {
     if (!_controller.currentState.isIdle) return;
     _controller.showHint(
-      const StepSpec(
+      const HintStep(
         targetId: 'fab',
         title: 'This is the quick-log button',
         description: 'One tip — no tour, no configuration.',
@@ -136,8 +136,8 @@ class _ExampleAppState extends State<ExampleApp> {
   /// Hint theming as part of the design system: the product describes it via
   /// a ThemeExtension, the engine picks it up automatically. The minimal()
   /// default is a ColorScheme inverseSurface pair; here — a light tweak.
-  ShowcaseTheme _hintTheme(ColorScheme scheme) =>
-      ShowcaseTheme.minimal(scheme).copyWith(
+  HintTheme _hintTheme(ColorScheme scheme) =>
+      HintTheme.minimal(scheme).copyWith(
         tooltipRadius: BorderRadius.circular(16),
         tooltipPadding: const EdgeInsets.all(20),
       );
@@ -191,7 +191,7 @@ class _HomeScreen extends StatelessWidget {
     required this.onFilter,
   });
 
-  final ShowcaseController controller;
+  final HintController controller;
   final ThemeMode themeMode;
   final int selectedFilter;
   final bool showStats;
@@ -229,7 +229,7 @@ class _HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: ShowcaseTarget(
+      floatingActionButton: HintTarget(
         id: 'fab',
         child: FloatingActionButton.extended(
           onPressed: () {
@@ -248,7 +248,7 @@ class _HomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              ShowcaseTarget(
+              HintTarget(
                 id: 'filter-all',
                 child: ChoiceChip(
                   label: const Text('All sets'),
@@ -257,7 +257,7 @@ class _HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              ShowcaseTarget(
+              HintTarget(
                 id: 'filter-daily',
                 child: ChoiceChip(
                   label: const Text('By day'),
@@ -271,7 +271,7 @@ class _HomeScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text('Summary', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            ShowcaseTarget(
+            HintTarget(
               id: 'stats',
               child: const _StatsCard(),
             ),
@@ -280,7 +280,7 @@ class _HomeScreen extends StatelessWidget {
           Text('Workouts', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (var i = 0; i < entries.length; i++)
-            ShowcaseTarget(
+            HintTarget(
               // Every entry is a target: the registry survives ListView
               // rebuilds (last-wins + identity guard).
               id: 'entry-$i',

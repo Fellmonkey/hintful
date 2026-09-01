@@ -11,14 +11,14 @@ import 'specs.dart';
 ///
 /// The controller does not know what the overlay looks like: it only asks to
 /// show the machine's current state and hide it on completion. The
-/// implementation is `TourOverlayEngine`. In headless runs the host is absent
+/// implementation is `HintOverlayEngine`. In headless runs the host is absent
 /// (`overlayHost: null`) and tours run without rendering: the machine, timers
 /// and diagnostics always work — this is what makes the engine a testable
 /// artifact.
-abstract class TourOverlayHost {
+abstract class HintOverlayHost {
   /// Show/update the UI for [state] (waiting — scrim without a hole, active —
-  /// hole + tooltip); on [TourIdle] — remove the overlay.
-  void update(TourState state);
+  /// hole + tooltip); on [HintIdle] — remove the overlay.
+  void update(HintState state);
 
   /// Release host resources (entry, timers, listeners).
   void dispose();
@@ -26,8 +26,8 @@ abstract class TourOverlayHost {
 
 /// A sealed-off step: it references a targetId absent from the registry but
 /// with close candidates (distance ≤ 2) — almost certainly a typo.
-typedef UnknownStepTarget = ({
-  StepSpec step,
+typedef UnknownHintTarget = ({
+  HintStep step,
   int index,
   List<String> candidates
 });
@@ -46,10 +46,10 @@ typedef UnknownStepTarget = ({
 ///   look like a typo of the previous one.
 /// A pure function: tested directly, applied by the controller.
 @visibleForTesting
-({List<StepSpec> deferred, List<UnknownStepTarget> typos}) classifyStepTargets(
-    TourSpec tour, Set<String> knownIds) {
-  final deferred = <StepSpec>[];
-  final typos = <UnknownStepTarget>[];
+({List<HintStep> deferred, List<UnknownHintTarget> typos}) classifyStepTargets(
+    HintTour tour, Set<String> knownIds) {
+  final deferred = <HintStep>[];
+  final typos = <UnknownHintTarget>[];
   for (var i = 0; i < tour.steps.length; i++) {
     final step = tour.steps[i];
     if (knownIds.contains(step.targetId)) continue;
@@ -79,7 +79,7 @@ bool _differsOnlyInDigits(String a, String b) {
 /// contexts/singletons are stored — the ValueNotifier state survives
 /// hot-reload and an open overlay is not reset (hot-reload friendly by
 /// construction).
-class ShowcaseController implements TourActions {
+class HintController implements HintActions {
   /// [registry] defaults to the default singleton (zero-config).
   /// [diagnostics] defaults to `DebugPrintDiagnostics`, but only in debug
   /// builds: in release the diagnostics cost is zero, reasons go to the
@@ -87,11 +87,11 @@ class ShowcaseController implements TourActions {
   /// [overlayHostBuilder] is a lazy factory for the render mechanics and
   /// receives the controller itself (the engine needs the input back-channel:
   /// next/skip/finish); null = headless.
-  ShowcaseController({
-    TargetRegistry? registry,
+  HintController({
+    HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    TourOverlayHost Function(ShowcaseController)? overlayHostBuilder,
-  })  : _registry = registry ?? TargetRegistry.defaultInstance,
+    HintOverlayHost Function(HintController)? overlayHostBuilder,
+  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics =
             diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
         _overlayHostBuilder = overlayHostBuilder {
@@ -101,14 +101,14 @@ class ShowcaseController implements TourActions {
     _lastKnownIds = _registry.ids;
   }
 
-  final TargetRegistry _registry;
+  final HintTargetRegistry _registry;
   final HintDiagnosticsHandler? _diagnostics;
-  final TourOverlayHost Function(ShowcaseController)? _overlayHostBuilder;
-  TourOverlayHost? _builtHost;
+  final HintOverlayHost Function(HintController)? _overlayHostBuilder;
+  HintOverlayHost? _builtHost;
 
-  final TourMachine _machine = TourMachine();
-  final ValueNotifier<TourState> _stateNotifier =
-      ValueNotifier<TourState>(const TourIdle());
+  final HintMachine _machine = HintMachine();
+  final ValueNotifier<HintState> _stateNotifier =
+      ValueNotifier<HintState>(const HintIdle());
 
   Timer? _timer;
   Set<String> _lastKnownIds = const {};
@@ -116,9 +116,9 @@ class ShowcaseController implements TourActions {
   bool _disposed = false;
 
   /// Observable tour state.
-  ValueListenable<TourState> get state => _stateNotifier;
+  ValueListenable<HintState> get state => _stateNotifier;
 
-  TourState get currentState => _stateNotifier.value;
+  HintState get currentState => _stateNotifier.value;
 
   /// Start a tour: typo validation → machine → seeding of already-mounted
   /// targets. The wait-for-target timer is armed by a machine effect.
@@ -128,7 +128,7 @@ class ShowcaseController implements TourActions {
   /// the middle of someone's build; (2) later `start` will await fetching a
   /// server-driven tour — the signature is already ready and won't need a
   /// breaking change.
-  Future<void> start(TourSpec tour) async {
+  Future<void> start(HintTour tour) async {
     assert(
       _machine.state.isIdle,
       "hintful: start('${tour.id}') while ${_machine.state} is active"
@@ -151,7 +151,7 @@ class ShowcaseController implements TourActions {
       if (tour.steps.isEmpty) return; // nothing to show
     }
 
-    _dispatch(TourStart(tour: tour));
+    _dispatch(HintStart(tour: tour));
 
     // Already-mounted targets will not fire onChange (the registry did not
     // change) — seed them synchronously, otherwise waiting(0) would spin
@@ -162,14 +162,14 @@ class ShowcaseController implements TourActions {
     _lastKnownIds = _registry.ids;
   }
 
-  /// Fast path for a single hint: a one-step tour without TourSpec ceremony.
+  /// Fast path for a single hint: a one-step tour without HintTour ceremony.
   ///
-  /// Equivalent to `start(TourSpec(id: 'hint:<targetId>', steps: [step]))` —
+  /// Equivalent to `start(HintTour(id: 'hint:<targetId>', steps: [step]))` —
   /// the same wait-for-target, timeout, typo validation and diagnostics as a
   /// full tour. One tour at a time: calling it during an active tour is an
   /// assert (same as [start]).
-  Future<void> showHint(StepSpec step) => start(
-        TourSpec(id: 'hint:${step.targetId}', steps: [step]),
+  Future<void> showHint(HintStep step) => start(
+        HintTour(id: 'hint:${step.targetId}', steps: [step]),
       );
 
   @override
@@ -236,7 +236,7 @@ class ShowcaseController implements TourActions {
     _lastKnownIds = current;
   }
 
-  void _dispatch(TourEvent event) {
+  void _dispatch(HintEvent event) {
     final before = _machine.state;
     final transition = _machine.dispatch(
       event,
@@ -253,13 +253,13 @@ class ShowcaseController implements TourActions {
 
   /// Lazily builds the host at the first non-idle state: the builder is not
   /// called for headless runs and does not create an overlay without need.
-  TourOverlayHost? _hostFor(TourState state) {
+  HintOverlayHost? _hostFor(HintState state) {
     if (_builtHost != null) return _builtHost;
     if (state.isIdle || _overlayHostBuilder == null) return null;
     return _builtHost = _overlayHostBuilder!(this);
   }
 
-  void _applyEffects(TourTransition transition, TourState before) {
+  void _applyEffects(HintTransition transition, HintState before) {
     for (final effect in transition.effects) {
       switch (effect) {
         case ArmTimeoutEffect(:final timeout):
@@ -285,18 +285,18 @@ class ShowcaseController implements TourActions {
   /// An abort carries the "before" context: after the transition the machine
   /// is already idle, and tourId/stepIndex/targetId would have to be
   /// reconstructed from nothing.
-  void _reportAbort(TourState before, HintSkipReason reason, String detail) {
+  void _reportAbort(HintState before, HintSkipReason reason, String detail) {
     final tourId = before.tour?.id ?? '?';
     final stepIndex = before.stepIndex ?? 0;
     final targetId = switch (before) {
-      TourWaiting(:final targetId) => targetId,
-      TourActive(:final targetId) => targetId,
+      HintWaiting(:final targetId) => targetId,
+      HintActive(:final targetId) => targetId,
       _ => '?',
     };
     _diagnostics?.onHintSkipped(tourId, stepIndex, targetId, reason, detail);
   }
 
-  String _describeTypos(TourSpec tour, List<UnknownStepTarget> typos) {
+  String _describeTypos(HintTour tour, List<UnknownHintTarget> typos) {
     final parts = typos.map((t) {
       final candidates = t.candidates.join(', ');
       return "step ${t.index + 1} references unknown targetId '${t.step.targetId}'"
@@ -306,7 +306,7 @@ class ShowcaseController implements TourActions {
   }
 
   /// Release-path typo handling: typo steps are skipped, the tour continues.
-  TourSpec _withoutTypoSteps(TourSpec tour, List<UnknownStepTarget> typos) {
+  HintTour _withoutTypoSteps(HintTour tour, List<UnknownHintTarget> typos) {
     for (final t in typos) {
       _diagnostics?.onHintSkipped(
         tour.id,
@@ -318,6 +318,11 @@ class ShowcaseController implements TourActions {
     }
     final removed = typos.map((t) => t.step).toSet();
     final kept = tour.steps.where((step) => !removed.contains(step)).toList();
-    return TourSpec(id: tour.id, steps: kept, stepTimeout: tour.stepTimeout);
+    return HintTour(
+      id: tour.id,
+      steps: kept,
+      stepTimeout: tour.stepTimeout,
+      disableBackButton: tour.disableBackButton,
+    );
   }
 }

@@ -13,33 +13,33 @@ import 'specs.dart';
 /// (scrim without a hole, "preparing"). Phases must not be merged: otherwise
 /// "show" and "wait" are indistinguishable in tests and diagnostics.
 @immutable
-sealed class TourState {
-  const TourState();
+sealed class HintState {
+  const HintState();
 
-  TourSpec? get tour => switch (this) {
-        TourIdle() => null,
-        TourWaiting(:final tour) => tour,
-        TourActive(:final tour) => tour,
+  HintTour? get tour => switch (this) {
+        HintIdle() => null,
+        HintWaiting(:final tour) => tour,
+        HintActive(:final tour) => tour,
       };
 
   int? get stepIndex => switch (this) {
-        TourIdle() => null,
-        TourWaiting(:final stepIndex) => stepIndex,
-        TourActive(:final stepIndex) => stepIndex,
+        HintIdle() => null,
+        HintWaiting(:final stepIndex) => stepIndex,
+        HintActive(:final stepIndex) => stepIndex,
       };
 
-  bool get isIdle => this is TourIdle;
-  bool get isActive => this is TourActive;
-  bool get isWaiting => this is TourWaiting;
+  bool get isIdle => this is HintIdle;
+  bool get isActive => this is HintActive;
+  bool get isWaiting => this is HintWaiting;
 }
 
 /// No tour: zero engine widgets in the tree.
 @immutable
-class TourIdle extends TourState {
-  const TourIdle();
+class HintIdle extends HintState {
+  const HintIdle();
 
   @override
-  bool operator ==(Object other) => other is TourIdle;
+  bool operator ==(Object other) => other is HintIdle;
 
   @override
   int get hashCode => runtimeType.hashCode;
@@ -48,11 +48,11 @@ class TourIdle extends TourState {
 /// Waiting for the current step's target to appear (wait-for-target; the
 /// timeout is driven by the controller via [ArmTimeoutEffect]).
 @immutable
-class TourWaiting extends TourState {
-  const TourWaiting({required this.tour, required this.stepIndex});
+class HintWaiting extends HintState {
+  const HintWaiting({required this.tour, required this.stepIndex});
 
   @override
-  final TourSpec tour;
+  final HintTour tour;
   @override
   final int stepIndex;
 
@@ -61,7 +61,7 @@ class TourWaiting extends TourState {
 
   @override
   bool operator ==(Object other) =>
-      other is TourWaiting &&
+      other is HintWaiting &&
       identical(tour, other.tour) &&
       stepIndex == other.stepIndex;
 
@@ -70,16 +70,16 @@ class TourWaiting extends TourState {
       Object.hash(runtimeType, identityHashCode(tour), stepIndex);
 
   @override
-  String toString() => 'TourWaiting(${tour.id}, step $stepIndex)';
+  String toString() => 'HintWaiting(${tour.id}, step $stepIndex)';
 }
 
 /// Step shown: target mounted, scrim with a hole and tooltip are active.
 @immutable
-class TourActive extends TourState {
-  const TourActive({required this.tour, required this.stepIndex});
+class HintActive extends HintState {
+  const HintActive({required this.tour, required this.stepIndex});
 
   @override
-  final TourSpec tour;
+  final HintTour tour;
   @override
   final int stepIndex;
 
@@ -88,7 +88,7 @@ class TourActive extends TourState {
 
   @override
   bool operator ==(Object other) =>
-      other is TourActive &&
+      other is HintActive &&
       identical(tour, other.tour) &&
       stepIndex == other.stepIndex;
 
@@ -97,27 +97,27 @@ class TourActive extends TourState {
       Object.hash(runtimeType, identityHashCode(tour), stepIndex);
 
   @override
-  String toString() => 'TourActive(${tour.id}, step $stepIndex)';
+  String toString() => 'HintActive(${tour.id}, step $stepIndex)';
 }
 
 // ──────────────────────────────── Events ────────────────────────────────
 
 /// External machine inputs: user commands and registry facts.
 @immutable
-sealed class TourEvent {
-  const TourEvent();
+sealed class HintEvent {
+  const HintEvent();
 }
 
 @immutable
-class TourStart extends TourEvent {
-  const TourStart({required this.tour});
+class HintStart extends HintEvent {
+  const HintStart({required this.tour});
 
-  final TourSpec tour;
+  final HintTour tour;
 }
 
 /// A target registered (or re-registered) in the registry.
 @immutable
-class TargetAppeared extends TourEvent {
+class TargetAppeared extends HintEvent {
   const TargetAppeared({required this.targetId});
 
   final String targetId;
@@ -125,7 +125,7 @@ class TargetAppeared extends TourEvent {
 
 /// A target unregistered (disposed).
 @immutable
-class TargetVanished extends TourEvent {
+class TargetVanished extends HintEvent {
   const TargetVanished({required this.targetId});
 
   final String targetId;
@@ -134,12 +134,12 @@ class TargetVanished extends TourEvent {
 /// The wait-for-target timeout elapsed (the controller generates this event
 /// from the timer armed via [ArmTimeoutEffect]).
 @immutable
-class WaitTimeout extends TourEvent {
+class WaitTimeout extends HintEvent {
   const WaitTimeout();
 }
 
 @immutable
-class UserNext extends TourEvent {
+class UserNext extends HintEvent {
   const UserNext();
 }
 
@@ -147,26 +147,26 @@ class UserNext extends TourEvent {
 /// back to; the waiting timer is NOT re-armed, so spamming back does not
 /// extend the wait).
 @immutable
-class UserPrevious extends TourEvent {
+class UserPrevious extends HintEvent {
   const UserPrevious();
 }
 
 /// Jump to a specific step (0-based). Out-of-range: assert in debug, no-op
 /// in release. Same index: a no-op (no timer reset, no re-enter).
 @immutable
-class UserGoTo extends TourEvent {
+class UserGoTo extends HintEvent {
   const UserGoTo({required this.index});
 
   final int index;
 }
 
 @immutable
-class UserSkip extends TourEvent {
+class UserSkip extends HintEvent {
   const UserSkip();
 }
 
 @immutable
-class UserFinish extends TourEvent {
+class UserFinish extends HintEvent {
   const UserFinish();
 }
 
@@ -176,8 +176,8 @@ class UserFinish extends TourEvent {
 /// applies effects (timers, overlay, diagnostics). The machine's purity is
 /// what makes it headlessly testable and independent of render mechanics.
 @immutable
-sealed class TourEffect {
-  const TourEffect();
+sealed class HintEffect {
+  const HintEffect();
 }
 
 /// Show the step: the controller updates the overlay content (scrim + tooltip).
@@ -185,7 +185,7 @@ sealed class TourEffect {
 /// Emitted exactly when a step enters the active phase — the first activation
 /// after waiting and every step forward.
 @immutable
-class EnterStepEffect extends TourEffect {
+class EnterStepEffect extends HintEffect {
   const EnterStepEffect({required this.stepIndex});
 
   final int stepIndex;
@@ -203,7 +203,7 @@ class EnterStepEffect extends TourEffect {
 
 /// Arm the wait-for-target timer; emitted exactly when entering waiting.
 @immutable
-class ArmTimeoutEffect extends TourEffect {
+class ArmTimeoutEffect extends HintEffect {
   const ArmTimeoutEffect({required this.timeout});
 
   final Duration timeout;
@@ -221,7 +221,7 @@ class ArmTimeoutEffect extends TourEffect {
 
 /// Clear the timer; emitted when leaving waiting (into active or idle).
 @immutable
-class ClearTimeoutEffect extends TourEffect {
+class ClearTimeoutEffect extends HintEffect {
   const ClearTimeoutEffect();
 
   @override
@@ -239,7 +239,7 @@ class ClearTimeoutEffect extends TourEffect {
 /// targetId) — the controller enriches it with entity data before
 /// diagnostics.
 @immutable
-class AbortEffect extends TourEffect {
+class AbortEffect extends HintEffect {
   const AbortEffect({required this.reason, required this.detail});
 
   final HintSkipReason reason;
@@ -258,7 +258,7 @@ class AbortEffect extends TourEffect {
 
 /// Normal tour completion (last step passed or [UserFinish]).
 @immutable
-class FinishedEffect extends TourEffect {
+class FinishedEffect extends HintEffect {
   const FinishedEffect({required this.tourId});
 
   final String tourId;
@@ -276,18 +276,18 @@ class FinishedEffect extends TourEffect {
 
 // ───────────────────────── Transition and machine ────────────────────────
 
-/// The result of a single [TourMachine.dispatch]: new state + effects.
+/// The result of a single [HintMachine.dispatch]: new state + effects.
 @immutable
-class TourTransition {
-  const TourTransition({required this.state, required this.effects});
+class HintTransition {
+  const HintTransition({required this.state, required this.effects});
 
-  final TourState state;
+  final HintState state;
 
   /// Immutable list of effects the controller must apply.
-  final List<TourEffect> effects;
+  final List<HintEffect> effects;
 
   @override
-  String toString() => 'TourTransition($state, $effects)';
+  String toString() => 'HintTransition($state, $effects)';
 }
 
 /// Pure tour state machine — all transition policy in one place, zero widget
@@ -297,69 +297,69 @@ class TourTransition {
 /// [dispatch], by which the machine decides: advance straight to the active
 /// step, or go into waiting for the target. In tests this is a presence map;
 /// in the controller it is `registry.lookup(id) != null`.
-class TourMachine {
-  TourMachine({TourState? initialState})
-      : _state = initialState ?? const TourIdle();
+class HintMachine {
+  HintMachine({HintState? initialState})
+      : _state = initialState ?? const HintIdle();
 
-  TourState _state;
-  TourState get state => _state;
+  HintState _state;
+  HintState get state => _state;
 
-  static String _targetIdOf(TourSpec tour, int index) =>
+  static String _targetIdOf(HintTour tour, int index) =>
       tour.steps[index].targetId;
 
   /// The single entry point. Returns the transition and applies it to the
   /// internal state.
-  TourTransition dispatch(
-    TourEvent event, {
+  HintTransition dispatch(
+    HintEvent event, {
     bool Function(String targetId)? targetPresent,
   }) {
     final current = _state;
 
     // One tour at a time. In debug this is a loud contract; in release a no-op.
-    if (event is TourStart && !current.isIdle) {
+    if (event is HintStart && !current.isIdle) {
       assert(
         false,
         "hintful: tour '${event.tour.id}' started while $current is active"
         ' — one tour at a time',
       );
-      return TourTransition(state: current, effects: const <TourEffect>[]);
+      return HintTransition(state: current, effects: const <HintEffect>[]);
     }
 
-    final effects = <TourEffect>[];
+    final effects = <HintEffect>[];
     final next = switch (current) {
-      TourIdle() => _reduceIdle(event, effects),
-      TourWaiting(:final tour, :final stepIndex) =>
+      HintIdle() => _reduceIdle(event, effects),
+      HintWaiting(:final tour, :final stepIndex) =>
         _reduceWaiting(tour, stepIndex, event, effects, targetPresent),
-      TourActive(:final tour, :final stepIndex) =>
+      HintActive(:final tour, :final stepIndex) =>
         _reduceActive(tour, stepIndex, event, effects, targetPresent),
     };
     _state = next;
-    return TourTransition(
+    return HintTransition(
       state: next,
-      effects: List<TourEffect>.unmodifiable(effects),
+      effects: List<HintEffect>.unmodifiable(effects),
     );
   }
 
-  TourState _reduceIdle(TourEvent event, List<TourEffect> effects) =>
+  HintState _reduceIdle(HintEvent event, List<HintEffect> effects) =>
       switch (event) {
-        TourStart(:final tour) => _armWaiting(tour, 0, effects),
-        _ => const TourIdle(),
+        HintStart(:final tour) => _armWaiting(tour, 0, effects),
+        _ => const HintIdle(),
       };
 
-  TourState _armWaiting(TourSpec tour, int index, List<TourEffect> effects) {
+  HintState _armWaiting(HintTour tour, int index, List<HintEffect> effects) {
     effects.add(
       ArmTimeoutEffect(
         timeout: tour.steps[index].resolveTimeout(tour.stepTimeout),
       ),
     );
-    return TourWaiting(tour: tour, stepIndex: index);
+    return HintWaiting(tour: tour, stepIndex: index);
   }
 
-  TourState _reduceWaiting(
-    TourSpec tour,
+  HintState _reduceWaiting(
+    HintTour tour,
     int index,
-    TourEvent event,
-    List<TourEffect> effects,
+    HintEvent event,
+    List<HintEffect> effects,
     bool Function(String targetId)? targetPresent,
   ) {
     final needed = _targetIdOf(tour, index);
@@ -367,7 +367,7 @@ class TourMachine {
       case TargetAppeared(:final targetId) when targetId == needed:
         effects.add(const ClearTimeoutEffect());
         effects.add(EnterStepEffect(stepIndex: index));
-        return TourActive(tour: tour, stepIndex: index);
+        return HintActive(tour: tour, stepIndex: index);
       case UserPrevious():
         return _previous(tour, index, effects, targetPresent,
             fromWaiting: true);
@@ -383,7 +383,7 @@ class TourMachine {
             detail: "target '$needed' did not appear within $timeout",
           ),
         );
-        return const TourIdle();
+        return const HintIdle();
       case UserSkip():
         effects.add(const ClearTimeoutEffect());
         effects.add(
@@ -392,23 +392,23 @@ class TourMachine {
             detail: 'user skipped',
           ),
         );
-        return const TourIdle();
+        return const HintIdle();
       case UserFinish():
         effects.add(const ClearTimeoutEffect());
         effects.add(FinishedEffect(tourId: tour.id));
-        return const TourIdle();
+        return const HintIdle();
       default:
-        // Foreign targets, UserNext, TourStart — all ignored while waiting
+        // Foreign targets, UserNext, HintStart — all ignored while waiting
         // (taps do not skip target-waiting). Idempotent.
-        return TourWaiting(tour: tour, stepIndex: index);
+        return HintWaiting(tour: tour, stepIndex: index);
     }
   }
 
-  TourState _reduceActive(
-    TourSpec tour,
+  HintState _reduceActive(
+    HintTour tour,
     int index,
-    TourEvent event,
-    List<TourEffect> effects,
+    HintEvent event,
+    List<HintEffect> effects,
     bool Function(String targetId)? targetPresent,
   ) {
     final currentTarget = _targetIdOf(tour, index);
@@ -423,7 +423,7 @@ class TourMachine {
                 ' ${index + 1}',
           ),
         );
-        return const TourIdle();
+        return const HintIdle();
       case UserPrevious():
         return _previous(tour, index, effects, targetPresent,
             fromWaiting: false);
@@ -434,11 +434,11 @@ class TourMachine {
         final nextIndex = index + 1;
         if (nextIndex >= tour.steps.length) {
           effects.add(FinishedEffect(tourId: tour.id));
-          return const TourIdle();
+          return const HintIdle();
         }
         if (_present(targetPresent, _targetIdOf(tour, nextIndex))) {
           effects.add(EnterStepEffect(stepIndex: nextIndex));
-          return TourActive(tour: tour, stepIndex: nextIndex);
+          return HintActive(tour: tour, stepIndex: nextIndex);
         }
         return _armWaiting(tour, nextIndex, effects);
       case UserSkip():
@@ -448,14 +448,14 @@ class TourMachine {
             detail: 'user skipped',
           ),
         );
-        return const TourIdle();
+        return const HintIdle();
       case UserFinish():
         effects.add(FinishedEffect(tourId: tour.id));
-        return const TourIdle();
+        return const HintIdle();
       default:
         // TargetAppeared (any), TargetVanished (foreign), WaitTimeout (no
         // timer is armed on an active step) — state stays unchanged.
-        return TourActive(tour: tour, stepIndex: index);
+        return HintActive(tour: tour, stepIndex: index);
     }
   }
 
@@ -463,23 +463,23 @@ class TourMachine {
   /// immediately; otherwise wait for it (the same wait-for-target as going
   /// forward). On the first step — a no-op. [fromWaiting] decides whether
   /// leaving waiting must clear its timer.
-  TourState _previous(
-    TourSpec tour,
+  HintState _previous(
+    HintTour tour,
     int fromIndex,
-    List<TourEffect> effects,
+    List<HintEffect> effects,
     bool Function(String targetId)? targetPresent, {
     required bool fromWaiting,
   }) {
     if (fromIndex == 0) {
       return fromWaiting
-          ? TourWaiting(tour: tour, stepIndex: 0)
-          : TourActive(tour: tour, stepIndex: 0);
+          ? HintWaiting(tour: tour, stepIndex: 0)
+          : HintActive(tour: tour, stepIndex: 0);
     }
     final prev = fromIndex - 1;
     if (_present(targetPresent, _targetIdOf(tour, prev))) {
       if (fromWaiting) effects.add(const ClearTimeoutEffect());
       effects.add(EnterStepEffect(stepIndex: prev));
-      return TourActive(tour: tour, stepIndex: prev);
+      return HintActive(tour: tour, stepIndex: prev);
     }
     return _armWaiting(tour, prev, effects);
   }
@@ -487,17 +487,17 @@ class TourMachine {
   /// Jump to [toIndex] (0-based). Out-of-range: assert in debug, no-op in
   /// release. Same index: a no-op (no timer reset, no re-enter).
   /// [fromWaiting] decides whether leaving waiting must clear its timer.
-  TourState _goTo(
-    TourSpec tour,
+  HintState _goTo(
+    HintTour tour,
     int fromIndex,
     int toIndex,
-    List<TourEffect> effects,
+    List<HintEffect> effects,
     bool Function(String targetId)? targetPresent, {
     required bool fromWaiting,
   }) {
     final stay = fromWaiting
-        ? TourWaiting(tour: tour, stepIndex: fromIndex)
-        : TourActive(tour: tour, stepIndex: fromIndex);
+        ? HintWaiting(tour: tour, stepIndex: fromIndex)
+        : HintActive(tour: tour, stepIndex: fromIndex);
     if (toIndex == fromIndex) return stay;
     assert(
       toIndex >= 0 && toIndex < tour.steps.length,
@@ -507,7 +507,7 @@ class TourMachine {
     if (_present(targetPresent, _targetIdOf(tour, toIndex))) {
       if (fromWaiting) effects.add(const ClearTimeoutEffect());
       effects.add(EnterStepEffect(stepIndex: toIndex));
-      return TourActive(tour: tour, stepIndex: toIndex);
+      return HintActive(tour: tour, stepIndex: toIndex);
     }
     return _armWaiting(tour, toIndex, effects);
   }

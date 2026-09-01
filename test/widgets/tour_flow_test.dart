@@ -4,20 +4,20 @@ import 'package:hintful/hintful.dart';
 
 import '../helpers/tour_harness.dart';
 
-/// Full-flow tests on a real engine: `ShowcaseTarget` → controller →
-/// `TourOverlayEngine` → scrim/tooltip. The harness provides the scene; the
+/// Full-flow tests on a real engine: `HintTarget` → controller →
+/// `HintOverlayEngine` → scrim/tooltip. The harness provides the scene; the
 /// tests check behavior, not wiring.
 void main() {
   group('tour_flow', () {
     testWidgets('mount → wait → active → finish; zero idle cost',
         (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(
+          HintStep(
               targetId: 'stats', title: 'Statistics', description: 'Step 1'),
-          StepSpec(
+          HintStep(
               targetId: 'records', title: 'Records', description: 'Step 2'),
         ],
       );
@@ -25,13 +25,13 @@ void main() {
 
       // Idle before start: zero engine widgets in the tree.
       h.expectIdleClean();
-      expect(h.controller.currentState, isA<TourIdle>());
+      expect(h.controller.currentState, isA<HintIdle>());
 
       // mount: step 1 is mounted → active right away (target wiring).
       await h.start(tester, tour);
       expect(
         h.controller.currentState,
-        TourActive(tour: tour, stepIndex: 0),
+        HintActive(tour: tour, stepIndex: 0),
       );
       expect(find.text('Statistics'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
@@ -41,7 +41,7 @@ void main() {
       await TourHarness.settle(tester);
       expect(
         h.controller.currentState,
-        TourWaiting(tour: tour, stepIndex: 1),
+        HintWaiting(tour: tour, stepIndex: 1),
       );
       expect(find.text('Preparing…'), findsOneWidget);
       expect(find.text('Records'), findsNothing);
@@ -51,7 +51,7 @@ void main() {
       await TourHarness.settle(tester);
       expect(
         h.controller.currentState,
-        TourActive(tour: tour, stepIndex: 1),
+        HintActive(tour: tour, stepIndex: 1),
       );
       expect(find.text('Records'), findsOneWidget);
       expect(find.text('Preparing…'), findsNothing);
@@ -59,7 +59,7 @@ void main() {
       // finish: the last step → "Done", the overlay is removed.
       await tester.tap(find.text('Done'));
       await tester.pump();
-      expect(h.controller.currentState, isA<TourIdle>());
+      expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
     });
 
@@ -71,13 +71,13 @@ void main() {
         targets: [HarnessTarget('stats', top: 200, height: 80)],
         scrollable: true,
       );
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'scroll',
-        steps: [StepSpec(targetId: 'stats', title: 'Statistics')],
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
       );
       await h.pump(tester);
       await h.start(tester, tour);
-      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       final targetBefore = tester.getRect(find.text('stats'));
       final tipBefore = tester.getRect(find.text('Statistics'));
@@ -111,11 +111,11 @@ void main() {
       // Direct proof of the hit-region fix: a tap on the button reaches the
       // button, not the overlay GestureDetector (zero warnIfMissed).
       final h = TourHarness(targets: [HarnessTarget('stats')]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(targetId: 'stats', title: 'Statistics'),
-          StepSpec(targetId: 'records', title: 'Records'),
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
         ],
       );
       await h.pump(tester);
@@ -127,7 +127,7 @@ void main() {
 
       expect(
         h.controller.currentState,
-        TourWaiting(tour: tour, stepIndex: 1),
+        HintWaiting(tour: tour, stepIndex: 1),
         reason: 'the next step (not an abort/skip)',
       );
       // The test ends in waiting: the waitTimeout timer is still pending at
@@ -140,16 +140,16 @@ void main() {
         HarnessTarget('stats'),
         HarnessTarget('records', top: 200),
       ]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(targetId: 'stats', title: 'Statistics'),
-          StepSpec(targetId: 'records', title: 'Records'),
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
         ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
-      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       // No Back on the first step.
       expect(find.text('Back'), findsNothing);
@@ -158,13 +158,13 @@ void main() {
       await TourHarness.settle(tester);
       expect(
         h.controller.currentState,
-        TourActive(tour: tour, stepIndex: 1),
+        HintActive(tour: tour, stepIndex: 1),
       );
       expect(find.text('Back'), findsOneWidget);
 
       await tester.tap(find.text('Back'));
       await TourHarness.settle(tester);
-      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
       expect(find.text('Statistics'), findsOneWidget);
       expect(find.text('Back'), findsNothing);
 
@@ -177,11 +177,11 @@ void main() {
 
     testWidgets('tap on the overlay (past the tooltip) = next', (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(targetId: 'stats', title: 'Statistics'),
-          StepSpec(targetId: 'records', title: 'Records'),
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
         ],
       );
       await h.pump(tester);
@@ -194,7 +194,7 @@ void main() {
 
       expect(
         h.controller.currentState,
-        TourWaiting(tour: tour, stepIndex: 1),
+        HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
     });
@@ -202,21 +202,21 @@ void main() {
     testWidgets('Escape = skip: userSkipped abort through a real overlay',
         (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(targetId: 'stats', title: 'Statistics'),
-          StepSpec(targetId: 'records', title: 'Records'),
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
         ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
-      expect(h.controller.currentState, TourActive(tour: tour, stepIndex: 0));
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
 
-      expect(h.controller.currentState, isA<TourIdle>());
+      expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
       final diag = h.diagnostics as DiagnosticsRecorder;
       expect(diag.events.single.reason, HintSkipReason.userSkipped);
@@ -226,11 +226,11 @@ void main() {
 
     testWidgets('wait-for-target timeout: abort + diagnostics', (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 'flow',
         steps: [
-          StepSpec(targetId: 'stats', title: 'Statistics'),
-          StepSpec(targetId: 'records', title: 'Records'),
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
         ],
       );
       await h.pump(tester);
@@ -241,12 +241,12 @@ void main() {
       await TourHarness.settle(tester);
       expect(
         h.controller.currentState,
-        TourWaiting(tour: tour, stepIndex: 1),
+        HintWaiting(tour: tour, stepIndex: 1),
       );
 
       await tester.pump(const Duration(seconds: 4));
 
-      expect(h.controller.currentState, isA<TourIdle>());
+      expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
       final diag = h.diagnostics as DiagnosticsRecorder;
       expect(diag.events.single.reason, HintSkipReason.timeout);

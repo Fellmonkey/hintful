@@ -3,17 +3,17 @@ import 'package:flutter/material.dart';
 /// Hint theme — a product design-system `ThemeExtension`.
 ///
 /// The product describes hints as part of its design system: register
-/// [ShowcaseTheme] in `ThemeData.extensions` — and every tooltip/scrim
+/// [HintTheme] in `ThemeData.extensions` — and every tooltip/scrim
 /// inherits it automatically, with no per-screen configuration. Light/dark is
 /// solved by the same mechanism as the rest of the UI (different `ThemeData`).
 ///
-/// Zero-config: without registration, [ShowcaseThemeX.hintTheme] returns the
-/// [ShowcaseTheme.minimal] default derived from `ColorScheme` — a hint looks
+/// Zero-config: without registration, [HintThemeX.hintTheme] returns the
+/// [HintTheme.minimal] default derived from `ColorScheme` — a hint looks
 /// "Material-native" rather than "library-ish", even before the product
 /// defines its own theme.
 @immutable
-class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
-  const ShowcaseTheme({
+class HintTheme extends ThemeExtension<HintTheme> {
+  const HintTheme({
     required this.tooltipBackground,
     required this.tooltipForeground,
     required this.scrimColor,
@@ -42,9 +42,9 @@ class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
   final TextStyle? tooltipDescriptionStyle;
 
   /// Default derived from a [ColorScheme] (inverseSurface pair).
-  factory ShowcaseTheme.minimal(ColorScheme scheme) {
+  factory HintTheme.minimal(ColorScheme scheme) {
     final onSurface = scheme.onInverseSurface;
-    return ShowcaseTheme(
+    return HintTheme(
       tooltipBackground: scheme.inverseSurface,
       tooltipForeground: onSurface,
       scrimColor: const Color(0x80000000), // black 50%
@@ -65,7 +65,7 @@ class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
   }
 
   @override
-  ShowcaseTheme copyWith({
+  HintTheme copyWith({
     Color? tooltipBackground,
     Color? tooltipForeground,
     Color? scrimColor,
@@ -74,7 +74,7 @@ class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
     TextStyle? tooltipTitleStyle,
     TextStyle? tooltipDescriptionStyle,
   }) {
-    return ShowcaseTheme(
+    return HintTheme(
       tooltipBackground: tooltipBackground ?? this.tooltipBackground,
       tooltipForeground: tooltipForeground ?? this.tooltipForeground,
       scrimColor: scrimColor ?? this.scrimColor,
@@ -87,11 +87,11 @@ class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
   }
 
   @override
-  ShowcaseTheme lerp(ShowcaseTheme? other, double t) {
+  HintTheme lerp(HintTheme? other, double t) {
     // Component-wise; when other == null (animation "theme appeared") —
     // return this rather than a "black screen".
     if (other == null) return this;
-    return ShowcaseTheme(
+    return HintTheme(
       tooltipBackground:
           Color.lerp(tooltipBackground, other.tooltipBackground, t)!,
       tooltipForeground:
@@ -111,8 +111,7 @@ class ShowcaseTheme extends ThemeExtension<ShowcaseTheme> {
 }
 
 /// Access to the hint theme from [ThemeData]: `Theme.of(context).hintTheme`.
-extension ShowcaseThemeX on ThemeData {
-  ShowcaseTheme get hintTheme =>
-      extensions[ShowcaseTheme] as ShowcaseTheme? ??
-      ShowcaseTheme.minimal(colorScheme);
+extension HintThemeX on ThemeData {
+  HintTheme get hintTheme =>
+      extensions[HintTheme] as HintTheme? ?? HintTheme.minimal(colorScheme);
 }

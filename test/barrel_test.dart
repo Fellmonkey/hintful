@@ -9,21 +9,21 @@ void main() {
   test('barrel: the whole public contract is reachable from one import point',
       () {
     // Tour data (specs).
-    const step = StepSpec(targetId: 'stats', title: 'Title');
-    final tour = TourSpec(id: 'intro', steps: [step]);
+    const step = HintStep(targetId: 'stats', title: 'Title');
+    final tour = HintTour(id: 'intro', steps: [step]);
     expect(step.position, TooltipPosition.auto);
     expect(tour.steps[0].targetId, 'stats');
 
     // Registry + controller (headless: no overlay host).
-    final registry = TargetRegistry();
-    final controller = ShowcaseController(registry: registry);
+    final registry = HintTargetRegistry();
+    final controller = HintController(registry: registry);
     addTearDown(controller.dispose);
     expect(registry.ids, isEmpty);
-    expect(controller.currentState, isA<TourIdle>());
+    expect(controller.currentState, isA<HintIdle>());
 
-    // Machine states — the public observable (TourState + subtypes).
-    expect(TourWaiting(tour: tour, stepIndex: 0), isA<TourState>());
-    expect(TourActive(tour: tour, stepIndex: 0), isA<TourState>());
+    // Machine states — the public observable (HintState + subtypes).
+    expect(HintWaiting(tour: tour, stepIndex: 0), isA<HintState>());
+    expect(HintActive(tour: tour, stepIndex: 0), isA<HintState>());
 
     // Diagnostics.
     final handler = DebugPrintDiagnostics();
@@ -33,18 +33,18 @@ void main() {
         'statsPeriodSelector');
 
     // Theme — zero-config default from ColorScheme.
-    final theme = ShowcaseTheme.minimal(
+    final theme = HintTheme.minimal(
       ColorScheme.fromSeed(seedColor: Colors.teal),
     );
-    expect(theme, isA<ShowcaseTheme>());
+    expect(theme, isA<HintTheme>());
 
     // Widgets.
-    expect(ShowcaseTarget, same(ShowcaseTarget));
+    expect(HintTarget, same(HintTarget));
     expect(DefaultTooltip, same(DefaultTooltip));
 
     // Position resolver — for custom hosts.
-    expect(const PositionedTarget(translation: Offset.zero, size: Size.zero),
-        isA<TargetPosition>());
-    expect(const UnlinkedTarget(), isA<TargetPosition>());
+    expect(const PositionedHint(translation: Offset.zero, size: Size.zero),
+        isA<HintPosition>());
+    expect(const UnpositionedHint(), isA<HintPosition>());
   });
 }

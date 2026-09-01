@@ -3,33 +3,33 @@
 /// Single import point: `package:hintful/hintful.dart`. Only the public
 /// surface is exported:
 ///
-/// - tour data contracts ([StepSpec], [TourSpec]) — widget-free, serializable
+/// - tour data contracts ([HintStep], [HintTour]) — widget-free, serializable
 ///   1-to-1 to JSON (server-driven tours later);
-/// - target registry ([TargetRegistry], [TargetRegistration]) — the
+/// - target registry ([HintTargetRegistry], [HintTargetRegistration]) — the
 ///   "no GlobalKey" model;
-/// - observable machine state ([TourState] + subtypes) — the public
+/// - observable machine state ([HintState] + subtypes) — the public
 ///   observable; events/effects/the machine itself are NOT exported;
-/// - controller ([ShowcaseController]) and the render-mechanics contract
-///   ([TourOverlayHost]) — the single control point;
+/// - controller ([HintController]) and the render-mechanics contract
+///   ([HintOverlayHost]) — the single control point;
 /// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
 ///   [DebugPrintDiagnostics], typo candidates);
-/// - theme ([ShowcaseTheme]) and widgets ([ShowcaseTarget], [DefaultTooltip]);
-/// - position resolver ([TargetPositionResolver]) — for custom hosts.
+/// - theme ([HintTheme]) and widgets ([HintTarget], [DefaultTooltip]);
+/// - position resolver ([HintPositionResolver]) — for custom hosts.
 ///
-/// Deliberately NOT exported is overlay internals ([TourOverlayEngine],
+/// Deliberately NOT exported is overlay internals ([HintOverlayEngine],
 /// scrim painter, placement delegate) — mechanics that can change without
 /// breaking changes. Exception — [defaultOverlayHost]: the single public
 /// entry into render mechanics, a stable factory for wiring the host (the
 /// controller's `overlayHostBuilder`).
 library;
 
-export 'engine/controller.dart' show ShowcaseController, TourOverlayHost;
+export 'engine/controller.dart' show HintController, HintOverlayHost;
 export 'engine/diagnostics.dart';
 export 'engine/overlay/overlay_engine.dart' show defaultOverlayHost;
-export 'engine/machine.dart' show TourActive, TourIdle, TourState, TourWaiting;
+export 'engine/machine.dart' show HintActive, HintIdle, HintState, HintWaiting;
 export 'engine/position_resolver.dart';
 export 'engine/registry.dart';
 export 'engine/specs.dart';
-export 'engine/theme/showcase_theme.dart';
+export 'engine/theme/hint_theme.dart';
 export 'widgets/default_tooltip.dart';
-export 'widgets/showcase_target.dart';
+export 'widgets/hint_target.dart';

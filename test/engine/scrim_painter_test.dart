@@ -4,13 +4,13 @@ import 'package:hintful/engine/overlay/scrim_painter.dart';
 import 'package:hintful/engine/position_resolver.dart';
 
 /// Fake resolver: a deterministic position (or Unlinked).
-class _FakeResolver implements TargetPositionResolver {
+class _FakeResolver implements HintPositionResolver {
   _FakeResolver(this.position);
 
-  final TargetPosition position;
+  final HintPosition position;
 
   @override
-  TargetPosition resolve() => position;
+  HintPosition resolve() => position;
 }
 
 void main() {
@@ -78,7 +78,7 @@ void main() {
 
   group('ScrimHolePainter', () {
     test('shouldRepaint: only when the resolver or color changes', () {
-      final resolver = _FakeResolver(const PositionedTarget(
+      final resolver = _FakeResolver(const PositionedHint(
         translation: Offset.zero,
         size: Size(10, 10),
       ));
@@ -92,7 +92,7 @@ void main() {
         resolver: resolver,
         color: const Color(0x80000000),
       );
-      final otherResolver = _FakeResolver(const UnlinkedTarget());
+      final otherResolver = _FakeResolver(const UnpositionedHint());
       final other = ScrimHolePainter(
         resolver: otherResolver,
         color: const Color(0xFF000000),

@@ -3,17 +3,17 @@ import 'package:flutter/rendering.dart';
 
 /// Target position for rendering the scrim/tooltip.
 ///
-/// [PositionedTarget] — the target is mounted and the compositor knows its
-/// position; [UnlinkedTarget] — the target is not in the tree (yet/already),
+/// [PositionedHint] — the target is mounted and the compositor knows its
+/// position; [UnpositionedHint] — the target is not in the tree (yet/already),
 /// there is no position.
 @immutable
-sealed class TargetPosition {
-  const TargetPosition();
+sealed class HintPosition {
+  const HintPosition();
 }
 
 @immutable
-class PositionedTarget extends TargetPosition {
-  const PositionedTarget({required this.translation, required this.size});
+class PositionedHint extends HintPosition {
+  const PositionedHint({required this.translation, required this.size});
 
   /// Offset of the target's top-left corner in overlay coordinates (the
   /// space where the CompositedTransformFollower wrapper lives).
@@ -23,15 +23,15 @@ class PositionedTarget extends TargetPosition {
   final Size size;
 
   @override
-  String toString() => 'PositionedTarget($translation, $size)';
+  String toString() => 'PositionedHint($translation, $size)';
 }
 
 @immutable
-class UnlinkedTarget extends TargetPosition {
-  const UnlinkedTarget();
+class UnpositionedHint extends HintPosition {
+  const UnpositionedHint();
 
   @override
-  String toString() => 'UnlinkedTarget()';
+  String toString() => 'UnpositionedHint()';
 }
 
 /// Source of target positions.
@@ -39,17 +39,17 @@ class UnlinkedTarget extends TargetPosition {
 /// The abstraction exists so the engine does not depend directly on Flutter's
 /// internal layer APIs: if `FollowerLayer.getLastTransform()` breaks or gets
 /// renamed, one implementation is fixed instead of the whole overlay.
-abstract class TargetPositionResolver {
-  TargetPosition resolve();
+abstract class HintPositionResolver {
+  HintPosition resolve();
 }
 
 /// A resolver that never yields a position: used in waiting mode when the
 /// target does not exist yet and the scrim is drawn fully (no hole).
-class UnlinkedTargetResolver implements TargetPositionResolver {
-  const UnlinkedTargetResolver();
+class UnpositionedHintResolver implements HintPositionResolver {
+  const UnpositionedHintResolver();
 
   @override
-  TargetPosition resolve() => const UnlinkedTarget();
+  HintPosition resolve() => const UnpositionedHint();
 }
 
 /// Target position **from the compositor** — the engine's main resolver.
@@ -66,23 +66,23 @@ class UnlinkedTargetResolver implements TargetPositionResolver {
 /// CompositedTransformFollower) once at construction and reads the layer on
 /// each `resolve()`. The source is the follower itself, not `link.leader`:
 /// `LeaderLayer` has no `getLastTransform` method.
-class CompositorPositionResolver implements TargetPositionResolver {
-  CompositorPositionResolver(this._follower);
+class CompositorHintResolver implements HintPositionResolver {
+  CompositorHintResolver(this._follower);
 
   final RenderFollowerLayer _follower;
 
   @override
-  TargetPosition resolve() {
+  HintPosition resolve() {
     final size = _follower.link.leaderSize;
     final transform = _follower.layer?.getLastTransform();
     if (size == null || transform == null) {
-      return const UnlinkedTarget();
+      return const UnpositionedHint();
     }
     assert(
         _isAxisAligned(transform),
         'non-axis-aligned transform: '
         '${transform.storage}');
-    return PositionedTarget(
+    return PositionedHint(
       translation: Offset(transform.storage[12], transform.storage[13]),
       size: size,
     );

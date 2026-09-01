@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — unified "hint" naming
+
+**Breaking:** the public API is renamed to a single `Hint` family —
+`ShowcaseController` → `HintController`, `ShowcaseTarget` → `HintTarget`,
+`ShowcaseTheme` → `HintTheme`, `TourState` → `HintState` (and `Idle`/
+`Waiting`/`Active`), `TourSpec`/`StepSpec` → `HintTour`/`HintStep`,
+`TargetRegistry` → `HintTargetRegistry`, `TourOverlayHost` → `HintOverlayHost`.
+Files `showcase_target.dart`/`showcase_theme.dart` → `hint_target.dart`/
+`hint_theme.dart`. `TooltipPosition`, `DefaultTooltip` and diagnostics
+(`HintSkipReason`, `HintDiagnosticsHandler`) keep their names — `tooltip` is
+the accepted term for the visual element, diagnostics were already `Hint`.
+No behavior changes.
+
 ## 0.1.0 — stage 0 (early engine)
 
 - Registry-based targets (`ShowcaseTarget(id:)`) — no `GlobalKey`; duplicate-id

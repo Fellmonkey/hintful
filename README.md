@@ -4,7 +4,7 @@
 guided walkthroughs — a single source of truth for teaching users your product.
 
 `hintful` is a domain-driven **hint tokenizer**: you wrap one widget in
-`ShowcaseTarget`, describe what to show in a `TourSpec`, and let the engine render,
+`HintTarget`, describe what to show in a `HintTour`, and let the engine render,
 reposition and remember it — without a single hand-written overlay, scroll math
 or duplicated per-screen styling.
 
@@ -31,27 +31,27 @@ scrolls and lays out. That model is precisely why tours break:
 | Old way (`GlobalKey` + overlay) | `hintful` |
 |---|---|
 | Manual position / scroll / re-layout | **CompositedTransform** — tooltip and scrim follow the target every frame, zero scroll math, overflow impossible |
-| References to widget contexts | **Registry by id** — `ShowcaseTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
+| References to widget contexts | **Registry by id** — `HintTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
 | "Wait until the widget is built" by hand | **Wait-for-target** — a tour waits for a deferred target instead of dying |
 | Per-hint hard-coded styling | **ThemeExtension** — hint inherits your design system, light and dark, from `Theme.of` |
-| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<TourState>`, no state-management imports (adapters are roadmap) |
+| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<HintState>`, no state-management imports (adapters are roadmap) |
 | Overlay mounted even when idle | **Zero-idle cost** — zero engine widgets in the tree until a tour actually starts |
 
 ## What you write
 
 ```dart
 // 1. Wrap the thing you want to explain
-ShowcaseTarget(
+HintTarget(
   id: 'exerciseSelector',
   child: ExerciseSelector(),
 )
 
 // 2. Declare the tour — data, not widgets
-final introTour = TourSpec(
+final introTour = HintTour(
   id: 'intro',
   steps: [
-    StepSpec(targetId: 'exerciseSelector', tooltipBuilder: _buildTooltip),
-    StepSpec(targetId: 'addSet',        tooltipBuilder: _buildTooltip),
+    HintStep(targetId: 'exerciseSelector', tooltipBuilder: _buildTooltip),
+    HintStep(targetId: 'addSet',        tooltipBuilder: _buildTooltip),
   ],
 );
 
@@ -64,10 +64,10 @@ That's it.
 
 ## Zero-config, then total control
 
-`hintful` works with a single `ShowcaseTarget(id: ..., title: ..., desc: ...)` and a
-default theme out of the box (or `showHint` for one tip without a `TourSpec`). When
+`hintful` works with a single `HintTarget(id: ..., title: ..., desc: ...)` and a
+default theme out of the box (or `showHint` for one tip without a `HintTour`). When
 you need more, the API grows through an explicit "ladder of customization" —
-`ShowcaseTheme` styles → a fully custom tooltip through `tooltipBuilder` — each
+`HintTheme` styles → a fully custom tooltip through `tooltipBuilder` — each
 step optional. Your design system, your call.
 
 ## Diagnosis over mystery

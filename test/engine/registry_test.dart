@@ -21,9 +21,9 @@ void main() {
   testWidgets('registration → lookup/ids; unregister by the owner — clean',
       (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
+    final registry = HintTargetRegistry();
     final r =
-        TargetRegistration(id: 'filters', link: LayerLink(), context: ctx);
+        HintTargetRegistration(id: 'filters', link: LayerLink(), context: ctx);
 
     registry.register(r);
     expect(registry.lookup('filters'), same(r));
@@ -37,8 +37,8 @@ void main() {
   testWidgets('listeners: notified on every real change, a no-op does not fire',
       (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
-    final r = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final registry = HintTargetRegistry();
+    final r = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
 
     var changes = 0;
     registry.addListener(() => changes++);
@@ -57,8 +57,8 @@ void main() {
       'multiple listeners; removeListener unsubscribes; '
       'subscribing twice — no-op', (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
-    final r = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final registry = HintTargetRegistry();
+    final r = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
 
     var first = 0;
     var second = 0;
@@ -82,9 +82,9 @@ void main() {
   testWidgets('duplicate id: the last one wins + warning', (tester) async {
     final ctx = await _pumpContext(tester);
     final warnings = <String>[];
-    final registry = TargetRegistry(onWarning: warnings.add);
-    final r1 = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
-    final r2 = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final registry = HintTargetRegistry(onWarning: warnings.add);
+    final r1 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final r2 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
 
     registry.register(r1);
     registry.register(r2);
@@ -97,9 +97,9 @@ void main() {
   testWidgets("unregistering an old instance does not remove the new one",
       (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
-    final r1 = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
-    final r2 = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final registry = HintTargetRegistry();
+    final r1 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final r2 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
 
     registry.register(r1);
     registry.register(r2);
@@ -118,9 +118,9 @@ void main() {
 
   testWidgets('an unknown registration — silent no-op', (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
-    final r1 = TargetRegistration(id: 'a', link: LayerLink(), context: ctx);
-    final r2 = TargetRegistration(id: 'b', link: LayerLink(), context: ctx);
+    final registry = HintTargetRegistry();
+    final r1 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
+    final r2 = HintTargetRegistration(id: 'b', link: LayerLink(), context: ctx);
 
     registry.register(r1);
     var changes = 0;
@@ -133,9 +133,9 @@ void main() {
 
   testWidgets('ids — an immutable copy', (tester) async {
     final ctx = await _pumpContext(tester);
-    final registry = TargetRegistry();
+    final registry = HintTargetRegistry();
     registry.register(
-      TargetRegistration(id: 'a', link: LayerLink(), context: ctx),
+      HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx),
     );
 
     expect(() => registry.ids.add('x'), throwsUnsupportedError);
@@ -143,8 +143,8 @@ void main() {
   });
 
   test('defaultInstance is reachable and independent of new instances', () {
-    final a = TargetRegistry.defaultInstance;
-    final b = TargetRegistry();
+    final a = HintTargetRegistry.defaultInstance;
+    final b = HintTargetRegistry();
     expect(identical(a, b), isFalse);
     expect(a.ids, isEmpty);
     expect(b.ids, isEmpty);

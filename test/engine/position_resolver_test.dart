@@ -25,8 +25,8 @@ Widget _harness({required LayerLink link, required Widget followerChild}) {
   );
 }
 
-Future<CompositorPositionResolver> _resolverInside(WidgetTester tester) async {
-  late CompositorPositionResolver resolver;
+Future<CompositorHintResolver> _resolverInside(WidgetTester tester) async {
+  late CompositorHintResolver resolver;
   final link = LayerLink();
   await tester.pumpWidget(_harness(
     link: link,
@@ -37,7 +37,7 @@ Future<CompositorPositionResolver> _resolverInside(WidgetTester tester) async {
         builder: (context) {
           final follower =
               context.findAncestorRenderObjectOfType<RenderFollowerLayer>()!;
-          resolver = CompositorPositionResolver(follower);
+          resolver = CompositorHintResolver(follower);
           return const SizedBox.expand();
         },
       ),
@@ -47,15 +47,15 @@ Future<CompositorPositionResolver> _resolverInside(WidgetTester tester) async {
 }
 
 void main() {
-  group('CompositorPositionResolver', () {
+  group('CompositorHintResolver', () {
     testWidgets('translation = target global position, size = its size',
         (tester) async {
       final resolver = await _resolverInside(tester);
       await tester.pump(); // the scene is built — _lastTransform is filled
 
       final position = resolver.resolve();
-      expect(position, isA<PositionedTarget>());
-      final p = position as PositionedTarget;
+      expect(position, isA<PositionedHint>());
+      final p = position as PositionedHint;
       expect(p.translation, const Offset(40, 60));
       expect(p.size, const Size(100, 50));
 
@@ -68,7 +68,7 @@ void main() {
     testWidgets('scroll: translation follows the target from the compositor',
         (tester) async {
       final link = LayerLink();
-      late CompositorPositionResolver resolver;
+      late CompositorHintResolver resolver;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: Stack(
@@ -97,7 +97,7 @@ void main() {
                     builder: (context) {
                       final follower = context.findAncestorRenderObjectOfType<
                           RenderFollowerLayer>()!;
-                      resolver = CompositorPositionResolver(follower);
+                      resolver = CompositorHintResolver(follower);
                       return const SizedBox.expand();
                     },
                   ),
@@ -110,7 +110,7 @@ void main() {
       await tester.pump();
 
       final before = resolver.resolve();
-      expect(before, isA<PositionedTarget>());
+      expect(before, isA<PositionedHint>());
 
       // Scroll 60 up via the scroll position: the compositor itself
       // recomputes the leader's position — no engine tracking code.
@@ -121,9 +121,9 @@ void main() {
       await tester.pump();
 
       final after = resolver.resolve();
-      expect(after, isA<PositionedTarget>());
-      final beforePos = before as PositionedTarget;
-      final afterPos = after as PositionedTarget;
+      expect(after, isA<PositionedHint>());
+      final beforePos = before as PositionedHint;
+      final afterPos = after as PositionedHint;
       expect(
         afterPos.translation.dy,
         closeTo(beforePos.translation.dy - 60, 0.2),
@@ -133,8 +133,8 @@ void main() {
     });
   });
 
-  group('UnlinkedTargetResolver', () {
-    testWidgets('without a leader — UnlinkedTarget (target not mounted)',
+  group('UnpositionedHintResolver', () {
+    testWidgets('without a leader — UnpositionedHint (target not mounted)',
         (tester) async {
       // A bare render object without a tree: the layer is not created (or no
       // transform has arrived) — no position from the compositor, like an
@@ -143,8 +143,8 @@ void main() {
         link: LayerLink(),
         showWhenUnlinked: false,
       );
-      final resolver = CompositorPositionResolver(follower);
-      expect(resolver.resolve(), isA<UnlinkedTarget>());
+      final resolver = CompositorHintResolver(follower);
+      expect(resolver.resolve(), isA<UnpositionedHint>());
     });
   });
 }

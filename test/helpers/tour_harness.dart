@@ -55,15 +55,15 @@ class DiagnosticsRecorder implements HintDiagnosticsHandler {
 /// Widget-test harness for tours.
 ///
 /// One call — a scene like in an app: MaterialApp + Scaffold + targets (real
-/// `ShowcaseTarget`s) + the MaterialApp root Overlay + a controller with a
-/// real `TourOverlayEngine` (`defaultOverlayHost`). A new widget test is a
+/// `HintTarget`s) + the MaterialApp root Overlay + a controller with a
+/// real `HintOverlayEngine` (`defaultOverlayHost`). A new widget test is a
 /// few lines instead of ~40 lines of manual wiring.
 ///
 /// ```dart
 /// final h = TourHarness(targets: [HarnessTarget('stats')]);
 /// await h.pump(tester);
-/// await h.start(tester, TourSpec(id: 't', steps: [
-///   StepSpec(targetId: 'stats', title: 'Title'),
+/// await h.start(tester, HintTour(id: 't', steps: [
+///   HintStep(targetId: 'stats', title: 'Title'),
 /// ]));
 /// expect(find.text('Title'), findsOneWidget);
 /// await tester.tap(find.text('Done'));
@@ -73,15 +73,15 @@ class DiagnosticsRecorder implements HintDiagnosticsHandler {
 class TourHarness {
   TourHarness({
     this.targets = const [],
-    TargetRegistry? registry,
+    HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     this.scrollable = false,
-  })  : registry = registry ?? TargetRegistry(),
+  })  : registry = registry ?? HintTargetRegistry(),
         diagnostics = diagnostics ?? DiagnosticsRecorder();
 
   /// Scene targets; [reveal] adds more at runtime (deferred scenario).
   final List<HarnessTarget> targets;
-  final TargetRegistry registry;
+  final HintTargetRegistry registry;
   final HintDiagnosticsHandler diagnostics;
 
   /// true — targets sit vertically in a `ListView` (scroll scenarios:
@@ -96,7 +96,7 @@ class TourHarness {
 
   /// Controller with a real engine; created in [pump], released
   /// automatically (addTearDown).
-  late final ShowcaseController controller;
+  late final HintController controller;
   bool _pumped = false;
   final List<HarnessTarget> _extra = [];
 
@@ -105,7 +105,7 @@ class TourHarness {
   Future<void> pump(WidgetTester tester) async {
     if (!_pumped) {
       _pumped = true;
-      controller = ShowcaseController(
+      controller = HintController(
         registry: registry,
         diagnostics: diagnostics,
         overlayHostBuilder: defaultOverlayHost(registry: registry),
@@ -134,7 +134,7 @@ class TourHarness {
   }
 
   /// Mount an extra target: wait-for-target → active step. Rebuilding the
-  /// scene mounts a new `ShowcaseTarget` (initState → registration); the
+  /// scene mounts a new `HintTarget` (initState → registration); the
   /// existing widgets/states are preserved.
   Future<void> reveal(WidgetTester tester, HarnessTarget target) async {
     _extra.add(target);
@@ -143,7 +143,7 @@ class TourHarness {
 
   /// Start the tour + two pumps: a scrim frame, then the tooltip on top of
   /// the snapshot.
-  Future<void> start(WidgetTester tester, TourSpec tour) async {
+  Future<void> start(WidgetTester tester, HintTour tour) async {
     await controller.start(tour);
     await settle(tester);
   }
@@ -177,7 +177,7 @@ class TourHarness {
   Widget _scene() {
     final targets = [...this.targets, ..._extra];
 
-    Widget target(HarnessTarget t) => ShowcaseTarget(
+    Widget target(HarnessTarget t) => HintTarget(
           id: t.id,
           registry: registry,
           child: Container(

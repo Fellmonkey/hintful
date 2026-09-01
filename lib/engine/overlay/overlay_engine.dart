@@ -4,13 +4,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../widgets/default_tooltip.dart';
-import '../controller.dart' show ShowcaseController, TourOverlayHost;
+import '../controller.dart' show HintController, HintOverlayHost;
 import '../diagnostics.dart';
 import '../machine.dart';
 import '../position_resolver.dart';
 import '../registry.dart';
 import '../specs.dart';
-import '../theme/showcase_theme.dart';
+import '../theme/hint_theme.dart';
 import 'scrim_painter.dart';
 import 'tooltip_placement.dart';
 
@@ -20,19 +20,19 @@ const _kWaitingText = 'Preparing…';
 /// Standard render-mechanics wiring: the engine over [registry] (defaults to
 /// the registry singleton — zero-config).
 ///
-/// The only public entry into render mechanics, for `ShowcaseController`:
+/// The only public entry into render mechanics, for `HintController`:
 ///
 /// ```dart
-/// final controller = ShowcaseController(overlayHostBuilder: defaultOverlayHost());
+/// final controller = HintController(overlayHostBuilder: defaultOverlayHost());
 /// ```
 ///
 /// The engine itself and its internals (scrim, placement delegate) stay
 /// hidden: they can change without breaking, while this contract is stable.
-TourOverlayHost Function(ShowcaseController) defaultOverlayHost({
-  TargetRegistry? registry,
+HintOverlayHost Function(HintController) defaultOverlayHost({
+  HintTargetRegistry? registry,
 }) {
-  return (controller) => TourOverlayEngine(
-        registry: registry ?? TargetRegistry.defaultInstance,
+  return (controller) => HintOverlayEngine(
+        registry: registry ?? HintTargetRegistry.defaultInstance,
         input: controller,
       );
 }
@@ -41,16 +41,16 @@ TourOverlayHost Function(ShowcaseController) defaultOverlayHost({
 /// hole via `CompositedTransformFollower` (target position from the
 /// compositor), places the tooltip, handles tap-on-overlay and keyboard.
 ///
-/// Implements the [TourOverlayHost] contract from controller.dart: the
+/// Implements the [HintOverlayHost] contract from controller.dart: the
 /// controller does not know what the overlay looks like or where the
 /// `OverlayState` comes from — the engine captures it itself (the root
 /// overlay of the first registered target), or receives it explicitly via
 /// `overlay` for fully-deferred scenarios (zero mounted targets). User input
-/// (next/skip/finish) goes into [TourActions] — the controller implements it.
-class TourOverlayEngine implements TourOverlayHost {
-  TourOverlayEngine({
-    required TargetRegistry registry,
-    required TourActions input,
+/// (next/skip/finish) goes into [HintActions] — the controller implements it.
+class HintOverlayEngine implements HintOverlayHost {
+  HintOverlayEngine({
+    required HintTargetRegistry registry,
+    required HintActions input,
     OverlayState? overlay,
     HintDiagnosticsHandler? diagnostics,
   })  : _registry = registry,
@@ -58,16 +58,16 @@ class TourOverlayEngine implements TourOverlayHost {
         _overlay = overlay,
         _diagnostics = diagnostics;
 
-  final TargetRegistry _registry;
-  final TourActions _input;
+  final HintTargetRegistry _registry;
+  final HintActions _input;
   final HintDiagnosticsHandler? _diagnostics;
   OverlayState? _overlay;
   OverlayEntry? _entry;
-  TourState? _pendingState;
+  HintState? _pendingState;
   bool _disposed = false;
 
   @override
-  void update(TourState state) {
+  void update(HintState state) {
     if (_disposed) return;
     _pendingState = state;
 
@@ -123,8 +123,8 @@ class TourOverlayEngine implements TourOverlayHost {
     final state = _pendingState;
     final stepIndex = state?.stepIndex ?? 0;
     final targetId = switch (state) {
-      TourWaiting(:final targetId) => targetId,
-      TourActive(:final targetId) => targetId,
+      HintWaiting(:final targetId) => targetId,
+      HintActive(:final targetId) => targetId,
       _ => '?',
     };
     _diagnostics?.onHintSkipped(
@@ -142,7 +142,7 @@ class TourOverlayEngine implements TourOverlayHost {
       builder: (context) {
         final state = _pendingState;
         if (state == null || state.isIdle) return const SizedBox.shrink();
-        return _TourOverlayView(
+        return _HintOverlayView(
           state: state,
           registry: _registry,
           input: _input,
@@ -154,22 +154,22 @@ class TourOverlayEngine implements TourOverlayHost {
 
 // ──────────────────────── entry content ────────────────────────
 
-class _TourOverlayView extends StatefulWidget {
-  const _TourOverlayView({
+class _HintOverlayView extends StatefulWidget {
+  const _HintOverlayView({
     required this.state,
     required this.registry,
     required this.input,
   });
 
-  final TourState state;
-  final TargetRegistry registry;
-  final TourActions input;
+  final HintState state;
+  final HintTargetRegistry registry;
+  final HintActions input;
 
   @override
-  State<_TourOverlayView> createState() => _TourOverlayViewState();
+  State<_HintOverlayView> createState() => _HintOverlayViewState();
 }
 
-class _TourOverlayViewState extends State<_TourOverlayView>
+class _HintOverlayViewState extends State<_HintOverlayView>
     with WidgetsBindingObserver {
   final FocusScopeNode _scopeNode = FocusScopeNode();
 
@@ -185,7 +185,7 @@ class _TourOverlayViewState extends State<_TourOverlayView>
       if (mounted) _scopeNode.requestFocus();
     });
     // System back (Android back button / route pop) interception for
-    // `TourSpec.disableBackButton`. A binding observer instead of
+    // `HintTour.disableBackButton`. A binding observer instead of
     // PopScope/WillPopScope: those register via `ModalRoute.of(context)`,
     // and an OverlayEntry lives ABOVE routes — it has no ModalRoute
     // ancestor, so they would be dead code. `didPopRoute` returning true
@@ -269,13 +269,13 @@ class _TourOverlayViewState extends State<_TourOverlayView>
 
   /// Waiting: the target does not exist yet — full scrim without a hole +
   /// "preparing".
-  Widget _buildWaitingMode(ShowcaseTheme theme) {
+  Widget _buildWaitingMode(HintTheme theme) {
     return Stack(
       children: [
         Positioned.fill(
           child: CustomPaint(
             painter: ScrimHolePainter(
-              resolver: const UnlinkedTargetResolver(),
+              resolver: const UnpositionedHintResolver(),
               color: theme.scrimColor,
             ),
             child: const SizedBox.expand(),
@@ -296,8 +296,8 @@ class _TourOverlayViewState extends State<_TourOverlayView>
   /// whole screen, see [_ActiveOverlayContent]).
   Widget _buildTargetMode(
     BuildContext context,
-    TargetRegistration registration,
-    StepSpec step, {
+    HintTargetRegistration registration,
+    HintStep step, {
     required int stepIndex,
     required int totalSteps,
     required Color scrimColor,
@@ -349,10 +349,10 @@ class _ActiveOverlayContent extends StatefulWidget {
   });
 
   final LayerLink link;
-  final StepSpec step;
+  final HintStep step;
   final int stepIndex;
   final int totalSteps;
-  final TourActions actions;
+  final HintActions actions;
   final Color scrimColor;
 
   @override
@@ -365,7 +365,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
 
   /// One resolver for the State's lifetime (the follower is the same render
   /// object; only its link changes); the painter also reads it at paint time.
-  CompositorPositionResolver? _resolver;
+  CompositorHintResolver? _resolver;
 
   /// The target's position (global coordinates). null — the tooltip is not
   /// mounted: on the mount frame the transform is not known yet, and placement
@@ -404,7 +404,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
         // field doc).
         Widget? tooltip;
         if (translation != null) {
-          final ctx = StepTooltipContext(
+          final ctx = HintTooltipContext(
             actions: widget.actions,
             stepIndex: widget.stepIndex,
             totalSteps: widget.totalSteps,
@@ -432,7 +432,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
                 child: CustomPaint(
                   key: _scrimPaintKey,
                   painter: ScrimHolePainter(
-                    resolver: _resolver ?? const UnlinkedTargetResolver(),
+                    resolver: _resolver ?? const UnpositionedHintResolver(),
                     color: widget.scrimColor,
                   ),
                   child: const SizedBox.expand(),
@@ -465,7 +465,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
       final resolver = _resolver;
       if (resolver != null) {
         final position = resolver.resolve();
-        if (position is PositionedTarget &&
+        if (position is PositionedHint &&
             _translation != position.translation) {
           _translation = position.translation;
           final renderObject =
@@ -478,9 +478,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
     });
   }
 
-  CompositorPositionResolver? _createResolver() {
+  CompositorHintResolver? _createResolver() {
     final follower = _followerKey.currentContext?.findRenderObject();
     if (follower is! RenderFollowerLayer) return null;
-    return CompositorPositionResolver(follower);
+    return CompositorHintResolver(follower);
   }
 }

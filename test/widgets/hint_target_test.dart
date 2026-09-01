@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/registry.dart';
-import 'package:hintful/widgets/showcase_target.dart';
+import 'package:hintful/widgets/hint_target.dart';
 
 Widget _app(Widget body) => MaterialApp(home: Scaffold(body: body));
 
 void main() {
   group('registration lifecycle', () {
     testWidgets('mount registers, dispose unregisters', (tester) async {
-      final registry = TargetRegistry();
+      final registry = HintTargetRegistry();
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'stats', registry: registry, child: const Text('c')),
+        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
       ));
 
       final registration = registry.lookup('stats');
@@ -31,17 +31,16 @@ void main() {
     testWidgets(
         'a changed id re-registers: the old one is removed, the new one is '
         'in place', (tester) async {
-      final registry = TargetRegistry();
+      final registry = HintTargetRegistry();
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'stats', registry: registry, child: const Text('c')),
+        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
       ));
       final first = registry.lookup('stats');
       expect(first, isNotNull);
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(
-            id: 'filters', registry: registry, child: const Text('c')),
+        HintTarget(id: 'filters', registry: registry, child: const Text('c')),
       ));
 
       expect(registry.lookup('stats'), isNull); // the old id is removed
@@ -53,15 +52,15 @@ void main() {
 
     testWidgets('only a changed child/label — the same registration',
         (tester) async {
-      final registry = TargetRegistry();
+      final registry = HintTargetRegistry();
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'stats', registry: registry, child: const Text('a')),
+        HintTarget(id: 'stats', registry: registry, child: const Text('a')),
       ));
       final first = registry.lookup('stats');
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(
+        HintTarget(
           id: 'stats',
           registry: registry,
           semanticsLabel: 'Label',
@@ -75,18 +74,16 @@ void main() {
     testWidgets(
         'a changed registry: removed from the old one, registered '
         'into the new one', (tester) async {
-      final registryA = TargetRegistry();
-      final registryB = TargetRegistry();
+      final registryA = HintTargetRegistry();
+      final registryB = HintTargetRegistry();
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(
-            id: 'stats', registry: registryA, child: const Text('c')),
+        HintTarget(id: 'stats', registry: registryA, child: const Text('c')),
       ));
       expect(registryA.lookup('stats'), isNotNull);
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(
-            id: 'stats', registry: registryB, child: const Text('c')),
+        HintTarget(id: 'stats', registry: registryB, child: const Text('c')),
       ));
 
       expect(registryA.lookup('stats'), isNull); // no leak in the old one
@@ -97,11 +94,11 @@ void main() {
         'recreation with the same id (ListView rebuild): the last one owns '
         'the id, the dispose of the old one does not remove it',
         (tester) async {
-      final registry = TargetRegistry();
+      final registry = HintTargetRegistry();
       final child = const Text('c');
 
       Widget app(Key key) => _app(
-            ShowcaseTarget(
+            HintTarget(
               key: key,
               id: 'stats',
               registry: registry,
@@ -128,7 +125,7 @@ void main() {
     testWidgets('the child renders 1:1 through the leader; idle — no overlay',
         (tester) async {
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'stats', child: const Text('content')),
+        HintTarget(id: 'stats', child: const Text('content')),
       ));
 
       expect(find.text('content'), findsOneWidget);
@@ -141,18 +138,18 @@ void main() {
     testWidgets('semanticsLabel: a Semantics wrapper only with a label set',
         (tester) async {
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'stats', child: const Text('x')),
+        HintTarget(id: 'stats', child: const Text('x')),
       ));
       expect(
         find.descendant(
-          of: find.byType(ShowcaseTarget),
+          of: find.byType(HintTarget),
           matching: find.byType(Semantics),
         ),
         findsNothing,
       );
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(
+        HintTarget(
           id: 'stats',
           semanticsLabel: 'Save button',
           child: const Text('x'),
@@ -160,7 +157,7 @@ void main() {
       ));
       expect(
         find.descendant(
-          of: find.byType(ShowcaseTarget),
+          of: find.byType(HintTarget),
           matching: find.byType(Semantics),
         ),
         findsOneWidget,
@@ -169,10 +166,10 @@ void main() {
 
     testWidgets('without registry: — the default singleton (zero-config)',
         (tester) async {
-      final singleton = TargetRegistry.defaultInstance;
+      final singleton = HintTargetRegistry.defaultInstance;
 
       await tester.pumpWidget(_app(
-        ShowcaseTarget(id: 'zero-config', child: const Text('x')),
+        HintTarget(id: 'zero-config', child: const Text('x')),
       ));
       expect(singleton.lookup('zero-config'), isNotNull);
 

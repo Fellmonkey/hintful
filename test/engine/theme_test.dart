@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/theme/showcase_theme.dart';
+import 'package:hintful/engine/theme/hint_theme.dart';
 
 void main() {
-  group('ShowcaseTheme.minimal', () {
+  group('HintTheme.minimal', () {
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
 
     test('the ColorScheme inverseSurface pair, not a hardcode', () {
-      final theme = ShowcaseTheme.minimal(scheme);
+      final theme = HintTheme.minimal(scheme);
       expect(theme.tooltipBackground, scheme.inverseSurface);
       expect(theme.tooltipForeground, scheme.onInverseSurface);
     });
 
     test('title/description styles are set (zero-config default)', () {
-      final theme = ShowcaseTheme.minimal(scheme);
+      final theme = HintTheme.minimal(scheme);
       expect(theme.tooltipTitleStyle, isNotNull);
       expect(theme.tooltipDescriptionStyle, isNotNull);
       expect(theme.tooltipTitleStyle?.color, scheme.onInverseSurface);
     });
   });
 
-  group('ShowcaseThemeX.hintTheme', () {
+  group('HintThemeX.hintTheme', () {
     test('without registration — minimal default from colorScheme', () {
       final data =
           ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal));
-      expect(data.hintTheme, isA<ShowcaseTheme>());
+      expect(data.hintTheme, isA<HintTheme>());
       expect(
         data.hintTheme.tooltipBackground,
         data.colorScheme.inverseSurface,
@@ -32,7 +32,7 @@ void main() {
     });
 
     test('with registration — custom theme', () {
-      const custom = ShowcaseTheme(
+      const custom = HintTheme(
         tooltipBackground: Color(0xFF123456),
         tooltipForeground: Color(0xFFFFFFFF),
         scrimColor: Color(0x80000000),
@@ -49,8 +49,8 @@ void main() {
 
   group('copyWith / lerp', () {
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
-    final a = ShowcaseTheme.minimal(scheme);
-    final b = ShowcaseTheme.minimal(
+    final a = HintTheme.minimal(scheme);
+    final b = HintTheme.minimal(
       ColorScheme.fromSeed(seedColor: Colors.deepOrange),
     );
 

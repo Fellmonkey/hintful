@@ -10,8 +10,8 @@ import 'package:flutter/widgets.dart';
 /// event and is never stored by the overlay — it must not be used after
 /// dispose.
 @immutable
-class TargetRegistration {
-  const TargetRegistration({
+class HintTargetRegistration {
+  const HintTargetRegistration({
     required this.id,
     required this.link,
     required this.context,
@@ -36,12 +36,12 @@ class TargetRegistration {
 ///   killed the new one".
 /// - **Data only**: the registry stores no widgets/elements — just id, link
 ///   and context; no leaks.
-class TargetRegistry {
-  TargetRegistry({this.onWarning});
+class HintTargetRegistry {
+  HintTargetRegistry({this.onWarning});
 
-  /// Global instance for zero-config (`ShowcaseTarget` without `registry:`).
+  /// Global instance for zero-config (`HintTarget` without `registry:`).
   /// Tests and apps with their own registries create separate instances.
-  static final TargetRegistry defaultInstance = TargetRegistry();
+  static final HintTargetRegistry defaultInstance = HintTargetRegistry();
 
   /// Developer warnings (duplicate id etc.); in debug builds the controller
   /// wires up printing.
@@ -59,15 +59,15 @@ class TargetRegistry {
   /// (dispose races are inevitable, not an error).
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 
-  final Map<String, TargetRegistration> _byId = {};
+  final Map<String, HintTargetRegistration> _byId = {};
 
   /// Current registration for [id], or null if the target is not mounted.
-  TargetRegistration? lookup(String id) => _byId[id];
+  HintTargetRegistration? lookup(String id) => _byId[id];
 
   /// All registered ids (unmodifiable copy; used for typo candidates).
   Set<String> get ids => Set.unmodifiable(_byId.keys);
 
-  void register(TargetRegistration registration) {
+  void register(HintTargetRegistration registration) {
     final existing = _byId[registration.id];
     if (existing != null && !identical(existing, registration)) {
       onWarning?.call(
@@ -82,7 +82,7 @@ class TargetRegistry {
   /// Removes [registration] only if it is the current owner of its id.
   /// A foreign/stale registration is a silent no-op (dispose races are
   /// inevitable) and does not notify listeners.
-  void unregister(TargetRegistration registration) {
+  void unregister(HintTargetRegistration registration) {
     final owner = _byId[registration.id];
     if (owner == null || !identical(owner, registration)) {
       return;

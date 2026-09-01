@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../engine/specs.dart';
-import '../engine/theme/showcase_theme.dart';
+import '../engine/theme/hint_theme.dart';
 
 /// Zero-config tooltip: title + description + Skip/Next/Done from
-/// [ShowcaseTheme].
+/// [HintTheme].
 ///
 /// Rendered when a step has no `tooltipBuilder`. A separate widget so the
 /// builder path (full customization) and the default do not duplicate theming.
@@ -26,12 +26,12 @@ class DefaultTooltip extends StatelessWidget {
     required this.ctx,
   });
 
-  final StepSpec step;
+  final HintStep step;
 
   /// Actions + position in the tour: the same contract that `tooltipBuilder`
-  /// receives ([StepTooltipContext]) — the default tooltip and a custom one
+  /// receives ([HintTooltipContext]) — the default tooltip and a custom one
   /// do not diverge.
-  final StepTooltipContext ctx;
+  final HintTooltipContext ctx;
 
   @override
   Widget build(BuildContext context) {

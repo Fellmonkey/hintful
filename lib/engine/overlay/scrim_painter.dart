@@ -23,13 +23,13 @@ import '../position_resolver.dart';
 class ScrimHolePainter extends CustomPainter {
   ScrimHolePainter({required this.resolver, required this.color});
 
-  final TargetPositionResolver resolver;
+  final HintPositionResolver resolver;
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final position = resolver.resolve();
-    if (position is! PositionedTarget) {
+    if (position is! PositionedHint) {
       // Target not mounted (waiting mode): full scrim without a hole.
       canvas.drawRect(Offset.zero & size, Paint()..color = color);
       return;

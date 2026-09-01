@@ -5,23 +5,23 @@ import 'package:hintful/engine/diagnostics.dart';
 import 'package:hintful/engine/machine.dart';
 import 'package:hintful/engine/specs.dart';
 
-TourSpec _tour({
+HintTour _tour({
   int steps = 2,
   Duration stepTimeout = const Duration(seconds: 3),
 }) =>
-    TourSpec(
+    HintTour(
       id: 't',
       steps: [
         for (var i = 0; i < steps; i++)
-          StepSpec(targetId: 'target$i', title: 'Step $i'),
+          HintStep(targetId: 'target$i', title: 'Step $i'),
       ],
       stepTimeout: stepTimeout,
     );
 
 void expectTransition(
-  TourTransition transition,
-  TourState state,
-  List<TourEffect> effects,
+  HintTransition transition,
+  HintState state,
+  List<HintEffect> effects,
 ) {
   expect(transition.effects, effects, reason: 'effects');
   expect(transition.state, state, reason: 'state');
@@ -30,25 +30,25 @@ void expectTransition(
 void main() {
   group('transition table (data → loop)', () {
     final tour = _tour();
-    const idle = TourIdle();
-    final waiting0 = TourWaiting(tour: tour, stepIndex: 0);
-    final active0 = TourActive(tour: tour, stepIndex: 0);
-    final waiting1 = TourWaiting(tour: tour, stepIndex: 1);
-    final active1 = TourActive(tour: tour, stepIndex: 1);
+    const idle = HintIdle();
+    final waiting0 = HintWaiting(tour: tour, stepIndex: 0);
+    final active0 = HintActive(tour: tour, stepIndex: 0);
+    final waiting1 = HintWaiting(tour: tour, stepIndex: 1);
+    final active1 = HintActive(tour: tour, stepIndex: 1);
     const arm3 = ArmTimeoutEffect(timeout: Duration(seconds: 3));
 
     final cases = <({
       String name,
-      TourState from,
-      TourEvent event,
+      HintState from,
+      HintEvent event,
       Map<String, bool> present,
-      TourState expected,
-      List<TourEffect> effects,
+      HintState expected,
+      List<HintEffect> effects,
     })>[
       (
         name: 'start from idle → waiting(0) + timer',
         from: idle,
-        event: TourStart(tour: tour),
+        event: HintStart(tour: tour),
         present: const {},
         expected: waiting0,
         effects: const [arm3],
@@ -332,7 +332,7 @@ void main() {
 
     for (final c in cases) {
       test(c.name, () {
-        final machine = TourMachine(initialState: c.from);
+        final machine = HintMachine(initialState: c.from);
         final transition = machine.dispatch(
           c.event,
           targetPresent: (id) => c.present[id] ?? false,
@@ -346,21 +346,21 @@ void main() {
 
   group('wait-for-target on every step', () {
     test('per-step waitTimeout overrides the tour stepTimeout', () {
-      final tour = TourSpec(
+      final tour = HintTour(
         id: 't',
         stepTimeout: const Duration(seconds: 3),
         steps: [
-          StepSpec(
+          HintStep(
             targetId: 'a',
             title: 'A',
             waitTimeout: const Duration(seconds: 7),
           ),
-          StepSpec(targetId: 'b', title: 'B'),
+          HintStep(targetId: 'b', title: 'B'),
         ],
       );
-      final machine = TourMachine();
+      final machine = HintMachine();
 
-      final start = machine.dispatch(TourStart(tour: tour));
+      final start = machine.dispatch(HintStart(tour: tour));
       expect(
         start.effects,
         const [ArmTimeoutEffect(timeout: Duration(seconds: 7))],
@@ -368,7 +368,7 @@ void main() {
 
       machine.dispatch(const TargetAppeared(targetId: 'a'));
       final next = machine.dispatch(const UserNext());
-      expect(machine.state, TourWaiting(tour: tour, stepIndex: 1));
+      expect(machine.state, HintWaiting(tour: tour, stepIndex: 1));
       expect(
         next.effects,
         const [ArmTimeoutEffect(timeout: Duration(seconds: 3))],
@@ -379,29 +379,29 @@ void main() {
   group('contracts', () {
     test('a second start over an active tour — assert in debug', () {
       final tour = _tour();
-      final machine = TourMachine();
-      machine.dispatch(TourStart(tour: tour));
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour));
       expect(
-        () => machine.dispatch(TourStart(tour: tour)),
+        () => machine.dispatch(HintStart(tour: tour)),
         throwsA(isA<AssertionError>()),
       );
     });
 
     test('state equality — by tour (identity) and step', () {
       final tour = _tour();
-      expect(TourWaiting(tour: tour, stepIndex: 0),
-          TourWaiting(tour: tour, stepIndex: 0));
-      expect(TourWaiting(tour: tour, stepIndex: 0),
-          isNot(TourWaiting(tour: tour, stepIndex: 1)));
-      expect(TourActive(tour: tour, stepIndex: 0),
-          isNot(TourWaiting(tour: tour, stepIndex: 0)));
-      expect(const TourIdle(), const TourIdle());
+      expect(HintWaiting(tour: tour, stepIndex: 0),
+          HintWaiting(tour: tour, stepIndex: 0));
+      expect(HintWaiting(tour: tour, stepIndex: 0),
+          isNot(HintWaiting(tour: tour, stepIndex: 1)));
+      expect(HintActive(tour: tour, stepIndex: 0),
+          isNot(HintWaiting(tour: tour, stepIndex: 0)));
+      expect(const HintIdle(), const HintIdle());
     });
 
     test('goTo out of range — assert in debug', () {
       final tour = _tour();
-      final machine = TourMachine();
-      machine.dispatch(TourStart(tour: tour));
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour));
       machine.dispatch(const TargetAppeared(targetId: 'target0'));
       expect(
         () => machine.dispatch(const UserGoTo(index: 99)),
@@ -418,7 +418,7 @@ void main() {
       var total = 0;
 
       for (var run = 0; run < 10; run++) {
-        final machine = TourMachine();
+        final machine = HintMachine();
         // Target presence is fixed for the whole run; the generator emits
         // registry facts consistently with it (appear/vanished = a flip).
         final present = {for (final id in ids) id: rng.nextBool()};
@@ -439,25 +439,25 @@ void main() {
   });
 }
 
-TourEvent _randomEvent(
+HintEvent _randomEvent(
   Random rng,
   bool idle,
   List<String> ids,
   Map<String, bool> present,
-  TourSpec tour,
+  HintTour tour,
 ) {
   String pick(List<String> pool, String fallback) =>
       pool.isEmpty ? fallback : pool[rng.nextInt(pool.length)];
 
   if (idle) {
-    // Only TourStart leaves idle; the rest checks the no-ops.
+    // Only HintStart leaves idle; the rest checks the no-ops.
     return switch (rng.nextInt(10)) {
       0 => const UserFinish(),
       1 => const UserSkip(),
       2 => const WaitTimeout(),
       3 => const UserPrevious(),
       4 => UserGoTo(index: rng.nextInt(tour.steps.length)),
-      _ => TourStart(tour: tour),
+      _ => HintStart(tour: tour),
     };
   }
 
@@ -492,19 +492,19 @@ TourEvent _randomEvent(
 }
 
 void _expectInvariants(
-  TourTransition transition,
-  TourSpec tour,
+  HintTransition transition,
+  HintTour tour,
   Map<String, bool> present,
 ) {
   final state = transition.state;
 
   switch (state) {
-    case TourIdle():
+    case HintIdle():
       break;
-    case TourWaiting(:final stepIndex):
+    case HintWaiting(:final stepIndex):
       expect(stepIndex, inInclusiveRange(0, tour.steps.length - 1));
       break;
-    case TourActive(:final stepIndex):
+    case HintActive(:final stepIndex):
       expect(stepIndex, inInclusiveRange(0, tour.steps.length - 1));
       break;
   }
@@ -512,7 +512,7 @@ void _expectInvariants(
   for (final effect in transition.effects) {
     switch (effect) {
       case EnterStepEffect(:final stepIndex):
-        expect(state, isA<TourActive>(), reason: 'EnterStep ⇒ active');
+        expect(state, isA<HintActive>(), reason: 'EnterStep ⇒ active');
         expect(
           state.stepIndex,
           stepIndex,
@@ -525,7 +525,7 @@ void _expectInvariants(
         );
         break;
       case ArmTimeoutEffect():
-        expect(state, isA<TourWaiting>(), reason: 'ArmTimeout ⇒ waiting');
+        expect(state, isA<HintWaiting>(), reason: 'ArmTimeout ⇒ waiting');
         break;
       case ClearTimeoutEffect():
         expect(
@@ -535,7 +535,7 @@ void _expectInvariants(
         );
         break;
       case AbortEffect() || FinishedEffect():
-        expect(state, isA<TourIdle>(), reason: 'Abort/Finished ⇒ idle');
+        expect(state, isA<HintIdle>(), reason: 'Abort/Finished ⇒ idle');
         break;
     }
   }
