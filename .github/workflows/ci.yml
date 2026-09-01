@@ -1,0 +1,70 @@
+name: CI
+
+# Jobs:
+# - `test` — analyze + unit/widget tests of the package and the example on
+#   every PR;
+# - `web`  — build the example for web (automates the "compiles for web"
+#   acceptance: the engine must not carry web-target incompatibilities);
+# - `bench-idle` — integration benchmark skeleton: zero-idle invariants
+#   idle→active→finish on live Chrome. Expensive — only on push (main/tag),
+#   outside the PR loop.
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Pub get (package)
+        run: flutter pub get
+      - name: Analyze (package)
+        run: flutter analyze
+      - name: Test (package)
+        run: flutter test
+      - name: Pub get (example)
+        working-directory: example
+        run: flutter pub get
+      - name: Analyze (example)
+        working-directory: example
+        run: flutter analyze
+      - name: Test (example smoke)
+        working-directory: example
+        run: flutter test
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build web (example)
+        working-directory: example
+        run: flutter build web
+
+  bench-idle:
+    # Only on push (main/tag): an integration run on live Chrome is
+    # expensive — outside the PR loop.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Pub get (example)
+        working-directory: example
+        run: flutter pub get
+      - name: Integration test (zero-idle invariants + mount time)
+        working-directory: example
+        run: flutter test -d chrome benchmark/benchmark_idle_integration.dart
