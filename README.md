@@ -147,7 +147,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hintful: ^0.2.0
+  hintful: ^0.3.0
 ```
 
 ```dart

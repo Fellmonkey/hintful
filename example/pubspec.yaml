@@ -1,5 +1,5 @@
 name: hintful_example
-description: "Hintful acceptance playground: 4-step tour, deferred target, light/dark, showHint."
+description: "Hintful demo app: tours, deferred targets, versioned hints, tap regions, blur/pulse scrim and the tour offer dialog."
 publish_to: 'none'
 version: 0.1.0
 

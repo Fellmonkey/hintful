@@ -1,5 +1,13 @@
-# hintful_bloc is a separate package (own pubspec, own publication).
-# It lives in this repo as a monorepo sibling, so keep it out of the
-# hintful archive. Unlike .gitignore, .pubignore applies even to
-# files tracked by git.
+# Private planning docs — never published.
+doc/
+
+# Build artifacts at any level (root package and example/).
+build/
+
+# The sibling adapter package ships on its own — its sources are not part
+# of the hintful archive.
 hintful_bloc/
+
+# IDE/editor junk.
+*.iml
+.idea/
