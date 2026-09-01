@@ -433,6 +433,161 @@ void main() {
       expect(focusNode.hasFocus, isTrue);
     });
 
+    testWidgets('multi-target step: both targets spotlighted, one tooltip',
+        (tester) async {
+      final h = TourHarness(targets: [
+        HarnessTarget('stats'),
+        HarnessTarget('records', top: 200),
+      ]);
+      final tour = HintTour(
+        id: 'multi',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            moreTargets: const ['records'],
+            title: 'Statistics',
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+
+      // A follower per target: the primary (scrim host) + the secondary.
+      expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+      expect(find.text('Statistics'), findsOneWidget);
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('a single hint has no Skip button', (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'single',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      expect(find.text('Done'), findsOneWidget);
+      expect(find.text('Skip'), findsNothing,
+          reason: 'a lone hint: Skip is meaningless (Done does the same)');
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('multi-content: two tooltips around one target, no overlap',
+        (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'multi-content',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            title: 'Primary',
+            description: 'The main tooltip',
+            moreTooltips: const [
+              HintTooltip(
+                position: TooltipPosition.right,
+                title: 'Extra',
+                description: 'An informational slot',
+              ),
+            ],
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+
+      // Both slots are visible; only the primary keeps the action buttons
+      // (the tour has one step → Done, not Next).
+      expect(find.text('Primary'), findsOneWidget);
+      expect(find.text('Extra'), findsOneWidget);
+      expect(find.text('Done'), findsOneWidget,
+          reason: 'the extra slot is informational (no button row)');
+
+      // The slots never overlap (N3 collision handling).
+      final primaryRect = tester.getRect(find.text('Primary'));
+      final extraRect = tester.getRect(find.text('Extra'));
+      expect(primaryRect.overlaps(extraRect), isFalse);
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('tap on the target itself = next (target region)',
+        (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'flow',
+        steps: [
+          HintStep(targetId: 'stats', title: 'Statistics'),
+          HintStep(targetId: 'records', title: 'Records'),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      // The target's label is inside the hole — tapping it is a target-region
+      // tap (not the scrim).
+      await tester.tap(find.text('stats'));
+      await TourHarness.settle(tester);
+      expect(
+        h.controller.currentState,
+        HintWaiting(tour: tour, stepIndex: 1),
+      );
+      h.disposeNow(); // waiting holds a timer — release in the body
+    });
+
+    testWidgets('scroll-through: dragging the scrim scrolls the page',
+        (tester) async {
+      final h = TourHarness(
+        // A second target far below makes the list scrollable (content
+        // height > viewport): 200+80+500+80 = 860 > 600.
+        targets: [
+          HarnessTarget('stats', top: 200, height: 80),
+          HarnessTarget('records', top: 500, height: 80),
+        ],
+        scrollable: true,
+      );
+      final tour = HintTour(
+        id: 'scroll',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+
+      final offsetBefore = h.scrollController.offset;
+      // Drag on the scrim (bottom-right, away from the tooltip) — the page
+      // scrolls under the tour (scroll-through), and the drag is not a tap
+      // (the tour stays on the same step).
+      await tester.dragFrom(const Offset(700, 500), const Offset(0, -120));
+      await tester.pump();
+      expect(h.scrollController.offset, greaterThan(offsetBefore),
+          reason: 'the drag reached the scrollable below the scrim');
+      expect(
+        h.controller.currentState,
+        HintActive(tour: tour, stepIndex: 0),
+        reason: 'a drag is not a tap — the step did not advance',
+      );
+
+      // The tooltip still follows the target after the scroll.
+      final targetAfter = tester.getRect(find.text('stats'));
+      final tipAfter = tester.getRect(find.text('Statistics'));
+      expect(tipAfter.top, greaterThan(targetAfter.bottom));
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
     testWidgets('Escape = skip: userSkipped abort through a real overlay',
         (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);

@@ -452,5 +452,29 @@ void main() {
       expect(classification.deferred, hasLength(1));
       expect(classification.typos, isEmpty);
     });
+
+    test('a typo in a multi-target step is reported with the offending id', () {
+      const known = {'statsPeriodSelector', 'addSet'};
+      final tour = HintTour(
+        id: 't',
+        steps: [
+          const HintStep(
+            targetId: 'addSet',
+            moreTargets: ['statsPeriodSelectr'], // the typo is the extra
+            title: 'multi',
+          ),
+        ],
+      );
+
+      final classification = classifyStepTargets(tour, known);
+
+      expect(classification.typos, hasLength(1));
+      expect(classification.typos.single.index, 0);
+      expect(classification.typos.single.typoId, 'statsPeriodSelectr');
+      expect(
+        classification.typos.single.candidates,
+        ['statsPeriodSelector'],
+      );
+    });
   });
 }

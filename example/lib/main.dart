@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -5,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // overlay machinery and machine effects are not reachable from here.
 import 'package:hintful/hintful.dart';
 
+import 'demo_tours.dart';
+import 'home_screen.dart';
 import 'shared_prefs_hint_store.dart';
 
 void main() => runApp(const ExampleApp());
@@ -14,23 +18,22 @@ void main() => runApp(const ExampleApp());
 /// 1. **Target following**: the tooltip and the scrim hole are tied to the
 ///    target by a compositor transform — they ride along with any movement /
 ///    re-layout (proven by tests: `position_resolver_test` and a tour-level
-///    test with a programmatic scroll). For now the scrim blocks interaction
-///    with the app during the tour (a single "tap = next"); scroll-through
-///    is follow-up work.
+///    test with a programmatic scroll). The scrim is transparent to drags
+///    (scroll-through — the page scrolls under an active tour) and owns
+///    taps, split into target/overlay regions with tap positions.
 /// 2. **Zero idle cost**: until a tour starts, the tree only holds thin
 ///    leader wrappers of the targets — no overlay widgets at all.
-/// 3. **Deferred target**: step 3 waits for the "Summary" card to appear —
-///    the section "loads" 600 ms after the step activates (wait-for-target,
-///    timeout with diagnostics — the same mechanism as for lazy tabs).
+/// 3. **Deferred target**: the intro tour's step 3 waits for the "Summary"
+///    card to appear — the section "loads" 600 ms after the step activates
+///    (wait-for-target, timeout with diagnostics — the same mechanism as
+///    for lazy tabs).
 ///
-/// Plus: light/dark (hint theming inherits the ColorScheme through
-/// HintTheme), the `showHint` quick path for a single tip, smart
-/// positioning (tooltip tail, keep-in-safe-area) and the versioned-intro
-/// pattern (N4): the intro tour shows once per app version — `shouldShow`
-/// before start, `markShown` on exit, a version bump re-shows it (demo
-/// buttons "Bump version" / "Reset store"). The store is a
-/// `shared_preferences`-backed `HintStore` living in the app — the library
-/// core stays dependency-free.
+/// The screen and the tours live in their own files: [HintHomeScreen]
+/// (target registration + demo cards) and `demo_tours.dart` (tour
+/// definitions). This file is the shell — the controller, the
+/// versioned-intro store gate, the light/dark + scrim-style theming and the
+/// app reactions to tour state (per tour id — e.g. only the intro reveals
+/// the deferred summary card).
 class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
 
@@ -56,19 +59,20 @@ class _ExampleAppState extends State<ExampleApp> {
   /// to demonstrate the "new in this version" re-show.
   String _appVersion = '1.0.0';
 
-  /// Set when the versioned intro starts; on the next idle (finish/skip/
-  /// timeout) it is marked shown for the current version — no nagging in
-  /// the same version.
-  bool _introStarted = false;
+  /// Set when a versioned entry point starts its tour (the AppBar intro and
+  /// the "Offer tour" demo); on the next idle (finish/skip/timeout) it is
+  /// marked shown for the current app version — no nagging in the same
+  /// version.
+  String? _activeTourId;
 
   ThemeMode _themeMode = ThemeMode.light;
   int _selectedFilter = 0; // 0 = all sets, 1 = by day
   bool _showStats = false; // the "Summary" card (deferred target of step 3)
   bool _statsRevealScheduled = false;
+  HintStyle _hintStyle = HintStyle.plain;
 
   // The State's own context is ABOVE MaterialApp (no ScaffoldMessenger
-  // ancestor) — snackbars from the versioned-intro actions go through the
-  // app's messenger key instead.
+  // ancestor) — snackbars go through the app's messenger key instead.
   final GlobalKey<ScaffoldMessengerState> _messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
@@ -100,25 +104,27 @@ class _ExampleAppState extends State<ExampleApp> {
     super.dispose();
   }
 
-  /// App reaction to the tour state: on step 3 we "load" the summary (a
-  /// lazy-section simulation), and reset the flag on completion. When the
-  /// versioned intro exits (any way), it is marked shown for the current
-  /// app version. Also rebuilds the AppBar icons (disabled while a tour is
-  /// active).
+  /// App reaction to the tour state, gated by tour id: only the intro tour
+  /// "loads" the summary on step 3 (lazy-section simulation) and only the
+  /// versioned intro is marked shown on exit. Also rebuilds the AppBar
+  /// icons (disabled while a tour is active).
   void _onTourStateChanged() {
     final state = _controller.currentState;
     if (state.isIdle) {
       _statsRevealScheduled = false;
-      if (_introStarted) {
-        _introStarted = false;
+      final active = _activeTourId;
+      if (active != null) {
+        _activeTourId = null;
         // Finished, skipped or timed out — the user has seen it; do not
         // nag again in this version.
-        _store?.markShown('intro', _appVersion);
+        _store?.markShown(active, _appVersion);
       }
       if (mounted) setState(() {});
       return;
     }
-    if (state.stepIndex == 2 && !_statsRevealScheduled) {
+    if (state.tour?.id == 'intro' &&
+        state.stepIndex == 2 &&
+        !_statsRevealScheduled) {
       _statsRevealScheduled = true;
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) setState(() => _showStats = true);
@@ -126,34 +132,6 @@ class _ExampleAppState extends State<ExampleApp> {
     }
     if (mounted) setState(() {});
   }
-
-  HintTour get _introTour => HintTour(
-        id: 'intro',
-        steps: [
-          HintStep(
-            targetId: 'fab',
-            title: 'Quick log',
-            description: 'Add sets with one tap. '
-                'Next we show the day filter.',
-          ),
-          HintStep(
-            targetId: 'filter-daily',
-            title: 'Daily filter',
-            description: 'The day summary — the next tour step.',
-          ),
-          HintStep(
-            targetId: 'stats',
-            title: 'Summary card',
-            description: 'It appeared automatically — that is '
-                'wait-for-target for deferred sections.',
-          ),
-          HintStep(
-            targetId: 'entry-0',
-            title: 'Workout list',
-            description: 'Every entry is a target too. Done!',
-          ),
-        ],
-      );
 
   /// The versioned-intro entry: show once per app version. Gated — when the
   /// intro already showed in [_appVersion], explain instead of showing
@@ -173,11 +151,11 @@ class _ExampleAppState extends State<ExampleApp> {
       );
       return;
     }
-    _introStarted = true;
-    _controller.start(_introTour);
+    _activeTourId = 'intro';
+    _controller.start(introTour());
   }
 
-  /// Demo control: 1.0.0 → 1.1.0 → … — "new in this version" re-shows the
+  /// Demo controls: 1.0.0 → 1.1.0 → … — "new in this version" re-shows the
   /// intro.
   void _bumpVersion() {
     setState(() {
@@ -218,17 +196,79 @@ class _ExampleAppState extends State<ExampleApp> {
     );
   }
 
+  void _startMultiTargetTour() =>
+      _guardStart(() => _controller.start(multiTargetTour()));
+
+  void _startMultiContentTour() =>
+      _guardStart(() => _controller.start(multiContentTour()));
+
+  void _startTapRegionsTour() =>
+      _guardStart(() => _controller.start(tapRegionsTour(_notify)));
+
+  /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
+  /// checkbox; the decision (start or decline) is persisted via the store —
+  /// per page, or globally when the checkbox is on. The tour itself is built
+  /// from an enum ([HintTour.fromEnum]) — see demo_tours.dart.
+  void _startOfferTour(BuildContext context) {
+    if (!_controller.currentState.isIdle) return; // one tour at a time
+    final store = _store;
+    if (store == null) return; // prefs not loaded yet
+    showHintTourOffer(
+      context: context,
+      controller: _controller,
+      tour: offerTour(),
+      store: store,
+      pageId: 'HomePage',
+      minVersion: _appVersion,
+    ).then((result) {
+      if (result == HintTourOfferResult.started) {
+        _activeTourId = 'offer'; // marked shown on exit — no re-offer
+      }
+    });
+  }
+
+  void _guardStart(VoidCallback start) {
+    if (_controller.currentState.isIdle) start();
+  }
+
+  /// Snackbar channel for tour callbacks (tap-region demo) — the shell owns
+  /// the messenger key. A fresh notification replaces the previous one
+  /// (channel semantics, not a queue).
+  void _notify(String message) {
+    final messenger = _messengerKey.currentState;
+    messenger?.clearSnackBars();
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
+  }
+
   void _toggleTheme() => setState(() => _themeMode =
       _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
 
+  void _onStyleChanged(HintStyle style) => setState(() => _hintStyle = style);
+
   /// Hint theming as part of the design system: the product describes it via
   /// a ThemeExtension, the engine picks it up automatically. The minimal()
-  /// default is a ColorScheme inverseSurface pair; here — a light tweak.
-  HintTheme _hintTheme(ColorScheme scheme) =>
-      HintTheme.minimal(scheme).copyWith(
-        tooltipRadius: BorderRadius.circular(16),
-        tooltipPadding: const EdgeInsets.all(20),
-      );
+  /// default is a ColorScheme inverseSurface pair; the selected demo style
+  /// maps to the blur ([HintTheme.imageFilter]) and pulse ([HintTheme.showPulse])
+  /// options.
+  HintTheme _hintTheme(ColorScheme scheme) {
+    final theme = HintTheme.minimal(scheme).copyWith(
+      tooltipRadius: BorderRadius.circular(16),
+      tooltipPadding: const EdgeInsets.all(20),
+    );
+    return switch (_hintStyle) {
+      HintStyle.plain => theme,
+      HintStyle.blur => theme.copyWith(
+          imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          scrimColor: Colors.black.withAlpha(90), // blur dims too
+        ),
+      HintStyle.pulse => theme.copyWith(showPulse: true),
+      HintStyle.blurPulse => theme.copyWith(
+          imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          scrimColor: Colors.black.withAlpha(90),
+          showPulse: true,
+        ),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +289,7 @@ class _ExampleAppState extends State<ExampleApp> {
         extensions: [_hintTheme(darkScheme)],
       ),
       themeMode: _themeMode,
-      home: _HomeScreen(
+      home: HintHomeScreen(
         controller: _controller,
         themeMode: _themeMode,
         selectedFilter: _selectedFilter,
@@ -259,6 +299,7 @@ class _ExampleAppState extends State<ExampleApp> {
         storeReady: _store != null,
         introWillShow:
             _store?.shouldShow('intro', minVersion: _appVersion) ?? false,
+        hintStyle: _hintStyle,
         onToggleTheme: _toggleTheme,
         onStartTour: _startTour,
         onShowHint: _showHint,
@@ -268,213 +309,12 @@ class _ExampleAppState extends State<ExampleApp> {
           _selectedFilter = index;
           _showStats = index == 1;
         }),
+        onStyleChanged: _onStyleChanged,
+        onMultiTargetTour: _startMultiTargetTour,
+        onMultiContentTour: _startMultiContentTour,
+        onTapRegionsTour: _startTapRegionsTour,
+        onOfferTour: _startOfferTour,
       ),
-    );
-  }
-}
-
-class _HomeScreen extends StatelessWidget {
-  const _HomeScreen({
-    required this.controller,
-    required this.themeMode,
-    required this.selectedFilter,
-    required this.showStats,
-    required this.entries,
-    required this.appVersion,
-    required this.storeReady,
-    required this.introWillShow,
-    required this.onToggleTheme,
-    required this.onStartTour,
-    required this.onShowHint,
-    required this.onBumpVersion,
-    required this.onResetStore,
-    required this.onFilter,
-  });
-
-  final HintController controller;
-  final ThemeMode themeMode;
-  final int selectedFilter;
-  final bool showStats;
-  final List<(String, String)> entries;
-  final String appVersion;
-  final bool storeReady;
-  final bool introWillShow;
-  final VoidCallback onToggleTheme;
-  final VoidCallback onStartTour;
-  final VoidCallback onShowHint;
-  final VoidCallback onBumpVersion;
-  final VoidCallback onResetStore;
-  final ValueChanged<int> onFilter;
-
-  @override
-  Widget build(BuildContext context) {
-    final tourActive = !controller.currentState.isIdle;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hintful'),
-        actions: [
-          IconButton(
-            tooltip: 'Toggle theme',
-            icon: Icon(
-              themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
-            ),
-            onPressed: onToggleTheme,
-          ),
-          IconButton(
-            tooltip: 'Show hint',
-            icon: const Icon(Icons.lightbulb_outline),
-            onPressed: tourActive ? null : onShowHint,
-          ),
-          IconButton(
-            tooltip: 'Show tour',
-            icon: const Icon(Icons.play_circle_outline),
-            onPressed: tourActive ? null : onStartTour,
-          ),
-        ],
-      ),
-      floatingActionButton: HintTarget(
-        id: 'fab',
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Set added (demo)')),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Log a set'),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Versioned-intro demo (N4): the store is app-side
-          // (shared_preferences); the library ships only the contract and
-          // the in-memory default.
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Versioned intro',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(
-                    storeReady
-                        ? 'App version $appVersion — the intro '
-                            '${introWillShow ? 'will show again' : 'already showed in this version'}'
-                        : 'Loading the store…',
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      FilledButton.tonal(
-                        onPressed: storeReady ? onBumpVersion : null,
-                        child: const Text('Bump version'),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: storeReady ? onResetStore : null,
-                        child: const Text('Reset store'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text('Filters', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              HintTarget(
-                id: 'filter-all',
-                child: ChoiceChip(
-                  label: const Text('All sets'),
-                  selected: selectedFilter == 0,
-                  onSelected: (_) => onFilter(0),
-                ),
-              ),
-              const SizedBox(width: 8),
-              HintTarget(
-                id: 'filter-daily',
-                child: ChoiceChip(
-                  label: const Text('By day'),
-                  selected: selectedFilter == 1,
-                  onSelected: (_) => onFilter(1),
-                ),
-              ),
-            ],
-          ),
-          if (showStats) ...[
-            const SizedBox(height: 24),
-            Text('Summary', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            HintTarget(
-              id: 'stats',
-              child: const _StatsCard(),
-            ),
-          ],
-          const SizedBox(height: 24),
-          Text('Workouts', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          for (var i = 0; i < entries.length; i++)
-            HintTarget(
-              // Every entry is a target: the registry survives ListView
-              // rebuilds (last-wins + identity guard).
-              id: 'entry-$i',
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.fitness_center)),
-                title: Text(entries[i].$1),
-                subtitle: Text(entries[i].$2),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsCard extends StatelessWidget {
-  const _StatsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.titleMedium;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _Stat(label: 'Sets', value: '42', style: style),
-            _Stat(label: 'Volume', value: '12.4 t', style: style),
-            _Stat(label: 'Days', value: '18', style: style),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.style});
-
-  final String label;
-  final String value;
-  final TextStyle? style;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(value, style: style),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
     );
   }
 }

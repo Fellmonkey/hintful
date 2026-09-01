@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/overlay/tooltip_placement.dart';
 import 'package:hintful/engine/specs.dart';
@@ -262,6 +262,159 @@ void main() {
     });
   });
 
+  group('extraHoles (multi-target: not covering other spotlighted targets)',
+      () {
+    const hole = Rect.fromLTWH(100, 100, 200, 80); // right=300, bottom=180
+    const tooltip = Size(160, 60);
+
+    test('bottom rejected when an extra hole sits below → mirrored to top', () {
+      const extra = Rect.fromLTWH(120, 200, 160, 60); // y 200..260
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.bottom,
+        extraHoles: const [extra],
+      );
+      // bottom would be 192..252 — overlapping the extra → top.
+      expect(
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(120, 28), // y: 100 - 12 - 60
+      );
+    });
+
+    test('without the extra hole the same geometry stays bottom (control)', () {
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.bottom,
+      );
+      expect(
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(120, 192), // y: 180 + 12
+      );
+    });
+
+    test('right rejected when an extra hole sits to the right → next side', () {
+      const extra = Rect.fromLTWH(320, 100, 200, 80); // x 320..520
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: hole,
+        position: TooltipPosition.right,
+        extraHoles: const [extra],
+      );
+      // right (312..472) overlaps the extra; left is off-screen; bottom fits.
+      expect(
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(120, 192),
+      );
+    });
+  });
+
+  group('placeTooltip (pure core, multi-content collisions)', () {
+    const hole = Rect.fromLTWH(350, 250, 100, 100); // right=450, bottom=350
+    const size = Size(160, 60);
+
+    test('a second slot avoids an already-placed tooltip on the same side', () {
+      final primary = placeTooltip(
+        screen: screen,
+        hole: hole,
+        position: TooltipPosition.bottom,
+        size: size,
+        safeArea: EdgeInsets.zero,
+        avoid: const [hole],
+      );
+      final primaryRect = primary & size;
+      expect(primaryRect.top, hole.bottom + 12);
+
+      // The extra also wants the bottom side — blocked by the primary's rect
+      // → the next side in the order (top).
+      final extra = placeTooltip(
+        screen: screen,
+        hole: hole,
+        position: TooltipPosition.bottom,
+        size: size,
+        safeArea: EdgeInsets.zero,
+        avoid: [hole, primaryRect],
+      );
+      final extraRect = extra & size;
+      expect(extraRect.overlaps(primaryRect), isFalse);
+      expect(extraRect.bottom, lessThan(hole.top),
+          reason: 'mirrored above the hole');
+    });
+
+    test(
+        'the corner fallback prefers a free corner over the blocked '
+        'top-left', () {
+      // A placed tooltip occupies the top-left quadrant; no side of the
+      // hole fits the extra (600x250) — the bottom-left corner is free and
+      // wins over the (blocked) top-left.
+      const topLeftBlock = Rect.fromLTWH(0, 0, 400, 300);
+      const tallHole = Rect.fromLTWH(400, 150, 100, 100); // 150..250
+      final offset = placeTooltip(
+        screen: screen,
+        hole: tallHole,
+        position: TooltipPosition.bottom,
+        size: const Size(600, 250),
+        safeArea: EdgeInsets.zero,
+        avoid: [tallHole, topLeftBlock],
+      );
+      expect(offset, const Offset(8, 342));
+    });
+  });
+
+  group('TooltipMultiPlacementDelegate (two slots on the same side)', () {
+    testWidgets('the extra is mirrored away — the slots do not overlap',
+        (tester) async {
+      const hole = Rect.fromLTWH(350, 250, 100, 100);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            width: 800,
+            height: 600,
+            child: CustomMultiChildLayout(
+              delegate: TooltipMultiPlacementDelegate(
+                screenLocal: screen,
+                holeLocal: hole,
+                primaryPosition: TooltipPosition.bottom,
+                extraPositions: const [TooltipPosition.bottom],
+              ),
+              children: [
+                LayoutId(
+                  id: TooltipMultiPlacementDelegate.primaryId,
+                  child: Container(
+                    width: 160,
+                    height: 60,
+                    color: Colors.red,
+                  ),
+                ),
+                LayoutId(
+                  id: TooltipMultiPlacementDelegate.extraId(0),
+                  child: Container(
+                    width: 160,
+                    height: 60,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final red = find
+          .byWidgetPredicate((w) => w is Container && w.color == Colors.red);
+      final blue = find
+          .byWidgetPredicate((w) => w is Container && w.color == Colors.blue);
+      final primaryRect = tester.getRect(red);
+      final extraRect = tester.getRect(blue);
+
+      expect(primaryRect.top, hole.bottom + 12);
+      expect(extraRect.overlaps(primaryRect), isFalse);
+      expect(extraRect.bottom, lessThan(hole.top),
+          reason: 'same preferred side → the extra mirrored above');
+    });
+  });
+
   group('shouldRelayout', () {
     const h = Rect.fromLTWH(100, 100, 200, 80);
 
@@ -318,6 +471,28 @@ void main() {
         safeArea: const EdgeInsets.all(10),
       );
       expect(a.shouldRelayout(inset), isTrue);
+    });
+
+    test('extraHoles: a changed list — true, an equal list — false', () {
+      final withExtra = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        extraHoles: const [Rect.fromLTWH(0, 0, 10, 10)],
+      );
+      final without = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final same = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        extraHoles: const [Rect.fromLTWH(0, 0, 10, 10)],
+      );
+      expect(without.shouldRelayout(withExtra), isTrue);
+      expect(withExtra.shouldRelayout(same), isFalse);
     });
   });
 }

@@ -26,21 +26,26 @@ abstract class HintOverlayHost {
 
 /// A sealed-off step: it references a targetId absent from the registry but
 /// with close candidates (distance ≤ 2) — almost certainly a typo.
+/// [typoId] is the offending id itself (a step may spotlight several
+/// targets — [HintStep.targetIds]); the step is skipped wholesale.
 typedef UnknownHintTarget = ({
   HintStep step,
   int index,
+  String typoId,
   List<String> candidates
 });
 
-/// Classifies a tour's steps by their targetId against the registry's known
-/// ids.
+/// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
+/// extras included) against the registry's known ids.
 ///
 /// Typo policy:
-/// - a step **with candidates** (similar ids exist) — a typo: fails loudly in
-///   debug, is skipped in release (waiting for it is pointless);
-/// - a step **without candidates** — a legitimate deferred target: wait, the
-///   timeout produces its own diagnosis;
-/// - a step whose only difference from a candidate **is digits**
+/// - a step referencing an id **with candidates** (similar ids exist) — a
+///   typo: fails loudly in debug, is skipped in release (waiting for it is
+///   pointless);
+/// - a step whose ids are all known or **without candidates** — a
+///   legitimate deferred target: wait, the timeout produces its own
+///   diagnosis;
+/// - an id whose only difference from a candidate **is digits**
 ///   (`target1`/`target2` sequences) — also deferred: numeric suffixes are
 ///   naming, not typos; otherwise every following step in a sequence would
 ///   look like a typo of the previous one.
@@ -52,13 +57,26 @@ typedef UnknownHintTarget = ({
   final typos = <UnknownHintTarget>[];
   for (var i = 0; i < tour.steps.length; i++) {
     final step = tour.steps[i];
-    if (knownIds.contains(step.targetId)) continue;
-    final candidates = closestTargetIds(step.targetId, knownIds);
-    if (candidates.isEmpty ||
-        _differsOnlyInDigits(step.targetId, candidates.first)) {
+    if (step.targetIds.every(knownIds.contains)) continue; // all known
+    String? typoId;
+    List<String>? candidates;
+    for (final id in step.targetIds) {
+      if (knownIds.contains(id)) continue;
+      final c = closestTargetIds(id, knownIds);
+      if (c.isEmpty || _differsOnlyInDigits(id, c.first)) continue;
+      typoId = id;
+      candidates = c;
+      break;
+    }
+    if (typoId == null) {
       deferred.add(step);
     } else {
-      typos.add((step: step, index: i, candidates: candidates));
+      typos.add((
+        step: step,
+        index: i,
+        typoId: typoId,
+        candidates: candidates!,
+      ));
     }
   }
   return (deferred: deferred, typos: typos);
@@ -299,7 +317,7 @@ class HintController implements HintActions {
   String _describeTypos(HintTour tour, List<UnknownHintTarget> typos) {
     final parts = typos.map((t) {
       final candidates = t.candidates.join(', ');
-      return "step ${t.index + 1} references unknown targetId '${t.step.targetId}'"
+      return "step ${t.index + 1} references unknown targetId '${t.typoId}'"
           '; closest: $candidates';
     }).join('; ');
     return "hintful: tour '${tour.id}' — $parts";
@@ -311,7 +329,7 @@ class HintController implements HintActions {
       _diagnostics?.onHintSkipped(
         tour.id,
         t.index,
-        t.step.targetId,
+        t.typoId,
         HintSkipReason.unknownTarget,
         'no valid target; closest: ${t.candidates.join(', ')}; step skipped',
       );

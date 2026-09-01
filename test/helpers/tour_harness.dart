@@ -101,8 +101,8 @@ class TourHarness {
   final bool scrollable;
 
   /// Scroll controller of the scrollable scene: a test can scroll it
-  /// programmatically (the scrim blocks user drag — the tour owns the
-  /// screen; scroll-through is follow-up work).
+  /// programmatically or drag the scrim (scroll-through: the overlay owns
+  /// taps, drags pass through to the scrollable below).
   final ScrollController scrollController = ScrollController();
 
   /// Controller with a real engine; created in [pump], released

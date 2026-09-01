@@ -63,11 +63,17 @@ class HintTooltipContext {
 class HintStep {
   const HintStep({
     required this.targetId,
+    this.moreTargets = const [],
+    this.moreTooltips = const [],
     this.title,
     this.description,
     this.position = TooltipPosition.auto,
     this.waitTimeout,
     this.showSkip = true,
+    this.tapOnTarget = true,
+    this.tapOnOverlay = true,
+    this.onTapTarget,
+    this.onTapOverlay,
     this.tooltipBuilder,
   })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
         assert(
@@ -79,6 +85,18 @@ class HintStep {
   /// Key in the target registry — not a GlobalKey.
   final String targetId;
 
+  /// Additional targets spotlighted together with [targetId] (multi-target
+  /// step: several elements highlighted at once, one tooltip anchored to the
+  /// primary [targetId]). The step enters the active phase only when ALL of
+  /// [targetIds] are mounted; a scrim hole is cut over each of them.
+  final List<String> moreTargets;
+
+  /// Additional tooltips (multi-content): placed around the primary
+  /// target alongside the primary tooltip, each on its own side. The engine
+  /// guarantees they do not overlap each other or the spotlighted targets
+  /// (keep-in-safe-area applies to every slot).
+  final List<HintTooltip> moreTooltips;
+
   /// Zero-config title/description; ignored when [tooltipBuilder] is set.
   final String? title;
   final String? description;
@@ -89,7 +107,32 @@ class HintStep {
   final Duration? waitTimeout;
 
   /// Whether the default tooltip shows a "Skip" button on this step.
+  /// Ignored on the last step of a tour (and on a single-step tour/hint):
+  /// the tour is about to end anyway — "Done" does the same, so a "Skip"
+  /// next to it would be redundant. Shown on intermediate steps only, and
+  /// only when this flag is true.
   final bool showSkip;
+
+  /// Whether a tap on a spotlighted target advances the tour (when
+  /// [onTapTarget] is not set). Both taps default to "next" — the same
+  /// behavior as before region distinction; set false to require an explicit
+  /// button/callback.
+  final bool tapOnTarget;
+
+  /// Whether a tap on the scrim (outside any target) advances the tour
+  /// (when [onTapOverlay] is not set).
+  final bool tapOnOverlay;
+
+  /// Tap on a spotlighted target: replaces the default [tapOnTarget]
+  /// behavior. Receives the step context (actions + position in the tour)
+  /// and the tap details (position — for analytics / micro-interactions).
+  final void Function(HintTooltipContext ctx, TapDownDetails details)?
+      onTapTarget;
+
+  /// Tap on the scrim (outside any target): replaces the default
+  /// [tapOnOverlay] behavior.
+  final void Function(HintTooltipContext ctx, TapDownDetails details)?
+      onTapOverlay;
 
   /// Fully custom tooltip. Receives the step itself (styling by targetId)
   /// and a [HintTooltipContext] — actions for buttons plus the position in
@@ -100,8 +143,47 @@ class HintStep {
     HintTooltipContext ctx,
   )? tooltipBuilder;
 
+  /// All target ids of the step: the primary [targetId] + [moreTargets].
+  List<String> get targetIds => [targetId, ...moreTargets];
+
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => waitTimeout ?? fallback;
+}
+
+/// An additional tooltip of a step (multi-content): a slot with its own
+/// preferred side and content, placed around the primary target alongside the
+/// primary tooltip. Informational by default — no action buttons (the primary
+/// tooltip owns the tour controls); use [tooltipBuilder] for an interactive
+/// slot (it receives the same context as the primary's builder).
+@immutable
+class HintTooltip {
+  const HintTooltip({
+    required this.position,
+    this.title,
+    this.description,
+    this.tooltipBuilder,
+  }) : assert(
+          title != null || tooltipBuilder != null,
+          'HintTooltip must have title/description (zero-config) or '
+          'tooltipBuilder (custom tooltip)',
+        );
+
+  /// Preferred side relative to the primary target. An explicit side is
+  /// recommended — auto re-picks by free space and may fight the primary
+  /// for the same side. Mirroring still applies when the side does not fit
+  /// (and the engine guarantees slots never overlap each other).
+  final TooltipPosition position;
+
+  /// Zero-config content; ignored when [tooltipBuilder] is set.
+  final String? title;
+  final String? description;
+
+  /// Fully custom content.
+  final Widget Function(
+    BuildContext context,
+    HintStep step,
+    HintTooltipContext ctx,
+  )? tooltipBuilder;
 }
 
 /// A hint tour — a declarative sequence of [HintStep]s.
@@ -131,15 +213,43 @@ class HintTour {
   /// also be ineffective inside an OverlayEntry anyway).
   final bool disableBackButton;
 
-  /// Duplicated step targetIds within one tour — a tour-authoring error
-  /// (one tour at a time, a duplicated target is ambiguous). The check is
+  /// A tour whose steps come from an enum: the enum values (in declaration
+  /// order) ARE the steps — [stepFor] maps each value to its [HintStep].
+  ///
+  /// The value is compile-time completeness: the switch in [stepFor] is
+  /// exhaustive, so adding or removing an enum value breaks the build and
+  /// the tour can never silently drift from the enum. (Dart cannot
+  /// enumerate the values of a type parameter — constructors cannot be
+  /// generic either — so [values] is passed explicitly: pass
+  /// `MyEnum.values`, the type is inferred.)
+  static HintTour fromEnum<T extends Enum>({
+    required String id,
+    required List<T> values,
+    required HintStep Function(T value) stepFor,
+    Duration stepTimeout = const Duration(seconds: 3),
+    bool disableBackButton = false,
+  }) {
+    return HintTour(
+      id: id,
+      steps: [for (final value in values) stepFor(value)],
+      stepTimeout: stepTimeout,
+      disableBackButton: disableBackButton,
+    );
+  }
+
+  /// Target ids referenced by more than one step — a tour-authoring error
+  /// (one tour at a time, a duplicated target is ambiguous). Counts
+  /// [HintStep.targetIds] (extras included); repeating an id WITHIN one step
+  /// is not a duplicate (the same hole twice is harmless). The check is
   /// cheap and lazy; used by the controller's start-validation.
   Set<String> get duplicateTargetIds {
     final seen = <String>{};
     final duplicates = <String>{};
     for (final step in steps) {
-      if (!seen.add(step.targetId)) {
-        duplicates.add(step.targetId);
+      for (final id in step.targetIds.toSet()) {
+        if (!seen.add(id)) {
+          duplicates.add(id);
+        }
       }
     }
     return duplicates;

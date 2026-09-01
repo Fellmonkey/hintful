@@ -65,7 +65,8 @@ void main() {
     expect(find.text('Done'), findsNothing);
   });
 
-  testWidgets('last step: Done instead of Next; Done → finish', (tester) async {
+  testWidgets('last step: Done instead of Next, no Skip; Done → finish',
+      (tester) async {
     final actions = _FakeActions();
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: step,
@@ -74,6 +75,9 @@ void main() {
 
     expect(find.text('Done'), findsOneWidget);
     expect(find.text('Next'), findsNothing);
+    // The tour is about to end anyway — a Skip next to Done is redundant
+    // (Done does the same thing).
+    expect(find.text('Skip'), findsNothing);
 
     await tester.tap(find.text('Done'));
     expect(actions.finishCalls, 1);
@@ -117,21 +121,35 @@ void main() {
       (tester) async {
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: step,
-      // Step 2 of 2: Back is visible too — all three controls on stage.
-      ctx: _ctx(_FakeActions(), 1, 2),
+      // Step 2 of 3: an intermediate step — Back, Skip and Next are all on
+      // stage (on the last step Skip is hidden: Done does the same).
+      ctx: _ctx(_FakeActions(), 1, 3),
     )));
 
     final skip = tester.getRect(find.text('Skip'));
     final back = tester.getRect(find.text('Back'));
-    final done = tester.getRect(find.text('Done'));
+    final next = tester.getRect(find.text('Next'));
 
     // Skip is the leftmost control — away from the Back/Next group.
     expect(skip.left, lessThan(back.left));
-    expect(skip.left, lessThan(done.left));
+    expect(skip.left, lessThan(next.left));
     // …and visually smaller than the primary action (accidental-tap
-    // protection: a tap aimed at Done must not land on Skip).
-    expect(skip.width, lessThan(done.width));
-    expect(skip.height, lessThan(done.height));
+    // protection: a tap aimed at Next must not land on Skip).
+    expect(skip.width, lessThan(next.width));
+    expect(skip.height, lessThan(next.height));
+  });
+
+  testWidgets('single-step tour: no Skip (a lone Skip is meaningless)',
+      (tester) async {
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      // totalSteps == 1: a single hint — Skip is hidden even though the
+      // step's showSkip defaults to true (Done does the same thing).
+      ctx: _ctx(_FakeActions(), 0, 1),
+    )));
+
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Skip'), findsNothing);
   });
 
   testWidgets('showSkip: false — no Skip button', (tester) async {

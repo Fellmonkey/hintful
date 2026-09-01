@@ -13,7 +13,8 @@
 ///   ([HintOverlayHost]) — the single control point;
 /// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
 ///   [DebugPrintDiagnostics], typo candidates);
-/// - theme ([HintTheme]) and widgets ([HintTarget], [DefaultTooltip]);
+/// - theme ([HintTheme]) and widgets ([HintTarget], [DefaultTooltip], the
+///   "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - position resolver ([HintPositionResolver]) — for custom hosts;
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
 ///   [compareVersions]) — the "show once per app version" service.
@@ -36,3 +37,4 @@ export 'engine/store.dart';
 export 'engine/theme/hint_theme.dart';
 export 'widgets/default_tooltip.dart';
 export 'widgets/hint_target.dart';
+export 'widgets/tour_offer.dart';

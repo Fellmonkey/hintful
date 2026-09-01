@@ -112,15 +112,29 @@ Bloc/Riverpod/Provider/GetX are on the roadmap.
 - ThemeExtension design-system integration, light/dark by default
 - Smart positioning: auto-flip to the side with room, keep-in-safe-area,
   and a tail (arrow) tying the tooltip to its target
+- Multi-target steps: several elements spotlighted at once (one tooltip on
+  the primary), the tooltip avoiding the other spotlighted targets
+- Multi-content: several tooltips around one target (informational slots by
+  default), guaranteed not to overlap each other or the targets
+- Optional blur scrim and a pulsing ring around the target (theme options;
+  the default stays the cheap plain dim)
 - Programmatic controller: `start/next/previous/goTo/skip/finish`;
-  tap-overlay = next; keyboard (Tab/Shift+Tab/Enter, Esc = skip); optional
-  `disableBackButton`; one-line `showHint` for a single tip
+  keyboard (Tab/Shift+Tab/Enter, Esc = skip); optional `disableBackButton`;
+  one-line `showHint` for a single tip; Skip is auto-hidden on a single-step
+  hint (a lone Skip is meaningless — Done does the same)
+- Tap regions: tap-on-target vs tap-on-overlay with per-step callbacks and
+  tap position; scroll-through — the page scrolls under an active tour
 - Accessibility on by default: screen-reader step announcements, keyboard
   navigation, reduce-motion, fits at 2× text scale, WCAG AA contrast,
   focus restored after a tour
 - Versioned hints (`HintStore`): show once per app version —
   `shouldShow(key, minVersion:)` before start, `markShown` on exit; the
   "show again" semantic is a version bump, not flag-wiping
+- Enum-typed steps: `HintTour.fromEnum` builds a tour from an enum — the
+  exhaustive `stepFor` switch makes adding/removing a step a compile error
+- "Want a tour?" pre-dialog (`showHintTourOffer`): optional offer with an
+  "Apply to all pages" checkbox; declines persist per page or globally via
+  the store, the tour stays reachable from other entry points
 - Zero-idle cost: zero engine widgets in the tree until a tour actually starts
 - Hot-reload friendly; debug diagnosis of every failed show, with closest-id
   candidates when a `targetId` is a typo
@@ -152,7 +166,8 @@ controller, CompositedTransform overlay with scrim hole that follows the target
 for free, auto-flip tooltip placement, theme integration, DX diagnosis and an
 end-to-end example. Stage 1 is in progress: tour navigation
 (`previous`/`goTo`, `disableBackButton`), smart positioning (keep-in-safe-area,
-tooltip tail) and accessibility (reduce-motion, 2× text scale, WCAG AA
-contrast, focus restore) are done; the Bloc adapter ships as a separate
-`hintful_bloc` package. Versioned hints, server-driven tours and migration
-guides are next.
+tooltip tail), accessibility (reduce-motion, 2× text scale, WCAG AA contrast,
+focus restore), versioned hints (`HintStore`), multi-target and multi-content
+steps, blur/pulse options and tap regions with scroll-through are done; the
+Bloc adapter ships as a separate `hintful_bloc` package. Server-driven tours
+and migration guides are next.

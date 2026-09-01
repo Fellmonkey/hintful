@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 /// Hint theme — a product design-system `ThemeExtension`.
@@ -22,6 +24,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
     this.tooltipTitleStyle,
     this.tooltipDescriptionStyle,
     this.showTail = true,
+    this.imageFilter,
+    this.showPulse = false,
   });
 
   /// Tooltip background (default — `inverseSurface` of the ColorScheme).
@@ -47,6 +51,19 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// floating-callout look. Applies to the default tooltip only: a custom
   /// `tooltipBuilder` owns its look entirely.
   final bool showTail;
+
+  /// Optional background blur behind the scrim (`ImageFilter.blur(...)`),
+  /// replacing the plain dim with a "frosted" look. Off by default: the
+  /// plain dim is cheaper (zero backdrop sampling). When set, the scrim is
+  /// rendered in the global layer (the hole rect comes from the position
+  /// watcher, one frame behind the compositor — the same lag as the
+  /// tooltip), instead of the live follower painter.
+  final ImageFilter? imageFilter;
+
+  /// A pulsing ring around the primary target (Material feature-discovery
+  /// pattern). Off by default; the animation runs only while a step is
+  /// active with this flag on.
+  final bool showPulse;
 
   /// Default derived from a [ColorScheme] (inverseSurface pair).
   factory HintTheme.minimal(ColorScheme scheme) {
@@ -81,6 +98,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
     TextStyle? tooltipTitleStyle,
     TextStyle? tooltipDescriptionStyle,
     bool? showTail,
+    ImageFilter? imageFilter,
+    bool? showPulse,
   }) {
     return HintTheme(
       tooltipBackground: tooltipBackground ?? this.tooltipBackground,
@@ -92,6 +111,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
       tooltipDescriptionStyle:
           tooltipDescriptionStyle ?? this.tooltipDescriptionStyle,
       showTail: showTail ?? this.showTail,
+      imageFilter: imageFilter ?? this.imageFilter,
+      showPulse: showPulse ?? this.showPulse,
     );
   }
 
@@ -116,6 +137,9 @@ class HintTheme extends ThemeExtension<HintTheme> {
         t,
       ),
       showTail: t < 0.5 ? showTail : other.showTail,
+      // No lerp for the filter (filters do not interpolate) — pick by point.
+      imageFilter: t < 0.5 ? imageFilter : other.imageFilter,
+      showPulse: t < 0.5 ? showPulse : other.showPulse,
     );
   }
 }

@@ -73,7 +73,7 @@ void main() {
         name: 'the awaited target appears → active + show step',
         from: waiting0,
         event: const TargetAppeared(targetId: 'target0'),
-        present: const {},
+        present: const {'target0': true},
         expected: active0,
         effects: const [
           ClearTimeoutEffect(),
@@ -144,18 +144,14 @@ void main() {
         effects: const [],
       ),
       (
-        name: 'the current target vanishing on an active step → abort '
-            'unmounted',
+        name: 'the current target vanishing on an active step → re-wait '
+            '(not abort: scroll recycling/collapsed tab must not kill the '
+            'tour)',
         from: active0,
         event: const TargetVanished(targetId: 'target0'),
         present: const {},
-        expected: idle,
-        effects: const [
-          AbortEffect(
-            reason: HintSkipReason.targetUnmountedDuringStep,
-            detail: "target 'target0' unmounted during step 1",
-          ),
-        ],
+        expected: waiting0,
+        effects: const [arm3],
       ),
       (
         name: 'a future target vanishing does not touch the active step',
@@ -366,13 +362,163 @@ void main() {
         const [ArmTimeoutEffect(timeout: Duration(seconds: 7))],
       );
 
-      machine.dispatch(const TargetAppeared(targetId: 'a'));
-      final next = machine.dispatch(const UserNext());
+      machine.dispatch(
+        const TargetAppeared(targetId: 'a'),
+        targetPresent: (id) => id == 'a',
+      );
+      // 'b' (step 1) is absent → the next step goes into waiting.
+      final next = machine.dispatch(
+        const UserNext(),
+        targetPresent: (id) => id == 'a',
+      );
       expect(machine.state, HintWaiting(tour: tour, stepIndex: 1));
       expect(
         next.effects,
         const [ArmTimeoutEffect(timeout: Duration(seconds: 3))],
       );
+    });
+  });
+
+  group('multi-target steps (HintStep.moreTargets)', () {
+    final multiTour = HintTour(
+      id: 'multi',
+      steps: [
+        HintStep(targetId: 'a', moreTargets: const ['b'], title: 'A'),
+        HintStep(targetId: 'c', title: 'C'),
+      ],
+    );
+    final waiting0 = HintWaiting(tour: multiTour, stepIndex: 0);
+    final active0 = HintActive(tour: multiTour, stepIndex: 0);
+    final active1 = HintActive(tour: multiTour, stepIndex: 1);
+
+    test('start → waiting until ALL targets are present', () {
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: multiTour));
+      expect(machine.state, waiting0);
+
+      // Only 'a' present — still waiting (b is missing).
+      machine.dispatch(
+        const TargetAppeared(targetId: 'a'),
+        targetPresent: (id) => id == 'a',
+      );
+      expect(machine.state, waiting0);
+
+      // The last missing target appearing → active.
+      final transition = machine.dispatch(
+        const TargetAppeared(targetId: 'b'),
+        targetPresent: (id) => id == 'a' || id == 'b',
+      );
+      expect(transition.state, active0);
+      expect(transition.effects, const [
+        ClearTimeoutEffect(),
+        EnterStepEffect(stepIndex: 0),
+      ]);
+    });
+
+    test('a foreign target appearing while waiting — still waiting', () {
+      final machine = HintMachine(initialState: waiting0);
+      final transition = machine.dispatch(
+        const TargetAppeared(targetId: 'c'),
+        targetPresent: (id) => id == 'a' || id == 'b',
+      );
+      expect(transition.state, waiting0);
+      expect(transition.effects, isEmpty);
+    });
+
+    test('a secondary target vanishing on an active step → re-wait', () {
+      final machine = HintMachine(initialState: active0);
+      final transition = machine.dispatch(
+        const TargetVanished(targetId: 'b'),
+        targetPresent: (id) => id == 'a',
+      );
+      expect(transition.state, waiting0);
+      expect(transition.effects,
+          const [ArmTimeoutEffect(timeout: Duration(seconds: 3))]);
+    });
+
+    test('re-appearing after the re-wait → active again', () {
+      final machine = HintMachine(initialState: waiting0);
+      final transition = machine.dispatch(
+        const TargetAppeared(targetId: 'b'),
+        targetPresent: (id) => id == 'a' || id == 'b',
+      );
+      expect(transition.state, active0);
+      expect(transition.effects, const [
+        ClearTimeoutEffect(),
+        EnterStepEffect(stepIndex: 0),
+      ]);
+    });
+
+    test('timeout while waiting for several targets — lists the missing ones',
+        () {
+      final machine = HintMachine(initialState: waiting0);
+      final transition = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (id) => id == 'a', // 'b' still missing
+      );
+      expect(transition.state, const HintIdle());
+      expect(transition.effects, const [
+        ClearTimeoutEffect(),
+        AbortEffect(
+          reason: HintSkipReason.timeout,
+          detail: "target 'b' did not appear within 0:00:03.000000",
+        ),
+      ]);
+    });
+
+    test('timeout with several missing — the list format', () {
+      final machine = HintMachine(initialState: waiting0);
+      final transition = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (_) => false,
+      );
+      expect(transition.effects, const [
+        ClearTimeoutEffect(),
+        AbortEffect(
+          reason: HintSkipReason.timeout,
+          detail: 'targets [a, b] did not appear within 0:00:03.000000',
+        ),
+      ]);
+    });
+
+    test('next into a multi-target step waits until all are present', () {
+      final tour = HintTour(
+        id: 'multi-next',
+        steps: [
+          HintStep(targetId: 'a', title: 'A'),
+          HintStep(targetId: 'b', moreTargets: const ['c'], title: 'B'),
+        ],
+      );
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour), targetPresent: (id) => id == 'a');
+      machine.dispatch(const TargetAppeared(targetId: 'a'),
+          targetPresent: (id) => id == 'a');
+      expect(machine.state, HintActive(tour: tour, stepIndex: 0));
+
+      // 'c' is missing → waiting, not active.
+      final next = machine.dispatch(const UserNext(),
+          targetPresent: (id) => id == 'a' || id == 'b');
+      expect(next.state, HintWaiting(tour: tour, stepIndex: 1));
+
+      final appeared = machine.dispatch(const TargetAppeared(targetId: 'c'),
+          targetPresent: (id) => id == 'a' || id == 'b' || id == 'c');
+      expect(appeared.state, HintActive(tour: tour, stepIndex: 1));
+    });
+
+    test('previous/goTo also require all of the destination targets', () {
+      final machine = HintMachine(initialState: active1);
+      // Back to step 0: 'b' present but 'a' missing → re-wait.
+      final prev = machine.dispatch(
+        const UserPrevious(),
+        targetPresent: (id) => id == 'b',
+      );
+      expect(prev.state, waiting0);
+
+      final again = machine.dispatch(
+        const TargetAppeared(targetId: 'a'),
+        targetPresent: (id) => id == 'a' || id == 'b',
+      );
+      expect(again.state, active0);
     });
   });
 

@@ -14,7 +14,7 @@ import 'dart:math' as math;
 /// `{key: lastShownVersion}` bookkeeping.
 ///
 /// The interface is abstract and storage-agnostic — the engine core knows
-/// only this contract, so a server (N5) can substitute its own
+/// only this contract, so a server can substitute its own
 /// implementation. The zero-dependency default ships in the core
 /// ([InMemoryHintStore]); persistent implementations (e.g. backed by
 /// `shared_preferences`) live OUTSIDE the core package to keep it

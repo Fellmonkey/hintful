@@ -56,7 +56,9 @@ class HintWaiting extends HintState {
   @override
   final int stepIndex;
 
-  /// The id being waited for on this step.
+  /// The primary id of the step being waited for. A step may spotlight
+  /// several targets ([HintStep.targetIds]) — the step becomes active only
+  /// when ALL of them are present.
   String get targetId => tour.steps[stepIndex].targetId;
 
   @override
@@ -304,8 +306,11 @@ class HintMachine {
   HintState _state;
   HintState get state => _state;
 
-  static String _targetIdOf(HintTour tour, int index) =>
-      tour.steps[index].targetId;
+  static bool _allPresent(
+    bool Function(String targetId)? targetPresent,
+    HintStep step,
+  ) =>
+      step.targetIds.every((id) => _present(targetPresent, id));
 
   /// The single entry point. Returns the transition and applies it to the
   /// internal state.
@@ -362,12 +367,18 @@ class HintMachine {
     List<HintEffect> effects,
     bool Function(String targetId)? targetPresent,
   ) {
-    final needed = _targetIdOf(tour, index);
+    final step = tour.steps[index];
     switch (event) {
-      case TargetAppeared(:final targetId) when targetId == needed:
-        effects.add(const ClearTimeoutEffect());
-        effects.add(EnterStepEffect(stepIndex: index));
-        return HintActive(tour: tour, stepIndex: index);
+      case TargetAppeared(:final targetId)
+          when step.targetIds.contains(targetId):
+        // The appeared target may be one of several: re-check ALL of the
+        // step's targets before activating.
+        if (_allPresent(targetPresent, step)) {
+          effects.add(const ClearTimeoutEffect());
+          effects.add(EnterStepEffect(stepIndex: index));
+          return HintActive(tour: tour, stepIndex: index);
+        }
+        return HintWaiting(tour: tour, stepIndex: index);
       case UserPrevious():
         return _previous(tour, index, effects, targetPresent,
             fromWaiting: true);
@@ -375,13 +386,17 @@ class HintMachine {
         return _goTo(tour, index, toIndex, effects, targetPresent,
             fromWaiting: true);
       case WaitTimeout():
-        final timeout = tour.steps[index].resolveTimeout(tour.stepTimeout);
+        final timeout = step.resolveTimeout(tour.stepTimeout);
         effects.add(const ClearTimeoutEffect());
+        final missing = [
+          for (final id in step.targetIds)
+            if (!_present(targetPresent, id)) id,
+        ];
+        final detail = missing.length == 1
+            ? "target '${missing.single}' did not appear within $timeout"
+            : 'targets $missing did not appear within $timeout';
         effects.add(
-          AbortEffect(
-            reason: HintSkipReason.timeout,
-            detail: "target '$needed' did not appear within $timeout",
-          ),
+          AbortEffect(reason: HintSkipReason.timeout, detail: detail),
         );
         return const HintIdle();
       case UserSkip():
@@ -411,19 +426,21 @@ class HintMachine {
     List<HintEffect> effects,
     bool Function(String targetId)? targetPresent,
   ) {
-    final currentTarget = _targetIdOf(tour, index);
+    final step = tour.steps[index];
     switch (event) {
-      case TargetVanished(:final targetId) when targetId == currentTarget:
-        // The target vanished on an active step (e.g. the user collapsed a
-        // tab) → abort. Re-waiting instead of aborting is follow-up work.
+      case TargetVanished(:final targetId)
+          when step.targetIds.contains(targetId):
+        // Any spotlighted target vanished on an active step (scroll
+        // recycling, a collapsed tab) → re-wait for all of them instead of
+        // aborting: the tour survives a transient unmount and continues when
+        // the target comes back; the re-armed timeout still guards against a
+        // permanent loss (a vanished target that never returns times out).
         effects.add(
-          AbortEffect(
-            reason: HintSkipReason.targetUnmountedDuringStep,
-            detail: "target '$currentTarget' unmounted during step"
-                ' ${index + 1}',
+          ArmTimeoutEffect(
+            timeout: step.resolveTimeout(tour.stepTimeout),
           ),
         );
-        return const HintIdle();
+        return HintWaiting(tour: tour, stepIndex: index);
       case UserPrevious():
         return _previous(tour, index, effects, targetPresent,
             fromWaiting: false);
@@ -436,7 +453,7 @@ class HintMachine {
           effects.add(FinishedEffect(tourId: tour.id));
           return const HintIdle();
         }
-        if (_present(targetPresent, _targetIdOf(tour, nextIndex))) {
+        if (_allPresent(targetPresent, tour.steps[nextIndex])) {
           effects.add(EnterStepEffect(stepIndex: nextIndex));
           return HintActive(tour: tour, stepIndex: nextIndex);
         }
@@ -476,7 +493,7 @@ class HintMachine {
           : HintActive(tour: tour, stepIndex: 0);
     }
     final prev = fromIndex - 1;
-    if (_present(targetPresent, _targetIdOf(tour, prev))) {
+    if (_allPresent(targetPresent, tour.steps[prev])) {
       if (fromWaiting) effects.add(const ClearTimeoutEffect());
       effects.add(EnterStepEffect(stepIndex: prev));
       return HintActive(tour: tour, stepIndex: prev);
@@ -504,7 +521,7 @@ class HintMachine {
       "hintful: goTo($toIndex) out of range 0..${tour.steps.length - 1}",
     );
     if (toIndex < 0 || toIndex >= tour.steps.length) return stay;
-    if (_present(targetPresent, _targetIdOf(tour, toIndex))) {
+    if (_allPresent(targetPresent, tour.steps[toIndex])) {
       if (fromWaiting) effects.add(const ClearTimeoutEffect());
       effects.add(EnterStepEffect(stepIndex: toIndex));
       return HintActive(tour: tour, stepIndex: toIndex);

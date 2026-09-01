@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,16 @@ void main() {
     test('showTail defaults to true (the arrow is on by default)', () {
       final theme = HintTheme.minimal(scheme);
       expect(theme.showTail, isTrue);
+    });
+
+    test('imageFilter defaults to null (no blur — the cheap plain dim)', () {
+      final theme = HintTheme.minimal(scheme);
+      expect(theme.imageFilter, isNull);
+    });
+
+    test('showPulse defaults to false', () {
+      final theme = HintTheme.minimal(scheme);
+      expect(theme.showPulse, isFalse);
     });
   });
 
@@ -126,6 +137,17 @@ void main() {
       expect(a.showTail, isTrue); // the original is unchanged
     });
 
+    test(
+        'copyWith(imageFilter:/showPulse:) sets them, the original is '
+        'unchanged', () {
+      final blur = ImageFilter.blur(sigmaX: 6, sigmaY: 6);
+      final changed = a.copyWith(imageFilter: blur, showPulse: true);
+      expect(changed.imageFilter, same(blur));
+      expect(changed.showPulse, isTrue);
+      expect(a.imageFilter, isNull);
+      expect(a.showPulse, isFalse);
+    });
+
     test('lerp(0) = a, lerp(1) = b, the middle — interpolation', () {
       expect(a.lerp(b, 0.0).tooltipBackground, a.tooltipBackground);
       expect(a.lerp(b, 1.0).tooltipBackground, b.tooltipBackground);
@@ -144,6 +166,15 @@ void main() {
       final off = a.copyWith(showTail: false);
       expect(a.lerp(off, 0.0).showTail, isTrue);
       expect(a.lerp(off, 1.0).showTail, isFalse);
+    });
+
+    test('lerp picks imageFilter/showPulse by the interpolation point', () {
+      final blur = ImageFilter.blur(sigmaX: 4, sigmaY: 4);
+      final on = a.copyWith(imageFilter: blur, showPulse: true);
+      expect(a.lerp(on, 0.0).imageFilter, isNull);
+      expect(a.lerp(on, 1.0).imageFilter, isNotNull);
+      expect(a.lerp(on, 0.0).showPulse, isFalse);
+      expect(a.lerp(on, 1.0).showPulse, isTrue);
     });
   });
 }
