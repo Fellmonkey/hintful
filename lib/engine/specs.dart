@@ -2,9 +2,10 @@ import 'package:flutter/widgets.dart';
 
 /// Preferred side of the tooltip relative to its target.
 ///
-/// [TooltipPosition.auto] and the explicit sides are used on step changes
-/// (side chosen from a snapshot of the target rect); recomputing placement
-/// on scroll is follow-up work.
+/// The side is re-evaluated live: placement (auto-flip, keep-in-safe-area)
+/// is recomputed from the target's current rect on every movement frame, so
+/// an explicit side mirrors when it stops fitting and [TooltipPosition.auto]
+/// re-picks the side with the most free space.
 enum TooltipPosition { auto, top, bottom, left, right }
 
 /// Actions available to a step's content (custom tooltips).

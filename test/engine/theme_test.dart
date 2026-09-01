@@ -18,6 +18,11 @@ void main() {
       expect(theme.tooltipDescriptionStyle, isNotNull);
       expect(theme.tooltipTitleStyle?.color, scheme.onInverseSurface);
     });
+
+    test('showTail defaults to true (the arrow is on by default)', () {
+      final theme = HintTheme.minimal(scheme);
+      expect(theme.showTail, isTrue);
+    });
   });
 
   group('HintThemeX.hintTheme', () {
@@ -63,6 +68,12 @@ void main() {
       final changed = a.copyWith(tooltipPadding: const EdgeInsets.all(2));
       expect(changed.tooltipPadding, const EdgeInsets.all(2));
       expect(changed.tooltipBackground, a.tooltipBackground);
+      expect(changed.showTail, a.showTail);
+    });
+
+    test('copyWith(showTail: false) turns the tail off', () {
+      expect(a.copyWith(showTail: false).showTail, isFalse);
+      expect(a.showTail, isTrue); // the original is unchanged
     });
 
     test('lerp(0) = a, lerp(1) = b, the middle — interpolation', () {
@@ -77,6 +88,12 @@ void main() {
 
     test('lerp(null) — returns this (animation "theme appeared")', () {
       expect(a.lerp(null, 0.5), same(a));
+    });
+
+    test('lerp of showTail picks by the interpolation point', () {
+      final off = a.copyWith(showTail: false);
+      expect(a.lerp(off, 0.0).showTail, isTrue);
+      expect(a.lerp(off, 1.0).showTail, isFalse);
     });
   });
 }

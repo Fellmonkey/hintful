@@ -76,13 +76,27 @@ class DefaultTooltip extends StatelessWidget {
                         TextStyle(fontSize: 13, color: onSurface),
                   ),
                 ],
-                // The button row is always present: Back (from step 2 on),
-                // Skip (optional) and Next/Done — the explicit way to move
-                // through a step (the last step says Done).
+                // The button row: Skip sits at the far edge, small and quiet —
+                // a tap aimed at the primary action must not hit it. Back and
+                // Next/Done are grouped at the end (the primary action is
+                // always at the very corner).
                 const SizedBox(height: 12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if (step.showSkip)
+                      TextButton(
+                        onPressed: ctx.actions.skip,
+                        style: TextButton.styleFrom(
+                          foregroundColor: onSurface,
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                        child: const Text('Skip'),
+                      ),
+                    const Spacer(),
                     if (ctx.stepIndex > 0) ...[
                       TextButton(
                         onPressed: ctx.actions.previous,
@@ -93,15 +107,6 @@ class DefaultTooltip extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                     ],
-                    if (step.showSkip)
-                      TextButton(
-                        onPressed: ctx.actions.skip,
-                        style: TextButton.styleFrom(
-                          foregroundColor: onSurface,
-                        ),
-                        child: const Text('Skip'),
-                      ),
-                    if (step.showSkip) const SizedBox(width: 8),
                     // Inverted pair: the accent button contrasts with the
                     // tooltip background in any (light/dark) theme.
                     FilledButton(

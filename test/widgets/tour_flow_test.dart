@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hintful/engine/overlay/tooltip_tail.dart';
 import 'package:hintful/hintful.dart';
 
 import '../helpers/tour_harness.dart';
@@ -197,6 +199,127 @@ void main() {
         HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
+    });
+
+    testWidgets('scroll: auto-flip re-picks the side (above → below)',
+        (tester) async {
+      final h = TourHarness(
+        // offset 0: target at 300..380 — more space above (300) than below
+        // (600-380=220) → the tooltip starts above.
+        targets: [HarnessTarget('stats', top: 300, height: 80)],
+        scrollable: true,
+      );
+      final tour = HintTour(
+        id: 'flip',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      final targetBefore = tester.getRect(find.text('stats'));
+      final tipBefore = tester.getRect(find.text('Statistics'));
+      expect(tipBefore.bottom, lessThan(targetBefore.top),
+          reason: 'auto: more free space above → the tooltip above');
+
+      // The target moves up; now the space below (420) beats above (100) →
+      // placement is recomputed and the tooltip flips below.
+      h.scrollController.jumpTo(200);
+      await TourHarness.settle(tester);
+
+      final targetAfter = tester.getRect(find.text('stats'));
+      final tipAfter = tester.getRect(find.text('Statistics'));
+      expect(targetAfter.top, closeTo(targetBefore.top - 200, 1.0));
+      expect(tipAfter.top, greaterThan(targetAfter.bottom),
+          reason: 'the side was re-picked on scroll (not stuck above)');
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('keep-in-safe-area: a bottom inset mirrors the tooltip above',
+        (tester) async {
+      tester.view.padding = const FakeViewPadding(bottom: 60);
+      addTearDown(tester.view.reset);
+
+      final h = TourHarness(
+        // The target near the bottom: bottom placement fits the bare screen
+        // (600) but crosses the home-indicator inset (540).
+        targets: [HarnessTarget('stats', top: 380, height: 60)],
+      );
+      final tour = HintTour(
+        id: 'safe',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            title: 'Statistics',
+            description: 'A longer description so the tooltip is tall enough',
+            position: TooltipPosition.bottom,
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      final target = tester.getRect(find.text('stats'));
+      final tip = tester.getRect(find.text('Statistics'));
+      expect(tip.bottom, lessThan(target.top),
+          reason: 'mirrored above the target instead of crossing the inset');
+      expect(tip.bottom, lessThanOrEqualTo(600 - 60 + 0.5),
+          reason: 'the tooltip stays inside the safe rect');
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('default tooltip: the tail toward the hole is on by default',
+        (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'tail',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      final tailFinder = find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is TooltipTailPainter,
+      );
+      expect(tailFinder, findsOneWidget,
+          reason: 'showTail defaults to true — the arrow is drawn');
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets('showTail: false — the default tooltip has no tail',
+        (tester) async {
+      final h = TourHarness(
+        targets: [HarnessTarget('stats')],
+        themeExtensions: [
+          HintTheme.minimal(ColorScheme.fromSeed(seedColor: Colors.teal))
+              .copyWith(showTail: false),
+        ],
+      );
+      final tour = HintTour(
+        id: 'tail-off',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      expect(find.text('Statistics'), findsOneWidget,
+          reason: 'the tooltip itself is still there');
+      final tailFinder = find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is TooltipTailPainter,
+      );
+      expect(tailFinder, findsNothing);
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      h.expectIdleClean();
     });
 
     testWidgets('Escape = skip: userSkipped abort through a real overlay',

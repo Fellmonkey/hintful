@@ -184,6 +184,84 @@ void main() {
     });
   });
 
+  group('safe area (keep-in-safe-area)', () {
+    test('bottom blocked by the home indicator → mirrored to top', () {
+      // hole bottom = 440; tooltip 100 tall: bottom = 440+12+100 = 552,
+      // fits the screen (600) but not the safe rect (bottom 540) → top.
+      const h = Rect.fromLTWH(100, 380, 200, 60);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        safeArea: const EdgeInsets.only(bottom: 60),
+      );
+      // top: y = 380 - 12 - 100 = 268; x centered = 100 + (200-160)/2 = 120
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 100)),
+        const Offset(120, 268),
+      );
+    });
+
+    test('without the inset the same geometry stays bottom (control)', () {
+      // The identical tooltip fits the bare screen → bottom, not top.
+      const h = Rect.fromLTWH(100, 380, 200, 60);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 100)),
+        const Offset(120, 452), // 440 + 12
+      );
+    });
+
+    test('auto free-space counts the safe rect, not the bare screen', () {
+      // A wide hole near the top: the screen free space — bottom 440 beats
+      // top 100 and the sides (50 each) → bottom. With a 350 bottom inset
+      // the bottom shrinks to 250-160=90 → top (100) wins.
+      const h = Rect.fromLTWH(50, 100, 700, 60); // x 50..750, y 100..160
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.auto,
+        safeArea: const EdgeInsets.only(bottom: 350),
+      );
+      // top: y = 100 - 12 - 60 = 28; x centered = 50 + (700-160)/2 = 320
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 60)),
+        const Offset(320, 28),
+      );
+    });
+
+    test('without the inset the same hole goes bottom (control)', () {
+      const h = Rect.fromLTWH(50, 100, 700, 60);
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.auto,
+      );
+      expect(
+        d.getPositionForChild(screen.size, const Size(160, 60)),
+        const Offset(320, 172), // y: 160 + 12
+      );
+    });
+
+    test('centering clamps into the safe rect (side inset)', () {
+      const h = Rect.fromLTWH(700, 100, 100, 80); // the hole at the right edge
+      final d = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        safeArea: const EdgeInsets.only(right: 100),
+      );
+      final offset = d.getPositionForChild(screen.size, const Size(400, 60));
+      // x: 550 → clamped to [0, (800-100)-400=300] → 300 — inside the inset.
+      expect(offset.dx, 300);
+      expect(offset.dx + 400, lessThanOrEqualTo(800 - 100));
+    });
+  });
+
   group('shouldRelayout', () {
     const h = Rect.fromLTWH(100, 100, 200, 80);
 
@@ -225,6 +303,21 @@ void main() {
       expect(a.shouldRelayout(otherSide), isTrue);
       expect(a.shouldRelayout(moved), isTrue);
       expect(a.shouldRelayout(movedScreen), isTrue);
+    });
+
+    test('a changed safeArea — true', () {
+      final a = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final inset = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        safeArea: const EdgeInsets.all(10),
+      );
+      expect(a.shouldRelayout(inset), isTrue);
     });
   });
 }

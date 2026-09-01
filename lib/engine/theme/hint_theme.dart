@@ -21,6 +21,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     required this.tooltipPadding,
     this.tooltipTitleStyle,
     this.tooltipDescriptionStyle,
+    this.showTail = true,
   });
 
   /// Tooltip background (default — `inverseSurface` of the ColorScheme).
@@ -40,6 +41,12 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// zero-config).
   final TextStyle? tooltipTitleStyle;
   final TextStyle? tooltipDescriptionStyle;
+
+  /// The tail (arrow from the tooltip toward the target). On by default —
+  /// it is what visually ties the tooltip to the hole; set false for a
+  /// floating-callout look. Applies to the default tooltip only: a custom
+  /// `tooltipBuilder` owns its look entirely.
+  final bool showTail;
 
   /// Default derived from a [ColorScheme] (inverseSurface pair).
   factory HintTheme.minimal(ColorScheme scheme) {
@@ -73,6 +80,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     EdgeInsets? tooltipPadding,
     TextStyle? tooltipTitleStyle,
     TextStyle? tooltipDescriptionStyle,
+    bool? showTail,
   }) {
     return HintTheme(
       tooltipBackground: tooltipBackground ?? this.tooltipBackground,
@@ -83,6 +91,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       tooltipTitleStyle: tooltipTitleStyle ?? this.tooltipTitleStyle,
       tooltipDescriptionStyle:
           tooltipDescriptionStyle ?? this.tooltipDescriptionStyle,
+      showTail: showTail ?? this.showTail,
     );
   }
 
@@ -106,6 +115,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
         other.tooltipDescriptionStyle,
         t,
       ),
+      showTail: t < 0.5 ? showTail : other.showTail,
     );
   }
 }

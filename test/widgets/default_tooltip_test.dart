@@ -113,6 +113,27 @@ void main() {
     expect(actions.previousCalls, 1);
   });
 
+  testWidgets('Skip: at the far left edge, smaller than the primary action',
+      (tester) async {
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      // Step 2 of 2: Back is visible too — all three controls on stage.
+      ctx: _ctx(_FakeActions(), 1, 2),
+    )));
+
+    final skip = tester.getRect(find.text('Skip'));
+    final back = tester.getRect(find.text('Back'));
+    final done = tester.getRect(find.text('Done'));
+
+    // Skip is the leftmost control — away from the Back/Next group.
+    expect(skip.left, lessThan(back.left));
+    expect(skip.left, lessThan(done.left));
+    // …and visually smaller than the primary action (accidental-tap
+    // protection: a tap aimed at Done must not land on Skip).
+    expect(skip.width, lessThan(done.width));
+    expect(skip.height, lessThan(done.height));
+  });
+
   testWidgets('showSkip: false — no Skip button', (tester) async {
     final noSkip = HintStep(targetId: 'stats', title: 't', showSkip: false);
     await tester.pumpWidget(_wrap(DefaultTooltip(

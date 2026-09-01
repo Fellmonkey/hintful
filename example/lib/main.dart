@@ -21,7 +21,9 @@ void main() => runApp(const ExampleApp());
 ///    timeout with diagnostics — the same mechanism as for lazy tabs).
 ///
 /// Plus: light/dark (hint theming inherits the ColorScheme through
-/// HintTheme) and the `showHint` quick path for a single tip.
+/// HintTheme), the `showHint` quick path for a single tip, and smart
+/// positioning — the tooltip tail (arrow toward the target, on by default)
+/// and keep-in-safe-area (the tooltip never crosses system insets).
 class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
 

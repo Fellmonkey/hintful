@@ -76,6 +76,7 @@ class TourHarness {
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     this.scrollable = false,
+    this.themeExtensions = const [],
   })  : registry = registry ?? HintTargetRegistry(),
         diagnostics = diagnostics ?? DiagnosticsRecorder();
 
@@ -83,6 +84,10 @@ class TourHarness {
   final List<HarnessTarget> targets;
   final HintTargetRegistry registry;
   final HintDiagnosticsHandler diagnostics;
+
+  /// `ThemeData.extensions` of the scene (a custom [HintTheme] — e.g.
+  /// `showTail: false`). Empty — the zero-config minimal default.
+  final List<ThemeExtension<dynamic>> themeExtensions;
 
   /// true — targets sit vertically in a `ListView` (scroll scenarios:
   /// following, deferred below the edge); false — a fixed Stack. In the
@@ -210,6 +215,9 @@ class TourHarness {
             ],
           );
 
-    return MaterialApp(home: Scaffold(body: body));
+    return MaterialApp(
+      theme: ThemeData(extensions: themeExtensions),
+      home: Scaffold(body: body),
+    );
   }
 }

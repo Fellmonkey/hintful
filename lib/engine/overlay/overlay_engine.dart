@@ -13,6 +13,7 @@ import '../specs.dart';
 import '../theme/hint_theme.dart';
 import 'scrim_painter.dart';
 import 'tooltip_placement.dart';
+import 'tooltip_tail.dart';
 
 const _kTooltipGap = 12.0;
 const _kWaitingText = 'Preparing…';
@@ -247,7 +248,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
             step,
             stepIndex: stepIndex,
             totalSteps: tour.steps.length,
-            scrimColor: hintTheme.scrimColor,
+            theme: hintTheme,
           );
 
     // For now a single tap anywhere on the overlay = next (distinguishing
@@ -300,7 +301,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     HintStep step, {
     required int stepIndex,
     required int totalSteps,
-    required Color scrimColor,
+    required HintTheme theme,
   }) {
     return _ActiveOverlayContent(
       link: registration.link,
@@ -308,7 +309,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
       stepIndex: stepIndex,
       totalSteps: totalSteps,
       actions: widget.input,
-      scrimColor: scrimColor,
+      theme: theme,
     );
   }
 }
@@ -327,9 +328,14 @@ class _HintOverlayViewState extends State<_HintOverlayView>
 ///   the box's bounds — tooltip buttons above/left of the target would be
 ///   unreachable (found while exercising the example app). The global box:
 ///   `screenLocal = Rect(0,0,W,H)`, `holeLocal = translation & leaderSize`.
-///   Cost: the tooltip follows scrolls via snapshot + `setState` (the
-///   watcher) instead of the transform — a one-frame lag. Fully recomputing
-///   placement on scroll is follow-up work.
+///
+/// Placement is recomputed **live**: the position watcher recreates the
+/// `TooltipPlacementDelegate` with the current `holeLocal` on every movement
+/// frame, so auto-flip and keep-in-safe-area are re-evaluated on scroll, not
+/// just on step change. The known cost is a **one-frame lag** (the hole
+/// moves instantly via the compositor; the tooltip catches up on the next
+/// frame — inherent to snapshot placement: a compositor-driven tooltip would
+/// be bounded by the follower's hit-test area and lose full-screen buttons).
 ///
 /// The single owner of the target's position in the overlay: it creates the
 /// resolver (compositor transform) after the follower mounts and hands it to
@@ -345,7 +351,7 @@ class _ActiveOverlayContent extends StatefulWidget {
     required this.stepIndex,
     required this.totalSteps,
     required this.actions,
-    required this.scrimColor,
+    required this.theme,
   });
 
   final LayerLink link;
@@ -353,7 +359,7 @@ class _ActiveOverlayContent extends StatefulWidget {
   final int stepIndex;
   final int totalSteps;
   final HintActions actions;
-  final Color scrimColor;
+  final HintTheme theme;
 
   @override
   State<_ActiveOverlayContent> createState() => _ActiveOverlayContentState();
@@ -404,21 +410,39 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
         // field doc).
         Widget? tooltip;
         if (translation != null) {
+          final holeLocal = translation & (widget.link.leaderSize ?? Size.zero);
           final ctx = HintTooltipContext(
             actions: widget.actions,
             stepIndex: widget.stepIndex,
             totalSteps: widget.totalSteps,
           );
+          // The default tooltip gets the tail (arrow toward the hole); a
+          // custom tooltipBuilder owns its look entirely.
+          final Widget tooltipChild;
+          if (widget.step.tooltipBuilder == null) {
+            final defaultTip = DefaultTooltip(step: widget.step, ctx: ctx);
+            tooltipChild = widget.theme.showTail
+                ? TooltipTail(
+                    hole: holeLocal,
+                    color: widget.theme.tooltipBackground,
+                    child: defaultTip,
+                  )
+                : defaultTip;
+          } else {
+            tooltipChild =
+                widget.step.tooltipBuilder!(context, widget.step, ctx);
+          }
           tooltip = CustomSingleChildLayout(
             delegate: TooltipPlacementDelegate(
               screenLocal: Offset.zero & screen,
-              holeLocal: translation & (widget.link.leaderSize ?? Size.zero),
+              holeLocal: holeLocal,
               position: widget.step.position,
               gap: _kTooltipGap,
+              // Keep-in-safe-area: the tooltip never crosses system insets
+              // (notch, home indicator).
+              safeArea: MediaQuery.paddingOf(context),
             ),
-            child: widget.step.tooltipBuilder != null
-                ? widget.step.tooltipBuilder!(context, widget.step, ctx)
-                : DefaultTooltip(step: widget.step, ctx: ctx),
+            child: tooltipChild,
           );
         }
 
@@ -433,7 +457,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent> {
                   key: _scrimPaintKey,
                   painter: ScrimHolePainter(
                     resolver: _resolver ?? const UnpositionedHintResolver(),
-                    color: widget.scrimColor,
+                    color: widget.theme.scrimColor,
                   ),
                   child: const SizedBox.expand(),
                 ),
