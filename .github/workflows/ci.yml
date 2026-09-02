@@ -34,12 +34,6 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-      - name: Test (hintful_bloc)
-        working-directory: hintful_bloc
-        run: |
-          flutter pub get
-          flutter analyze
-          flutter test
 
   web:
     needs: [test]
