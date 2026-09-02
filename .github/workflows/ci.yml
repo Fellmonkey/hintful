@@ -98,6 +98,8 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      # NOTE: the emulator-runner executes `script` one line at a time, so
+      # `cd benchmark` must ride on the same line as the invocation.
       - name: Bench-core (record goldens)
         if: github.event_name == 'workflow_dispatch' && inputs.record
         uses: reactivecircus/android-emulator-runner@v2
@@ -105,9 +107,7 @@ jobs:
           api-level: 34
           arch: x86_64
           disable-animations: true
-          script: |
-            cd benchmark
-            BENCH_MODE=record ./tool/run_bench_core.sh emulator-5554
+          script: cd benchmark && BENCH_MODE=record ./tool/run_bench_core.sh emulator-5554
       - name: Bench-core (check against goldens)
         if: github.event_name != 'workflow_dispatch' || !inputs.record
         uses: reactivecircus/android-emulator-runner@v2
@@ -115,9 +115,7 @@ jobs:
           api-level: 34
           arch: x86_64
           disable-animations: true
-          script: |
-            cd benchmark
-            ./tool/run_bench_core.sh emulator-5554
+          script: cd benchmark && ./tool/run_bench_core.sh emulator-5554
       - name: Upload updated benchmarks.json (record mode)
         if: github.event_name == 'workflow_dispatch' && inputs.record
         uses: actions/upload-artifact@v4
