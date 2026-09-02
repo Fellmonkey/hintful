@@ -181,10 +181,10 @@ Profile build, Android emulator, action-window averages. Methodology:
 | Metric | hintful |
 |---|
 | Startup to first tooltip | 2 frames |
-| Step transition (avg build) | 2904 µs |
-| Scroll frame (avg build) | 4533 µs |
-| Heap drift after finish | 40 KB |
-| Active step heap delta | 170 KB |
+| Step transition (avg build) | 755 µs |
+| Scroll frame (avg build) | 1082 µs |
+| Heap drift after finish | 38 KB |
+| Active step heap delta | 171 KB |
 | Native AOT size | 69 KB |
 | Web startup bundle delta | 54 KB |
 
@@ -192,5 +192,5 @@ Head-to-head runs against showcaseview / tutorial_coach_mark will add their colu
 
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-02 13:06 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
+_Recorded 2026-09-02 13:29 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
 <!-- bench:end -->

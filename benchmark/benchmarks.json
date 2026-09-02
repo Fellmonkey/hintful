@@ -18,32 +18,33 @@
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 9437,
-        "android": 2797
+        "android": 755
       }
     },
     "frame_scroll": {
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 10771,
-        "android": 5132
+        "android": 1082
       }
     },
     "memory_idle": {
       "unit": "bytes heap drift after finish vs idle (0 = fully released; VM service via --no-dds)",
       "goldens": {
-        "android": 41808
+        "android": 37664
       }
     },
     "memory_active": {
       "unit": "bytes heap delta idle → active step (the overlay's real weight; VM service via --no-dds)",
       "goldens": {
-        "android": 170096
+        "android": 171200
       }
     },
     "native_size": {
       "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
       "goldens": {
-        "any": 69196
+        "any": 69196,
+        "android": 69196
       },
       "note": "Deterministic per SDK + ABI: measured on Flutter 3.47.0, android-x64 (2026-09-02). Re-record only when the SDK or engine code changes."
     },
