@@ -35,46 +35,6 @@ analysis="${summary##*: }"
 analysis="${analysis//$'\r'/}"
 echo "==> analysis: $analysis"
 
-# Pick a working interpreter: on Windows, `python3` may be the Microsoft
-# Store stub that prints "Python" and exits 49 without doing anything.
-PYTHON_BIN=""
-for cand in "${PYTHON:-}" python3 python; do
-  [ -z "$cand" ] && continue
-  if "$cand" --version >/dev/null 2>&1; then
-    PYTHON_BIN="$cand"
-    break
-  fi
-done
-if [ -z "$PYTHON_BIN" ]; then
-  echo "FAIL: no working python found (try PYTHON=/path/to/python)" >&2
-  exit 2
-fi
-"$PYTHON_BIN" - "$analysis" <<'PY'
-import json, sys
-d = json.load(open(sys.argv[1], encoding='utf-8'))
-
-def find(node, name):
-    if node.get('n') == name:
-        return node
-    for c in node.get('children') or []:
-        r = find(c, name)
-        if r:
-            return r
-    return None
-
-def total_of(node):
-    v = node.get('value')
-    s = v if isinstance(v, int) else 0
-    for c in node.get('children') or []:
-        s += total_of(c)
-    return s
-
-pkg = find(d, 'package:hintful')
-if pkg is None:
-    print('FAIL: package:hintful node not found in analysis tree',
-          file=sys.stderr)
-    sys.exit(1)
-size = total_of(pkg)
-print(f'native_size: hintful contributes {size} bytes (AOT, release)')
-print(f'HINTFUL_BENCH_JSON:{{"metric":"native_size","value":{size}}}')
-PY
+# Parse the tree with a small Dart script (same JSON the DevTools Size
+# page shows) — invoked via `dart run` so no python or exec bit is needed.
+dart run tool/native_size_parse.dart "$analysis"

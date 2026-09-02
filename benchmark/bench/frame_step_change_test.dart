@@ -47,11 +47,10 @@ void main() {
     );
 
     controller.skip();
-    // Flush the hide animation and any pending focus work before the test
-    // binding is torn down — a leftover scheduled frame would otherwise
-    // throw "A FocusManager was used after being disposed" in teardown.
     await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
+    // Dispose in-body and settle: focus work must not reach teardown (see
+    // teardown_clean_test.dart); addTearDown stays as a safety net.
+    controller.dispose();
+    await tester.pumpAndSettle();
   });
 }

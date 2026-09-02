@@ -216,7 +216,10 @@ class HintController implements HintActions {
   @override
   void finish() => _dispatch(const UserFinish());
 
+  /// Idempotent — a second dispose is a no-op (used in-body and via
+  /// `addTearDown`).
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _timer?.cancel();
     _registry.removeListener(_onRegistryChanged);

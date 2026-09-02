@@ -105,9 +105,12 @@ BENCH_MODE=record bash ./tool/run_bench_core.sh emulator-5554  # record goldens
 ```
 
 Runs the five benchmarks via `flutter drive --no-dds --profile`, then the
-native-size analysis, collects the report and checks/records it. The same
-script powers CI's `bench-core` job: it checks on main pushes, and records
-goldens when the workflow is dispatched manually with its `record` input.
+native-size analysis and the metrics card (a landscape golden rendered on
+the host), collects the report and checks/records it. The same script
+powers the `bench-core` workflow job: it checks goldens on a manual
+dispatch, and records new goldens when dispatched with `record` — a record
+run also re-renders the root README "Performance" section (table + metrics
+card) and commits it.
 
 ## Web-drive caveat
 

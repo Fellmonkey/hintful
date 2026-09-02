@@ -41,5 +41,15 @@ echo "==> native_size (--analyze-size; no device needed)..."
 bash ./tool/native_size.sh >> "$report" 2>&1 \
   || echo "    (native_size failed — continuing)"
 
+metrics_json="$(dart run tool/metrics_json.dart)"
+
+echo "==> metrics card (landscape golden, host render — no device)..."
+flutter test --update-goldens \
+  --dart-define=HINTFUL_METRICS="$metrics_json" \
+  golden/metrics_card_golden_test.dart >> "$report" 2>&1 \
+  || echo "    (metrics card golden failed — continuing)"
+mkdir -p build/screenshots
+cp golden/goldens/metrics_card.png build/screenshots/hint_metrics.png
+
 echo "==> report: $report"
 dart run tool/check_goldens.dart "$report" "--$mode" --ref "$ref"

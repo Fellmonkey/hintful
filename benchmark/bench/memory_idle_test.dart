@@ -65,12 +65,6 @@ void main() {
 
     expect(engineNodes(), 0, reason: 'finish unmounts the whole overlay');
 
-    // Flush the hide animation and any pending focus work before the heap
-    // read and teardown — a leftover scheduled frame would otherwise throw
-    // "A FocusManager was used after being disposed" in teardown.
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
-
     final postBytes = heap == null ? null : await heap.usedBytes();
     if (heap != null && idleBytes != null && postBytes != null) {
       final drift = (postBytes - idleBytes).abs();
@@ -90,5 +84,10 @@ void main() {
           '`flutter drive --no-dds --profile`) — invariants only');
       reportMetric('memory_idle', null);
     }
+
+    // Heap already measured above — dispose in-body and settle, so no focus
+    // work reaches teardown (see teardown_clean_test.dart).
+    controller.dispose();
+    await tester.pumpAndSettle();
   });
 }
