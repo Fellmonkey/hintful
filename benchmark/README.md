@@ -76,8 +76,8 @@ values are averages, never a single best frame.
   without hintful) and diffs `main.dart.js`.
 
 ```bash
-./tool/native_size.sh > build/native_report.jsonl
-./tool/bundle_delta.sh > build/bundle_report.jsonl
+bash ./tool/native_size.sh > build/native_report.jsonl
+bash ./tool/bundle_delta.sh > build/bundle_report.jsonl
 ```
 
 ## Goldens
@@ -100,8 +100,8 @@ dart run tool/check_goldens.dart build/bench_report.jsonl --record --ref android
 
 ```bash
 cd benchmark
-./tool/run_bench_core.sh emulator-5554           # check against goldens
-BENCH_MODE=record ./tool/run_bench_core.sh emulator-5554  # record goldens
+bash ./tool/run_bench_core.sh emulator-5554           # check against goldens
+BENCH_MODE=record bash ./tool/run_bench_core.sh emulator-5554  # record goldens
 ```
 
 Runs the five benchmarks via `flutter drive --no-dds --profile`, then the

@@ -3,8 +3,8 @@
 # analysis, then checks or records the results against benchmarks.json.
 #
 # Usage:
-#   ./tool/run_bench_core.sh <device-id> [extra flutter drive args...]
-#   BENCH_MODE=record BENCH_REF=android ./tool/run_bench_core.sh emulator-5554
+#   bash ./tool/run_bench_core.sh <device-id> [extra flutter drive args...]
+#   BENCH_MODE=record BENCH_REF=android bash ./tool/run_bench_core.sh emulator-5554
 #
 # Environment:
 #   BENCH_MODE   check (default) | record — record writes the measured
@@ -37,7 +37,8 @@ for t in "${tests[@]}"; do
 done
 
 echo "==> native_size (--analyze-size; no device needed)..."
-./tool/native_size.sh >> "$report" 2>&1 \
+# Invoked via bash: Windows commits can't carry the +x exec bit.
+bash ./tool/native_size.sh >> "$report" 2>&1 \
   || echo "    (native_size failed — continuing)"
 
 echo "==> report: $report"
