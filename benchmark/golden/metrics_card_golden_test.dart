@@ -472,16 +472,36 @@ Future<void> _loadFonts() async {
   // so the golden renders with real glyphs but nothing is vendored into the
   // repo; FLUTTER_ROOT is set by the flutter tool for test processes.
   final root = Platform.environment['FLUTTER_ROOT'];
-  if (root == null || root.isEmpty) {
+  final dir = root == null || root.isEmpty
+      ? null
+      : '$root${Platform.pathSeparator}bin'
+          '${Platform.pathSeparator}cache${Platform.pathSeparator}artifacts'
+          '${Platform.pathSeparator}material_fonts';
+  if (dir == null) {
     throw StateError('FLUTTER_ROOT is not set — cannot load SDK fonts for '
         'the metrics-card golden render');
   }
-  final dir = '$root${Platform.pathSeparator}bin'
-      '${Platform.pathSeparator}cache${Platform.pathSeparator}artifacts'
-      '${Platform.pathSeparator}material_fonts';
-  Future<ByteData> read(String file) async =>
-      ByteData.view(File('$dir${Platform.pathSeparator}$file')
-          .readAsBytesSync().buffer);
+  // Names differ by platform: the flutter tool lowercases them locally, the
+  // storage.zip ships capitalized — match case-insensitively.
+  String? findFont(String name) {
+    final wanted = name.toLowerCase();
+    for (final entry in Directory(dir).listSync()) {
+      if (entry is File &&
+          entry.path.split(Platform.pathSeparator).last.toLowerCase() ==
+              wanted) {
+        return entry.path;
+      }
+    }
+    return null;
+  }
+  Future<ByteData> read(String name) async {
+    final path = findFont(name);
+    if (path == null) {
+      throw StateError('SDK font missing for the metrics-card golden: '
+          '$name in $dir (FLUTTER_ROOT=$root).' );
+    }
+    return ByteData.view(File(path).readAsBytesSync().buffer);
+  }
   await Future.wait<void>([
     (FontLoader('Roboto')..addFont(read('roboto-regular.ttf'))).load(),
     (FontLoader('RobotoMedium')..addFont(read('roboto-medium.ttf'))).load(),

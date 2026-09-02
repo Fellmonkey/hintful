@@ -45,14 +45,25 @@ metrics_json="$(dart run tool/metrics_json.dart)"
 [ -n "$metrics_json" ] || { echo "FAIL: metrics card payload is empty" >&2; exit 1; }
 
 echo "==> metrics card (landscape golden, host render — no device)..."
-# The render needs host-side engine artifacts (flutter_tester,
-# material_fonts); make sure a fresh CI cache has them.
-flutter precache 2>/dev/null || true
+# Material fonts are a build-time artifact the flutter tool fetches on
+# demand (never for `flutter test`), so a fresh CI SDK has no
+# material_fonts/. Fetch the same zip the tool would download — the
+# version file holds a storage-relative path under flutter/fonts/.
+fonts_dir="$FLUTTER_ROOT/bin/cache/artifacts/material_fonts"
+if [ ! -f "$fonts_dir/roboto-regular.ttf" ] && [ ! -f "$fonts_dir/Roboto-Regular.ttf" ]; then
+  fonts_version="$(cat "$FLUTTER_ROOT/bin/internal/material_fonts.version" 2>/dev/null || true)"
+  if [ -n "$fonts_version" ]; then
+    curl -fsSL "https://storage.googleapis.com/$fonts_version" -o /tmp/material_fonts.zip \
+      && unzip -oq /tmp/material_fonts.zip -d "$fonts_dir" \
+      && echo "    (fetched $fonts_version)" >&2
+  fi
+fi
 
 flutter test --update-goldens \
   --dart-define=HINTFUL_METRICS="$metrics_json" \
   golden/metrics_card_golden_test.dart >> "$report" 2>&1 \
-  || { echo "    (metrics card golden FAILED — aborting)" >&2; exit 1; }
+  || { echo "    (metrics card golden FAILED — aborting; last log lines:)" >&2; \
+       tail -60 "$report" >&2; exit 1; }
 mkdir -p build/screenshots
 cp golden/goldens/metrics_card.png build/screenshots/hint_metrics.png
 

@@ -1,0 +1,80 @@
+name: bench-core
+
+# Canonical contract run — deliberately separate from CI: it needs an
+# Android emulator (~20 min), and its outcome is published, not a gate.
+# Dispatch manually from the Actions tab; check `record` to write new
+# goldens and commit the re-rendered README "Performance" section back.
+on:
+  workflow_dispatch:
+    inputs:
+      record:
+        description: 'Record goldens into benchmarks.json (default: check against them)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  bench-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.0
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # NOTE: scripts are run via `bash` (no exec-bit dependency — Windows
+      # commits can't carry the +x bit), and the emulator-runner executes
+      # `script` one line at a time, so `cd benchmark` must ride on the same
+      # line as the invocation.
+      - name: Bench-core (record goldens)
+        if: inputs.record
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          script: cd benchmark && BENCH_MODE=record bash ./tool/run_bench_core.sh emulator-5554
+      - name: Bench-core (check against goldens)
+        if: ${{ !inputs.record }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          script: cd benchmark && bash ./tool/run_bench_core.sh emulator-5554
+      # No `|| true` on the copy: a missing card must fail the job, not
+      # silently ship a stale image (the runner already failed on a bad
+      # render, so a missing file here is a hard error worth surfacing).
+      - name: Render root README benchmark section
+        working-directory: benchmark
+        run: |
+          dart run tool/render_readme.dart build/bench_report.jsonl ../README.md
+          mkdir -p ../docs
+          cp build/screenshots/hint_metrics.png ../docs/hint_metrics.png
+      # Commits with the action's default identity (github-actions[bot]) and
+      # skips cleanly when a record run produced no changes.
+      - name: Commit results (record mode)
+        if: inputs.record
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "bench: publish results (goldens + metrics card)"
+          file_pattern: README.md docs/hint_metrics.png benchmark/benchmarks.json
+      - name: Upload report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: benchmark/build/bench_report.jsonl
