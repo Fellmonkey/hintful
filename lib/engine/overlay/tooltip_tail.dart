@@ -101,13 +101,19 @@ double _clampCenter(double value, double extent, double halfWidth) {
 /// The tooltip's global position is read at **paint** time from [positionKey]
 /// (the tooltip's render object): by then layout is final, so the geometry
 /// always matches the actual placement — no snapshot, no canvas-matrix
-/// introspection (which would be polluted by the device pixel ratio). No
-/// extra repaint scheduling either: the tail repaints whenever the tooltip
-/// subtree repaints (movement → rebuild → new painter).
+/// introspection (which would be polluted by the device pixel ratio).
+///
+/// The hole is read **live** from [holeOf] at paint time: the tooltip
+/// content is cached across movement frames (see overlay_engine), so a
+/// painted-with-stale-hole tail would keep pointing at the target's old
+/// position while the scrim/tooltip follow it. Repainting is driven by the
+/// tooltip's own repaint on movement (layout offset change → paint) — the
+/// painter then reads both the current tooltip position and the current
+/// hole.
 class TooltipTailPainter extends CustomPainter {
   TooltipTailPainter({
     required this.positionKey,
-    required this.hole,
+    required this.holeOf,
     required this.color,
     this.tailLength = _kTailLength,
     this.tailWidth = _kTailWidth,
@@ -117,8 +123,9 @@ class TooltipTailPainter extends CustomPainter {
   /// source of the tooltip's global position.
   final GlobalKey positionKey;
 
-  /// The target (scrim hole) rect in global overlay coordinates.
-  final Rect hole;
+  /// The target (scrim hole) rect in global overlay coordinates, resolved at
+  /// paint time (the hole moves with the target on scroll).
+  final Rect Function() holeOf;
 
   /// Filled with the tooltip's background color — the tail looks like part
   /// of the same surface.
@@ -132,13 +139,13 @@ class TooltipTailPainter extends CustomPainter {
     final render = positionKey.currentContext?.findRenderObject();
     if (render is! RenderBox) return;
     final tooltip = render.localToGlobal(Offset.zero) & size;
-    final side = tailSideFor(tooltip, hole);
+    final side = tailSideFor(tooltip, holeOf());
     if (side == null) return;
     canvas.drawPath(
       tailPath(
         side: side,
         tooltipSize: size,
-        hole: hole,
+        hole: holeOf(),
         tooltip: tooltip,
         length: tailLength,
         width: tailWidth,
@@ -150,7 +157,7 @@ class TooltipTailPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant TooltipTailPainter oldDelegate) =>
       oldDelegate.positionKey != positionKey ||
-      oldDelegate.hole != hole ||
+      oldDelegate.holeOf != holeOf ||
       oldDelegate.color != color ||
       oldDelegate.tailLength != tailLength ||
       oldDelegate.tailWidth != tailWidth;
@@ -165,13 +172,14 @@ class TooltipTailPainter extends CustomPainter {
 class TooltipTail extends StatefulWidget {
   const TooltipTail({
     super.key,
-    required this.hole,
+    required this.holeOf,
     required this.color,
     required this.child,
   });
 
-  /// The target (scrim hole) rect in global overlay coordinates.
-  final Rect hole;
+  /// The target (scrim hole) rect in global overlay coordinates, resolved at
+  /// paint time (see [TooltipTailPainter.holeOf]).
+  final Rect Function() holeOf;
 
   final Color color;
   final Widget child;
@@ -190,7 +198,7 @@ class _TooltipTailState extends State<TooltipTail> {
     return CustomPaint(
       painter: TooltipTailPainter(
         positionKey: _positionKey,
-        hole: widget.hole,
+        holeOf: widget.holeOf,
         color: widget.color,
       ),
       child: KeyedSubtree(key: _positionKey, child: widget.child),

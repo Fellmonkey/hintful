@@ -157,26 +157,28 @@ void main() {
   });
 
   group('TooltipTailPainter', () {
-    test('shouldRepaint: hole/color changes repaint, same values do not', () {
+    test('shouldRepaint: closure/color changes repaint, same values do not', () {
       final key = GlobalKey();
+      Rect hole() => const Rect.fromLTWH(0, 0, 10, 10);
+      Rect movedHole() => const Rect.fromLTWH(5, 0, 10, 10);
       final a = TooltipTailPainter(
         positionKey: key,
-        hole: const Rect.fromLTWH(0, 0, 10, 10),
+        holeOf: hole,
         color: const Color(0xFF000000),
       );
       final same = TooltipTailPainter(
         positionKey: key,
-        hole: const Rect.fromLTWH(0, 0, 10, 10),
+        holeOf: hole,
         color: const Color(0xFF000000),
       );
       final moved = TooltipTailPainter(
         positionKey: key,
-        hole: const Rect.fromLTWH(5, 0, 10, 10),
+        holeOf: movedHole,
         color: const Color(0xFF000000),
       );
       final recolored = TooltipTailPainter(
         positionKey: key,
-        hole: const Rect.fromLTWH(0, 0, 10, 10),
+        holeOf: hole,
         color: const Color(0xFF111111),
       );
       expect(a.shouldRepaint(same), isFalse);

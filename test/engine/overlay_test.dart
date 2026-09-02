@@ -754,7 +754,11 @@ void main() {
           (w.child as IgnorePointer).child is CustomPaint &&
           ((w.child as IgnorePointer).child as CustomPaint).painter
               is PulsePainter;
-      bool isBlurLayer(Widget w) => w is Positioned && w.child is ClipPath;
+      // The blur layer is positioned, then movement-driven (a
+      // ValueListenableBuilder around the ClipPath; see overlay_engine).
+      bool isBlurLayer(Widget w) =>
+          w is Positioned &&
+          (w.child is ClipPath || w.child is ValueListenableBuilder<Offset?>);
       final overlayStack = tester
           .widgetList<Stack>(find.byType(Stack))
           .firstWhere((s) =>
