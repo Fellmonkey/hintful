@@ -14,6 +14,8 @@ on:
 
 jobs:
   test:
+    # Analyze + unit tests for every package; the other jobs depend on this
+    # one, so nothing runs on a broken tree.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,23 +23,26 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Pub get (package)
-        run: flutter pub get
-      - name: Analyze (package)
-        run: flutter analyze
       - name: Test (package)
-        run: flutter test
-      - name: Pub get (example)
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Test (example)
         working-directory: example
-        run: flutter pub get
-      - name: Analyze (example)
-        working-directory: example
-        run: flutter analyze
-      - name: Test (example smoke)
-        working-directory: example
-        run: flutter test
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Test (hintful_bloc)
+        working-directory: hintful_bloc
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
 
   web:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +57,7 @@ jobs:
   bundle:
     # Startup-bundle delta (two release web builds, ~2 min): runs on every
     # PR and push. The golden is SDK-pinned — Flutter is pinned to match.
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +71,7 @@ jobs:
       - name: Bundle delta (against the golden)
         working-directory: benchmark
         run: |
+          mkdir -p build
           ./tool/bundle_delta.sh > build/bundle_report.jsonl
           dart run tool/check_goldens.dart build/bundle_report.jsonl --check --ref any
 
@@ -78,6 +85,7 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +104,8 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Bench-core (record or check)
+      - name: Bench-core (record goldens)
+        if: github.event_name == 'workflow_dispatch' && inputs.record
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -104,11 +113,17 @@ jobs:
           disable-animations: true
           script: |
             cd benchmark
-            if [ "${{ github.event_name == 'workflow_dispatch' && inputs.record }}" = "true" ]; then
-              BENCH_MODE=record ./tool/run_bench_core.sh emulator-5554
-            else
-              ./tool/run_bench_core.sh emulator-5554
-            fi
+            BENCH_MODE=record ./tool/run_bench_core.sh emulator-5554
+      - name: Bench-core (check against goldens)
+        if: github.event_name != 'workflow_dispatch' || !inputs.record
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          script: |
+            cd benchmark
+            ./tool/run_bench_core.sh emulator-5554
       - name: Upload updated benchmarks.json (record mode)
         if: github.event_name == 'workflow_dispatch' && inputs.record
         uses: actions/upload-artifact@v4
@@ -125,6 +140,7 @@ jobs:
   bench:
     # Benchmark VM sanity (invariants + printed numbers): cheap, so it also
     # runs on PRs alongside the package tests.
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,9 +148,11 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Pub get (benchmark)
+      - name: Analyze (benchmark)
         working-directory: benchmark
-        run: flutter pub get
+        run: |
+          flutter pub get
+          flutter analyze
       - name: Benchmark sanity (VM)
         working-directory: benchmark
         run: flutter test bench/

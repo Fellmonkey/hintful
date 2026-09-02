@@ -65,6 +65,12 @@ void main() {
 
     expect(engineNodes(), 0, reason: 'finish unmounts the whole overlay');
 
+    // Flush the hide animation and any pending focus work before the heap
+    // read and teardown — a leftover scheduled frame would otherwise throw
+    // "A FocusManager was used after being disposed" in teardown.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+
     final postBytes = heap == null ? null : await heap.usedBytes();
     if (heap != null && idleBytes != null && postBytes != null) {
       final drift = (postBytes - idleBytes).abs();

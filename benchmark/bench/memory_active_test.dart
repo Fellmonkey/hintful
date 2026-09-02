@@ -75,5 +75,10 @@ void main() {
     controller.skip();
     await tester.pump();
     expect(engineNodes(), 0);
+    // Flush the hide animation and any pending focus work before the test
+    // binding is torn down — a leftover scheduled frame would otherwise
+    // throw "A FocusManager was used after being disposed" in teardown.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
   });
 }

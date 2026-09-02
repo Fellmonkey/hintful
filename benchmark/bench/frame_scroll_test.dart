@@ -51,6 +51,12 @@ void main() {
     );
 
     controller.skip();
+    // Flush the hide animation and any pending focus work before the test
+    // binding is torn down — the drags leave a scheduled frame that would
+    // otherwise throw "A FocusManager was used after being disposed" in
+    // teardown (seen on CI with a fresh emulator session).
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     await tester.pump();
   });
 }
