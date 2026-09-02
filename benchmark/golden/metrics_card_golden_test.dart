@@ -64,7 +64,12 @@ void main() {
       final v = values[key];
       if (v != null) {
         final text = MetricsCard.formatValue(v.toDouble(), unit);
-        final rect = tester.getRect(find.text(text));
+        // Formatted values can collide across metrics (e.g. two ~1.3 ms
+        // rows), so scope the finder to the metric's own tile.
+        final tile = find.byWidgetPredicate(
+            (w) => w is _MetricTile && w.metricKey == key);
+        final rect =
+            tester.getRect(find.descendant(of: tile, matching: find.text(text)));
         expect(rect.width, greaterThan(0), reason: '$key ($text) visible');
         expect(rect.left >= 0 && rect.top >= 0, isTrue,
             reason: '$key ($text) not clipped');
