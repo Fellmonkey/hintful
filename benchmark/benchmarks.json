@@ -1,0 +1,58 @@
+{
+  "//": "Golden contract for the benchmark metrics. 'goldens' are keyed per reference setup ('any' = hardware-independent, e.g. deterministic bundle bytes or structural frame counts). Values are recorded by tool/check_goldens.dart --record after a drive run and compared by --check (the bench-core CI). References get a fresh entry per new setup (see 'references').",
+  "references": {
+    "any": "hardware-independent (deterministic or structural)",
+    "vm_debug": "local flutter test VM, debug build — sanity reference only, not a contract",
+    "android": "the canonical contract reference — recorded from the first emulator run (API 36, 2026-09)"
+  },
+  "metrics": {
+    "startup_to_show": {
+      "unit": "frames to first tooltip frame",
+      "goldens": {
+        "any": 2,
+        "vm_debug": 2,
+        "android": 2
+      }
+    },
+    "frame_step_change": {
+      "unit": "µs avg build/frame (action window)",
+      "goldens": {
+        "vm_debug": 9437,
+        "android": 2797
+      }
+    },
+    "frame_scroll": {
+      "unit": "µs avg build/frame (action window)",
+      "goldens": {
+        "vm_debug": 10771,
+        "android": 5132
+      }
+    },
+    "memory_idle": {
+      "unit": "bytes heap drift after finish vs idle (0 = fully released; VM service via --no-dds)",
+      "goldens": {
+        "android": 41808
+      }
+    },
+    "memory_active": {
+      "unit": "bytes heap delta idle → active step (the overlay's real weight; VM service via --no-dds)",
+      "goldens": {
+        "android": 170096
+      }
+    },
+    "native_size": {
+      "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
+      "goldens": {
+        "any": 69196
+      },
+      "note": "Deterministic per SDK + ABI: measured on Flutter 3.47.0, android-x64 (2026-09-02). Re-record only when the SDK or engine code changes."
+    },
+    "bundle_delta": {
+      "unit": "bytes added to the startup bundle",
+      "goldens": {
+        "any": 53705
+      },
+      "note": "Deterministic per SDK: measured on Flutter 3.47.0 (2026-09-02). Re-record only when the SDK or engine code changes. Deferred-engine target (N7) is 0 bytes — re-key then."
+    }
+  }
+}

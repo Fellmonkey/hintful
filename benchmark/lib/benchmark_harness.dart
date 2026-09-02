@@ -4,15 +4,9 @@ import 'package:hintful/hintful.dart';
 
 /// Minimal scene for the benchmarks: the engine + targets only.
 ///
-/// Deliberately NOT the full example app — a benchmark must measure the
-/// engine, not app bootstrap. The example app pulls in `shared_preferences`
-/// (the versioned-intro store), snackbars and demo cards, which (a) makes
-/// the numbers depend on unrelated app code and (b) breaks running the
-/// benchmark in environments without the platform plugin
-/// (`MissingPluginException` on `SharedPreferences.getInstance`).
-///
-/// The scene: the same shapes as the app — an AppBar trigger, a FAB target,
-/// a scrollable list with one more target — nothing else.
+/// Deliberately NOT the full example app (store, snackbars, demo cards
+/// would leak into the numbers and pull in `shared_preferences`, which
+/// breaks plugin-less environments).
 class BenchmarkApp extends StatefulWidget {
   const BenchmarkApp({
     super.key,
@@ -82,8 +76,8 @@ class _BenchmarkAppState extends State<BenchmarkApp> {
   }
 }
 
-/// The tour the idle benchmark walks: two steps on real targets (the FAB
-/// and a list row), so an active step has a scrim hole + tooltip.
+/// Two steps on real targets (FAB + list row), so an active step has a
+/// scrim hole + tooltip.
 HintTour benchmarkTour() => HintTour(
       id: 'bench',
       steps: [

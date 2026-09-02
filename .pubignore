@@ -8,6 +8,10 @@ build/
 # of the hintful archive.
 hintful_bloc/
 
+# The benchmark package is repo-level engineering artifact — not part of the
+# published archive either.
+benchmark/
+
 # IDE/editor junk.
 *.iml
 .idea/
