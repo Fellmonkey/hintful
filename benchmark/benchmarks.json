@@ -18,20 +18,20 @@
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 9437,
-        "android": 755
+        "android": 916
       }
     },
     "frame_scroll": {
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 10771,
-        "android": 1082
+        "android": 1603
       }
     },
     "memory_idle": {
       "unit": "bytes heap drift after finish vs idle (0 = fully released; VM service via --no-dds)",
       "goldens": {
-        "android": 37664
+        "android": 37216
       }
     },
     "memory_active": {
