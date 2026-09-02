@@ -75,7 +75,7 @@ void main(List<String> args) {
       '${two(now.hour)}:${two(now.minute)} UTC';
 
   final header = '| Metric | hintful |${rivals.map((r) => ' $r |').join()}';
-  final divider = '|---|${'---|' * rivals.length}';
+  final divider = '|---|---|${'---|' * rivals.length}';
   final comparisonNote = rivals.isEmpty
       ? '\n\nHead-to-head runs against showcaseview / tutorial_coach_mark '
           'will add their columns here.'

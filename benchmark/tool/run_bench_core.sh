@@ -42,12 +42,17 @@ bash ./tool/native_size.sh >> "$report" 2>&1 \
   || echo "    (native_size failed — continuing)"
 
 metrics_json="$(dart run tool/metrics_json.dart)"
+[ -n "$metrics_json" ] || { echo "FAIL: metrics card payload is empty" >&2; exit 1; }
 
 echo "==> metrics card (landscape golden, host render — no device)..."
+# The render needs host-side engine artifacts (flutter_tester,
+# material_fonts); make sure a fresh CI cache has them.
+flutter precache 2>/dev/null || true
+
 flutter test --update-goldens \
   --dart-define=HINTFUL_METRICS="$metrics_json" \
   golden/metrics_card_golden_test.dart >> "$report" 2>&1 \
-  || echo "    (metrics card golden failed — continuing)"
+  || { echo "    (metrics card golden FAILED — aborting)" >&2; exit 1; }
 mkdir -p build/screenshots
 cp golden/goldens/metrics_card.png build/screenshots/hint_metrics.png
 

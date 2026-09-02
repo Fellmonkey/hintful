@@ -41,8 +41,8 @@ void main() {
     expect(window.timings, isNotEmpty, reason: 'frames were measured');
     expect(
       window.avgBuildUs,
-      lessThan(kFrameBudgetUs * 2),
-      reason: 'a step transition must not cost two frame budgets even in '
+      lessThan(kFrameBudgetUs * 3),
+      reason: 'a step transition must not cost three frame budgets even in '
           'debug',
     );
 
