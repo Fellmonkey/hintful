@@ -116,7 +116,10 @@ class HintController implements HintActions {
     // A listener, not a slot: other subsystems subscribe the same way, and
     // several controllers on one registry no longer overwrite each other.
     _registry.addListener(_onRegistryChanged);
-    _lastKnownIds = _registry.ids;
+    // The id set exists only while a tour runs (registry diffing). Held
+    // while idle it would retain the registry's ids between tours (zero-idle
+    // cost) — [start] reseeds and rebuilds it.
+    _lastKnownIds = const {};
   }
 
   final HintTargetRegistry _registry;
@@ -246,6 +249,12 @@ class HintController implements HintActions {
     // A microtask may have been scheduled before dispose — dispatching after
     // it would write into a destroyed notifier.
     if (_disposed) return;
+    // While idle the machine ignores target events and the next [start]
+    // reseeds from the registry — keep no id set between tours (zero-idle).
+    if (_machine.state.isIdle) {
+      _lastKnownIds = const {};
+      return;
+    }
     final current = _registry.ids;
     final previous = _lastKnownIds;
     for (final id in current.difference(previous)) {
@@ -269,6 +278,12 @@ class HintController implements HintActions {
     if (transition.state.isIdle) {
       _timer?.cancel();
       _timer = null;
+      // Zero-idle: after the tour the controller retains no tour state —
+      // the registry-diff id set is dropped ([start] reseeds it) and the
+      // overlay host (with its overlay/entry refs) is disposed. The next
+      // tour lazily builds a fresh host and re-captures the overlay.
+      _lastKnownIds = const {};
+      _releaseHost();
     }
   }
 
@@ -278,6 +293,14 @@ class HintController implements HintActions {
     if (_builtHost != null) return _builtHost;
     if (state.isIdle || _overlayHostBuilder == null) return null;
     return _builtHost = _overlayHostBuilder!(this);
+  }
+
+  /// Disposes the overlay host when the tour ends: the engine holds overlay
+  /// references that must not outlive the tour (zero-idle cost), and the
+  /// next tour rebuilds it lazily via [_hostFor].
+  void _releaseHost() {
+    _builtHost?.dispose();
+    _builtHost = null;
   }
 
   void _applyEffects(HintTransition transition, HintState before) {

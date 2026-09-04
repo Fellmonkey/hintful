@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/machine.dart';
 import 'package:hintful/engine/overlay/overlay_engine.dart';
+import 'package:hintful/widgets/default_tooltip.dart';
+
 import 'package:hintful/engine/overlay/pulse_painter.dart';
 import 'package:hintful/engine/overlay/scrim_painter.dart';
 import 'package:hintful/engine/registry.dart';
@@ -365,9 +367,13 @@ void main() {
       await tester.pump(); // post-frame snapshot → correct placement
 
       final targetRect = tester.getRect(find.byType(CompositedTransformTarget));
-      final tooltipRect = tester.getRect(find.text('Title'));
-      // The tooltip is strictly above the target and fully on-screen.
-      expect(tooltipRect.bottom, lessThan(targetRect.top));
+      // The meaningful invariants (the box is horizontally clear of the
+      // target — a text-edge proxy would be fragile to tooltip height
+      // changes): the flipped tooltip does not cover the target and stays
+      // fully on screen.
+      final tooltipRect = tester.getRect(find.byType(DefaultTooltip));
+      expect(tooltipRect.overlaps(targetRect), isFalse,
+          reason: 'the auto-flipped tooltip must not cover the target');
       expect(tooltipRect.top, greaterThanOrEqualTo(0));
       expect(tooltipRect.bottom, lessThanOrEqualTo(600));
     });

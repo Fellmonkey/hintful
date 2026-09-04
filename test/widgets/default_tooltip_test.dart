@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/specs.dart';
 import 'package:hintful/engine/theme/hint_theme.dart';
@@ -34,13 +35,28 @@ HintTooltipContext _ctx(
       totalSteps: totalSteps,
     );
 
-Widget _wrap(Widget child, {List<ThemeExtension<dynamic>>? extensions}) {
+Widget _wrap(
+  Widget child, {
+  List<ThemeExtension<dynamic>>? extensions,
+  double textScale = 1.0,
+}) {
   return MaterialApp(
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
       extensions: extensions,
     ),
-    home: Scaffold(body: Center(child: child)),
+    home: Scaffold(
+      body: MediaQuery(
+        // Keep the default test surface size — a zero-size MediaQueryData
+        // would collapse the tooltip's maxWidth (screenSize.width - 32) and
+        // overflow the button row.
+        data: MediaQueryData(
+          size: const Size(800, 600),
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: Center(child: child),
+      ),
+    ),
   );
 }
 
@@ -161,6 +177,53 @@ void main() {
 
     expect(find.text('Skip'), findsNothing);
     expect(find.text('Done'), findsOneWidget);
+  });
+
+  testWidgets('text scale 1.0: no scrollable is built (content grows '
+      'freely, width still capped)', (tester) async {
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      ctx: _ctx(_FakeActions(), 0, 2),
+    )));
+
+    // The scroll machinery is ~18 KB of heap while mounted — at scale 1.0
+    // the content is width-capped (wrapping) and grows freely instead.
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(find.text('Title'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+  });
+
+  testWidgets('text scale 2.0: height-capped and scrollable — the contract',
+      (tester) async {
+    await tester.pumpWidget(_wrap(
+      DefaultTooltip(
+        step: step,
+        ctx: _ctx(_FakeActions(), 0, 2),
+      ),
+      textScale: 2.0,
+    ));
+
+    // At the 2.0 text scale the content must still fit on screen: capped
+    // height + scroll instead of overflow.
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(find.text('Title'), findsOneWidget);
+  });
+
+  testWidgets('buttons expose the button role + tap action', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_wrap(DefaultTooltip(
+      step: step,
+      ctx: _ctx(_FakeActions(), 0, 2),
+    )));
+
+    final skip = tester.getSemantics(find.text('Skip')).getSemanticsData();
+    expect(skip.flagsCollection.isButton, isTrue);
+    expect(skip.hasAction(SemanticsAction.tap), isTrue);
+    final next = tester.getSemantics(find.text('Next')).getSemanticsData();
+    expect(next.flagsCollection.isButton, isTrue);
+    expect(next.hasAction(SemanticsAction.tap), isTrue);
+    handle.dispose();
   });
 
   testWidgets('semantics "Step N of M: …"', (tester) async {
