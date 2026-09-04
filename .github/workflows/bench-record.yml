@@ -1,0 +1,69 @@
+name: bench-record
+
+# The contract run in one dispatch. The rival drivers (benchmark/compare)
+# are OPT-IN (`compare` input): rival libraries rarely change, so a normal
+# record re-runs only hintful and keeps the recorded rival goldens; run
+# with `compare` after bumping a rival (or on a fresh setup). When enabled,
+# compare runs FIRST into the shared store, then hintful's record re-renders
+# and commits the README "Performance" section + metrics card. One job =
+# one runner, one image pull, one checkout. With `record` off the same job
+# gates the selected consumers against their goldens. The runner image
+# (digest-pinned via the action) holds all emulator setup.
+on:
+  workflow_dispatch:
+    inputs:
+      record:
+        description: 'Record goldens into benchmark/benchmarks.json (default: check against them)'
+        type: boolean
+        default: false
+      compare:
+        description: 'Also run the rival drivers (benchmark/compare). Rival libraries rarely change — leave off for routine runs, enable after bumping a rival or on a fresh setup.'
+        type: boolean
+        default: false
+      flutter-version:
+        description: 'Runner image tag = Flutter version of the goldens (e.g. 3.47)'
+        default: '3.47'
+
+permissions:
+  contents: write
+
+jobs:
+  bench-record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Rivals first: per-library goldens (android-scv / android-tcm) land in
+      # the parent store before the hintful record re-renders the table/card.
+      - name: Compare (rivals → shared store)
+        if: ${{ inputs.compare == 'true' }}
+        uses: Fellmonkey/flutter_bench_contract/action@v1
+        with:
+          mode: ${{ inputs.record && 'record' || 'check' }}
+          ref: android
+          dir: benchmark/compare
+          store: ../benchmarks.json
+          flutter: ${{ inputs.flutter-version }}
+          commit: ${{ inputs.record }}
+          commit-patterns: benchmark/benchmarks.json
+      # Core last: hintful's record re-renders + commits README/card with all
+      # three columns from the same image/session (contract fairness rule).
+      - name: Core (hintful → card/README)
+        uses: Fellmonkey/flutter_bench_contract/action@v1
+        with:
+          mode: ${{ inputs.record && 'record' || 'check' }}
+          ref: android
+          dir: benchmark
+          flutter: ${{ inputs.flutter-version }}
+          commit: ${{ inputs.record }}
+          commit-patterns: README.md docs/hint_metrics.png benchmark/benchmarks.json
+      - name: Upload reports (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-reports
+          if-no-files-found: warn
+          path: |
+            benchmark/build/contract_*.jsonl
+            benchmark/build/custom_*.jsonl
+            benchmark/compare/build/contract_*.jsonl
+            benchmark/compare/build/custom_*.jsonl

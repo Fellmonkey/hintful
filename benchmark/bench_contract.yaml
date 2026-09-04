@@ -63,4 +63,4 @@ readme:
     scenes were never shipped as size targets.
   image: docs/hint_metrics.png
   imageAlt: hintful benchmark metrics
-  stamp: '_Recorded {ts}. Regenerate: dispatch the `bench-core` workflow with `record`._'
+  stamp: '_Recorded {ts}. Regenerate: dispatch the `bench-record` workflow with `record`._'

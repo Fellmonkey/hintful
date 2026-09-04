@@ -6,48 +6,6 @@
     "android": "the canonical contract reference — recorded from the first emulator run (API 36, 2026-09)"
   },
   "metrics": {
-    "startup_to_show": {
-      "unit": "frames to first tooltip frame",
-      "goldens": {
-        "any": 2,
-        "vm_debug": 2,
-        "android": 2,
-        "android-scv": 1,
-        "android-tcm": 39
-      }
-    },
-    "frame_step_change": {
-      "unit": "µs avg build/frame (action window)",
-      "goldens": {
-        "vm_debug": 9437,
-        "android": 4015,
-        "android-scv": 4651,
-        "android-tcm": 1134
-      }
-    },
-    "frame_scroll": {
-      "unit": "µs avg build/frame (action window)",
-      "goldens": {
-        "vm_debug": 10771,
-        "android": 3066
-      }
-    },
-    "memory_idle": {
-      "unit": "bytes heap drift after finish vs idle (0 = fully released; VM service via --no-dds)",
-      "goldens": {
-        "android": 20128,
-        "android-scv": 5376,
-        "android-tcm": 4608
-      }
-    },
-    "memory_active": {
-      "unit": "bytes heap delta idle → active step (the overlay's real weight; VM service via --no-dds)",
-      "goldens": {
-        "android": 103264,
-        "android-scv": 69248,
-        "android-tcm": 81648
-      }
-    },
     "native_size": {
       "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
       "goldens": {
@@ -62,33 +20,6 @@
         "any": 48690
       },
       "note": "Deterministic per SDK: measured on Flutter 3.47.0 (2026-09-02). Re-record only when the SDK or engine code changes. Deferred-engine target (N7) is 0 bytes — re-key then."
-    },
-    "frame_scroll_core": {
-      "unit": "frame_scroll_core",
-      "goldens": {
-        "android": 2661
-      }
-    },
-    "frame_step_change_core": {
-      "unit": "frame_step_change_core",
-      "goldens": {
-        "android": 3534,
-        "android-tcm": 1097
-      }
-    },
-    "memory_active_core": {
-      "unit": "memory_active_core",
-      "goldens": {
-        "android": 44432,
-        "android-tcm": 96112
-      }
-    },
-    "memory_idle_core": {
-      "unit": "memory_idle_core",
-      "goldens": {
-        "android": 2560,
-        "android-tcm": 4656
-      }
     },
     "idle_zero": {
       "unit": "idle_zero",

@@ -5,7 +5,7 @@ one neutral scene, contract scenarios S1–S7 with a single protocol per
 metric. The consumer code is deliberately thin — a driver mapping the
 scenario verbs onto hintful's real API — while the scenarios, collectors,
 golden store and gate live in the package. Reference values live in
-`benchmarks.json` (shared store) and are enforced by the `bench-core`
+`benchmarks.json` (shared store) and are enforced by the `bench-record`
 dispatch on a profile emulator.
 
 ## Layout
@@ -30,9 +30,11 @@ leak into the numbers and needs plugins that VM runs don't have.
   driver, S7 `size:` section);
 - `lib/main.dart` / `lib/main_baseline.dart` — entry points with/without
   hintful, the S7 size targets;
-- no runner script — the `bench-core` dispatch (`.github/workflows/
-  bench-core.yml`) calls the contract CLI directly (device scenarios +
-  the native size leg + the metrics card);
+- no runner script — the `bench-record` dispatch (`.github/workflows/
+  bench-record.yml`) runs hintful (device scenarios + the native size leg
+  + the metrics card); the compare consumer (rivals) is opt-in via the
+  dispatch's `compare` input — rival libraries rarely change, so routine
+  records keep the recorded rival goldens;
 - `bench_contract.yaml` `card:`/`readme:` sections — hintful's marketing
   copy for the published results; the MACHINERY (card widget, table
   renderer, fonts, formatting) lives in the contract package (`contract
@@ -66,8 +68,8 @@ are noise.
 Reference values (Flutter 3.47.0, API 36 x86_64 emulator, recorded
 2026-09-03): `idle_zero=4`, `show_latency=72 ms`, `update_latency=66 ms`,
 `active_heap=41632 B`, `hide_retention=539 B`. Re-record with the
-`bench-core` workflow's `record` input — the reference for check runs is
-the same API 36 image.
+`bench-record` workflow's `record` input — the reference for check runs
+is the same API 36 image.
 
 ## Running
 
@@ -92,8 +94,10 @@ cd benchmark && dart run flutter_bench_contract:contract run --device emulator-5
 cd benchmark && dart run flutter_bench_contract:contract card
 ```
 
-The `bench-core` workflow job runs exactly these two commands inside the
-emulator step (record or check): `contract run` drives the device contract
+The `bench-record` job runs exactly these two commands inside the
+emulator step (record or check); with the `compare` input on, the compare
+consumer runs first (its own two-command run, recording the rival refs
+into the shared store): `contract run` drives the device contract
 scenarios via `flutter drive --profile --no-dds` and the S7 native size leg
 (`--legs native`; the web leg stays in the plain-CI bundle job) in the same
 invocation, then `contract card` renders the metrics-card PNG on the host
@@ -114,8 +118,8 @@ dart run flutter_bench_contract:contract init --force
 S7 is a scenario like the rest — one `contract run` invocation runs the
 manifest's declared scenarios plus the host release size builds (no
 device). The manifest's `size:` section declares the legs; `--legs` picks
-which to run (`both` by default). The `bench-core` dispatch drives native;
-the bundle CI job drives web:
+which to run (`both` by default). The `bench-record` dispatch drives
+native; the bundle CI job drives web:
 
 - **native** (`native_size` golden): `flutter build apk --release
   --analyze-size` (the per-package analysis the DevTools **Size** page
@@ -126,7 +130,7 @@ the bundle CI job drives web:
   `any`, checked on every PR.
 
 ```bash
-# native only (bench-core dispatch): ref android
+# native only (bench-record dispatch): ref android
 dart run flutter_bench_contract:contract run --scenarios size --mode check --ref android --legs native
 # web only (bundle CI job): bundle_delta is checked under its own ref `any`
 dart run flutter_bench_contract:contract run --scenarios size --mode check --legs web
