@@ -102,24 +102,24 @@
       "unit": "show_latency",
       "goldens": {
         "android": 912,
-        "android-scv": 358,
-        "android-tcm": 1026
+        "android-scv": 804,
+        "android-tcm": 1476
       }
     },
     "update_latency": {
       "unit": "update_latency",
       "goldens": {
         "android": 209,
-        "android-scv": 733,
-        "android-tcm": 1634
+        "android-scv": 783,
+        "android-tcm": 1614
       }
     },
     "active_heap": {
       "unit": "active_heap",
       "goldens": {
         "android": 41600,
-        "android-scv": 64816,
-        "android-tcm": 95184
+        "android-scv": -10069488,
+        "android-tcm": 94672
       }
     },
     "hide_retention": {
@@ -127,13 +127,20 @@
       "goldens": {
         "android": 736,
         "android-scv": -123,
-        "android-tcm": 693
+        "android-tcm": 645
       }
     },
     "custom.startup_to_show": {
       "unit": "custom.startup_to_show",
       "goldens": {
         "android-custom": 2
+      }
+    },
+    "idle_resources": {
+      "unit": "idle_resources",
+      "goldens": {
+        "android-scv": 0,
+        "android-tcm": 0
       }
     }
   }
