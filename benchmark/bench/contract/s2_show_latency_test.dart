@@ -11,6 +11,6 @@ void main() {
   runContractScenario(
     'show_latency',
     driver: HintfulDriver(),
-    idleClasses: [],
+    idleClasses: ['HintController', 'HintOverlayHost'],
   );
 }

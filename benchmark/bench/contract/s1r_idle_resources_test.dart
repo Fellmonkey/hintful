@@ -11,6 +11,6 @@ void main() {
   runContractScenario(
     'idle_resources',
     driver: HintfulDriver(),
-    idleClasses: [],
+    idleClasses: ['HintController', 'HintOverlayHost'],
   );
 }

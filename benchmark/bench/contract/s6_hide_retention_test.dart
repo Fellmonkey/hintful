@@ -11,6 +11,6 @@ void main() {
   runContractScenario(
     'hide_retention',
     driver: HintfulDriver(),
-    idleClasses: [],
+    idleClasses: ['HintController', 'HintOverlayHost'],
   );
 }

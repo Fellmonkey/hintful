@@ -11,6 +11,6 @@ void main() {
   runContractScenario(
     'scroll_coupled',
     driver: HintfulDriver(),
-    idleClasses: [],
+    idleClasses: ['HintController', 'HintOverlayHost'],
   );
 }

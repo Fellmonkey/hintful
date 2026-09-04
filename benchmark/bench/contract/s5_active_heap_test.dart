@@ -11,6 +11,6 @@ void main() {
   runContractScenario(
     'active_heap',
     driver: HintfulDriver(),
-    idleClasses: [],
+    idleClasses: ['HintController', 'HintOverlayHost'],
   );
 }

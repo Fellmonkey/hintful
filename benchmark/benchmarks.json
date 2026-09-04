@@ -140,7 +140,8 @@
       "unit": "idle_resources",
       "goldens": {
         "android-scv": 0,
-        "android-tcm": 0
+        "android-tcm": 0,
+        "android": 0
       }
     }
   }
