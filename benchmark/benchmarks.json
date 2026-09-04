@@ -11,49 +11,124 @@
       "goldens": {
         "any": 2,
         "vm_debug": 2,
-        "android": 2
+        "android": 2,
+        "android-scv": 1,
+        "android-tcm": 39
       }
     },
     "frame_step_change": {
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 9437,
-        "android": 916
+        "android": 4015,
+        "android-scv": 4651,
+        "android-tcm": 1134
       }
     },
     "frame_scroll": {
       "unit": "µs avg build/frame (action window)",
       "goldens": {
         "vm_debug": 10771,
-        "android": 1603
+        "android": 3066
       }
     },
     "memory_idle": {
       "unit": "bytes heap drift after finish vs idle (0 = fully released; VM service via --no-dds)",
       "goldens": {
-        "android": 37216
+        "android": 20128,
+        "android-scv": 5376,
+        "android-tcm": 4608
       }
     },
     "memory_active": {
       "unit": "bytes heap delta idle → active step (the overlay's real weight; VM service via --no-dds)",
       "goldens": {
-        "android": 171200
+        "android": 103264,
+        "android-scv": 69248,
+        "android-tcm": 81648
       }
     },
     "native_size": {
       "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
       "goldens": {
-        "any": 69196,
-        "android": 69196
+        "any": 72669,
+        "android": 72669
       },
       "note": "Deterministic per SDK + ABI: measured on Flutter 3.47.0, android-x64 (2026-09-02). Re-record only when the SDK or engine code changes."
     },
     "bundle_delta": {
       "unit": "bytes added to the startup bundle",
       "goldens": {
-        "any": 53705
+        "any": 48690
       },
       "note": "Deterministic per SDK: measured on Flutter 3.47.0 (2026-09-02). Re-record only when the SDK or engine code changes. Deferred-engine target (N7) is 0 bytes — re-key then."
+    },
+    "frame_scroll_core": {
+      "unit": "frame_scroll_core",
+      "goldens": {
+        "android": 2661
+      }
+    },
+    "frame_step_change_core": {
+      "unit": "frame_step_change_core",
+      "goldens": {
+        "android": 3534,
+        "android-tcm": 1097
+      }
+    },
+    "memory_active_core": {
+      "unit": "memory_active_core",
+      "goldens": {
+        "android": 44432,
+        "android-tcm": 96112
+      }
+    },
+    "memory_idle_core": {
+      "unit": "memory_idle_core",
+      "goldens": {
+        "android": 2560,
+        "android-tcm": 4656
+      }
+    },
+    "idle_zero": {
+      "unit": "idle_zero",
+      "goldens": {
+        "android": 4,
+        "android-scv": 2,
+        "android-tcm": 3
+      }
+    },
+    "show_latency": {
+      "unit": "show_latency",
+      "goldens": {
+        "android": 72,
+        "android-scv": 358,
+        "android-tcm": 1026
+      }
+    },
+    "update_latency": {
+      "unit": "update_latency",
+      "goldens": {
+        "android": 66,
+        "android-scv": 733,
+        "android-tcm": 1634
+      }
+    },
+    "active_heap": {
+      "unit": "active_heap",
+      "goldens": {
+        "android": 41632,
+        "android-scv": 64816,
+        "android-tcm": 95184
+      }
+    },
+    "hide_retention": {
+      "unit": "hide_retention",
+      "goldens": {
+        "android": 539,
+        "android-scv": -123,
+        "android-tcm": 693
+      }
     }
   }
 }

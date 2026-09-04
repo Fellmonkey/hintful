@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// The same scene as [BenchmarkApp] — but with zero hintful in the bundle.
-/// Baseline for `tool/bundle_delta.sh`: diff(engine build − this) =
-/// hintful's startup-bundle cost. Keep it structurally in sync with
-/// [BenchmarkApp].
+/// The same scene as `lib/main.dart` (the engine entry) — but with zero
+/// hintful in the bundle. Baseline of the S7 size.web leg (manifest `size:`
+/// section, run by `contract run`): diff(engine build − this) = hintful's
+/// startup-bundle cost. Keep it structurally in sync with `lib/main.dart`.
 void main() => runApp(const _BaselineApp());
 
 class _BaselineApp extends StatelessWidget {

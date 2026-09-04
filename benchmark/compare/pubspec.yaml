@@ -1,0 +1,30 @@
+name: bench_compare
+description: Head-to-head benchmark scenes for hintful's rivals (showcaseview, tutorial_coach_mark).
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The rival solutions under test — one driver per library in bench/drivers/.
+  showcaseview: ^5.1.0
+  tutorial_coach_mark: ^1.3.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Contract runs: `flutter drive --profile` on a device/emulator.
+  integration_test:
+    sdk: flutter
+  # Contract core: collectors/report/golden-store + the CLI. Hosted from
+  # pub.dev (the package is published) so CI resolves it without a sibling
+  # checkout.
+  flutter_bench_contract: ^0.3.0
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

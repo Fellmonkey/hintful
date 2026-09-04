@@ -1,5 +1,5 @@
 name: benchmark
-description: "Benchmark harness for hintful: frame, startup and memory contracts on a device."
+description: "hintful's consumer of flutter_bench_contract: S1–S7 contract scenarios on a profile device + the host size builds, publishing the metrics card and README table."
 publish_to: 'none'
 version: 0.1.0
 
@@ -13,10 +13,6 @@ dependencies:
   # The only dependency on the package — through the public barrel.
   hintful:
     path: ../
-  # Heap measurement (memory benchmarks): VM-service RPCs from inside the
-  # test process — the same protocol the DevTools Memory page uses. Pinned
-  # to the SDK's own transitive copy.
-  vm_service: ^15.3.0
 
 dev_dependencies:
   flutter_test:
@@ -24,7 +20,11 @@ dev_dependencies:
   # Contract runs: `flutter drive --profile` on a device/emulator.
   integration_test:
     sdk: flutter
+  # Contract core: collectors/report/golden-store + the CLI (run, size,
+  # verify). Hosted from pub.dev (the package is published) so CI resolves
+  # it without a sibling checkout.
+  flutter_bench_contract: ^0.3.0
   flutter_lints: ^6.0.0
 
 flutter:
-  uses-material-design: true
+  uses-material-design: true

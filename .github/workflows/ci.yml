@@ -58,14 +58,15 @@ jobs:
         run: flutter pub get
       - name: Bundle delta (against the golden)
         working-directory: benchmark
-        run: |
-          mkdir -p build
-          bash ./tool/bundle_delta.sh > build/bundle_report.jsonl
-          dart run tool/check_goldens.dart build/bundle_report.jsonl --check --ref any
+        # S7 web leg only (--legs web skips the native APK build): `contract
+        # run` executes the size scenario once per manifest, and bundle_delta
+        # is checked under its SDK-pinned golden ref `any`.
+        run: dart run flutter_bench_contract:contract run --scenarios size --legs web --mode check
 
   bench:
-    # Benchmark VM sanity (invariants + printed numbers): cheap, so it also
-    # runs on PRs alongside the package tests.
+    # Contract + custom-scenario VM sanity (scenarios degrade on VM where the
+    # VM service is unavailable): cheap, so it also runs on PRs alongside the
+    # package tests. Device runs are the bench-core dispatch (bench-core.yml).
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -79,6 +80,6 @@ jobs:
         run: |
           flutter pub get
           flutter analyze
-      - name: Benchmark sanity (VM)
+      - name: Contract scenarios + custom (VM)
         working-directory: benchmark
         run: flutter test bench/

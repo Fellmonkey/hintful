@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Flutter tool metadata (regenerated on demand)
+.metadata

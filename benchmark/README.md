@@ -1,120 +1,195 @@
 # hintful benchmarks
 
-The benchmark suite measures the engine's performance contracts — zero idle
-cost, cheap step transitions, cheap scrolling under a tour, fast startup —
-and its size footprint. Reference values live in `benchmarks.json` and are
-enforced by CI; the same files run locally as fast VM sanity checks.
+The benchmark runs hintful through the **flutter_bench_contract** package:
+one neutral scene, contract scenarios S1–S7 with a single protocol per
+metric. The consumer code is deliberately thin — a driver mapping the
+scenario verbs onto hintful's real API — while the scenarios, collectors,
+golden store and gate live in the package. Reference values live in
+`benchmarks.json` (shared store) and are enforced by the `bench-core`
+dispatch on a profile emulator.
 
 ## Layout
 
-The benchmark is its own package at the repo root (sibling of `example/`),
-because its harness ([`BenchmarkApp`](lib/benchmark_harness.dart))
+The benchmark is its own package (sibling of `example/`) because its scene
 deliberately does not use the example app — the example's bootstrap would
-leak into the numbers and needs plugins that VM runs don't have. In short:
+leak into the numbers and needs plugins that VM runs don't have.
 
-- `bench/*_test.dart` — the five device benchmarks (run via `flutter drive`);
-- `lib/benchmark_harness.dart` — the shared scene and tour;
-- `lib/main.dart` / `lib/main_baseline.dart` — web entry points with/without
-  hintful, for the bundle-delta build;
-- `tool/` — runner, golden checks, size-analysis scripts.
+- `bench/contract/` — the generated per-scenario bridges (~8 lines each:
+  register one scenario body with the driver). The bodies themselves live
+  in the package (`lib/scenarios.dart`) — consumers cannot edit the
+  measurement, only supply a driver. Do not edit; regenerate: `contract
+  init --force`;
+- `bench/drivers/hintful_driver.dart` — **the only hintful-specific code**:
+  builds the neutral scene with hintful's `HintTarget`s and maps
+  `show/update/hide` onto `HintController`;
+- `bench/startup_to_show_test.dart` — hintful's own frame-count scenario,
+  registered in the manifest under `customScenarios:`: its own metric and
+  golden ref, outside S1–S7, excluded from the head-to-head comparison and
+  the public tables;
+- `bench_contract.yaml` — the consumer manifest (library, scenarios,
+  driver, S7 `size:` section);
+- `lib/main.dart` / `lib/main_baseline.dart` — entry points with/without
+  hintful, the S7 size targets;
+- no runner script — the `bench-core` dispatch (`.github/workflows/
+  bench-core.yml`) calls the contract CLI directly (device scenarios +
+  the native size leg + the metrics card);
+- `bench_contract.yaml` `card:`/`readme:` sections — hintful's marketing
+  copy for the published results; the MACHINERY (card widget, table
+  renderer, fonts, formatting) lives in the contract package (`contract
+  card` / `contract readme`);
+- `compare/` — a second consumer (bench_compare): the same contract
+  scenarios driven through showcaseview / tutorial_coach_mark, recording
+  into the same store under refs `android-scv` / `android-tcm`.
 
-## Metrics
+## Metrics (S1–S7)
 
-| File | Measures | Contract |
+The contract measures interaction scenarios, not tooltip classes — the
+definitions are fixed in the package and identical for every consumer.
+Device metrics (profile emulator, ref `android` for hintful):
+
+| Scenario | Metric | What it answers |
 |---|---|---|
-| `bench/startup_to_show_test.dart` | `start()` → first tooltip frame | ≤ 3 frames |
-| `bench/frame_step_change_test.dart` | build/raster cost of next/previous | avg build ≪ 16.6 ms |
-| `bench/frame_scroll_test.dart` | frame cost of scrolling under a tour | avg build ≪ 16.6 ms |
-| `bench/memory_idle_test.dart` | heap at idle + after finish | drift ≈ 0 after finish (full release) |
-| `bench/memory_active_test.dart` | heap delta of an active step | thin overlay |
-| `tool/native_size.sh` | hintful's native AOT contribution | golden `any` |
-| `tool/bundle_delta.sh` | hintful's web startup-bundle contribution | golden `any` |
+| S1 idle_zero | tree-diff with vs without the library, nothing shown | no idle tax per screen |
+| S2 show_latency | wall-ms from `show()` to a stable, visible tooltip | cost of showing |
+| S3 update_latency | wall-ms of a step/content change on an active tour | cost of updating |
+| S4 scroll_coupled | two-sided assert: content follows the anchor under scroll | correctness + perf |
+| S5 active_heap | retained heap idle → active step | active-step weight |
+| S6 hide_retention | heap drift per show/hide cycle + tree back to idle | leaks after hide |
+| S7 size | host builds: native AOT + web bundle delta | bundle footprint |
 
-Reference values (Flutter 3.47.0, android-x64 emulator): 2 frames to the
-first tooltip, ~2.8 ms build per step transition, ~5.1 ms build per scroll
-frame, ~170 KB live overlay heap, ~42 KB heap drift after finish, 69 KB
-native AOT, 53.7 KB web startup bundle. Recorded values live in
-`benchmarks.json` and are compared by the `bench-core` and `bundle` CI jobs.
+S4 and S1r are in-scenario asserts / diagnostics — they record no number
+(see the footnote under the root README table). Frames collected during
+S2/S3/S4 are diagnostics, not gated: the contract's primary metrics are
+wall-latency and heap, because software-rendered emulator frame numbers
+are noise.
+
+Reference values (Flutter 3.47.0, API 36 x86_64 emulator, recorded
+2026-09-03): `idle_zero=4`, `show_latency=72 ms`, `update_latency=66 ms`,
+`active_heap=41632 B`, `hide_retention=539 B`. Re-record with the
+`bench-core` workflow's `record` input — the reference for check runs is
+the same API 36 image.
 
 ## Running
 
-Sanity (fast, CI-friendly, no device):
+VM sanity (fast, CI-friendly, no device — heap scenarios print
+"degraded"/null where the VM service is unavailable). A full
+`contract run` also builds the S7 legs, so for a quick host check select a
+subset:
 
 ```bash
 cd benchmark
-flutter test bench/
+flutter test bench/                        # contract scenarios + startup
+dart run flutter_bench_contract:contract run --scenarios idle_zero --mode check
 ```
 
-The memory heap numbers need a VM service, which `flutter test` runs don't
-expose — there they print "heap unavailable" and only the structural
-invariants are asserted. The files live in `bench/`, not
-`integration_test/`, because that directory forces a device; `flutter drive
---target` accepts any path.
-
-Contract (profile build, real device/emulator):
+Device (profile emulator — the whole manifest, size legs included):
 
 ```bash
-flutter drive --no-dds --profile \
-  --driver=test_driver/integration_test.dart \
-  --target=bench/startup_to_show_test.dart \
-  -d <device>
+dart run flutter_bench_contract:contract run --device <id> --mode check    # gate
+dart run flutter_bench_contract:contract run --device <id> --mode record   # record
+# full publish flow (device scenarios + the native size leg + the card):
+cd benchmark && dart run flutter_bench_contract:contract run --device emulator-5554 --mode record --ref android --legs native
+cd benchmark && dart run flutter_bench_contract:contract card
 ```
 
-`--no-dds` is required: the in-test VM-service connection (memory
-benchmarks) must not sit behind the DDS proxy — the same requirement
-`integration_test` documents for its timeline API. Each benchmark alternates
-its action several times (6 next/previous cycles, 10 drags, …), so reported
-values are averages, never a single best frame.
+The `bench-core` workflow job runs exactly these two commands inside the
+emulator step (record or check): `contract run` drives the device contract
+scenarios via `flutter drive --profile --no-dds` and the S7 native size leg
+(`--legs native`; the web leg stays in the plain-CI bundle job) in the same
+invocation, then `contract card` renders the metrics-card PNG on the host
+from the recorded goldens (the PNG lands at `../docs/hint_metrics.png`),
+checking/recording against `benchmarks.json`. A record dispatch also
+re-renders the root README "Performance" section (`contract readme`: one
+table from the store + the card PNG, between the bench markers) and commits
+it.
 
-## Size
-
-- `tool/native_size.sh` — runs `flutter build apk --release --analyze-size`
-  (the same per-package analysis the DevTools **Size** page consumes) and
-  reads the `package:hintful` subtree — hintful's tree-shaken code.
-  Deterministic per SDK + ABI (golden `any`).
-- `tool/bundle_delta.sh` — builds the same scene twice for web (with and
-  without hintful) and diffs `main.dart.js`.
+Regenerate the scenario files after a template bump:
 
 ```bash
-bash ./tool/native_size.sh > build/native_report.jsonl
-bash ./tool/bundle_delta.sh > build/bundle_report.jsonl
+dart run flutter_bench_contract:contract init --force
 ```
 
-## Goldens
+## Size (S7)
 
-Each benchmark emits one machine-readable line per sample
-(`HINTFUL_BENCH_JSON:{...}`). `tool/check_goldens.dart` records samples as
-goldens (`--record`) or checks a run against them (`--check`). Goldens are
-keyed per reference setup (`any` = hardware-independent: structural frame
-counts, SDK-pinned sizes; `android` = the emulator contract), so different
-hardware doesn't cross-compare. A `--check` with a missing golden warns
-instead of failing — record once per reference, then regressions fail the
-job.
+S7 is a scenario like the rest — one `contract run` invocation runs the
+manifest's declared scenarios plus the host release size builds (no
+device). The manifest's `size:` section declares the legs; `--legs` picks
+which to run (`both` by default). The `bench-core` dispatch drives native;
+the bundle CI job drives web:
+
+- **native** (`native_size` golden): `flutter build apk --release
+  --analyze-size` (the per-package analysis the DevTools **Size** page
+  consumes); the CLI walks the tree for the `package:hintful` node and sums
+  its bytes. SDK + ABI pinned — ref `android` in the dispatch.
+- **web** (`bundle_delta` golden): builds the same scene twice for web
+  (with and without hintful) and diffs `main.dart.js`. SDK pinned — ref
+  `any`, checked on every PR.
 
 ```bash
-dart run tool/check_goldens.dart build/bench_report.jsonl --check --ref android
-dart run tool/check_goldens.dart build/bench_report.jsonl --record --ref android
+# native only (bench-core dispatch): ref android
+dart run flutter_bench_contract:contract run --scenarios size --mode check --ref android --legs native
+# web only (bundle CI job): bundle_delta is checked under its own ref `any`
+dart run flutter_bench_contract:contract run --scenarios size --mode check --legs web
 ```
 
-## Whole contract on a device
+## Goldens and gate
+
+The contract CLI (`flutter_bench_contract:contract run`) collects samples
+into `build/contract_*.jsonl` and checks (`--mode check`) or records
+(`--mode record`) them into `benchmarks.json`. Goldens are keyed per
+reference (`any` = hardware-independent: SDK-pinned sizes; `android`,
+`android-scv`, `android-tcm` = the emulator runs per library). A check with
+a missing golden warns instead of failing — record once per reference, then
+regressions fail the job.
+
+Latency runs repeat and the median is recorded/checked (methodology of the
+package). Every metric is "lower is better", so the check is a **one-sided
+regression gate**: worse than the golden by more than the slack fails;
+better always passes. Recorded goldens sit where the reference hardware was
+when recorded, so the gate only answers "did it get worse?".
+
+## Head-to-head (`compare/`) — on equal terms
+
+The root-README numbers for the three solutions come from the same
+contract run: one shared scene, the same scenario bodies, the same protocol
+(profile build, warm-ups, run counts, median, slack). All of that is owned
+by the package and identical for every solution. The **only** per-solution
+code is the driver (`compare/bench/drivers/`) — how each library mounts the
+measured content on the shared scene through its real public API. Nothing
+was patched per library to make the field level; each library's API limits
+show up in its numbers, or as `n/a`.
+
+Two honest consequences, documented in the drivers and visible in the
+table:
+
+- **Content shape is each solution's price.** tutorial_coach_mark and
+  hintful mount the package's real `ContractCard` (their content APIs take
+  a custom widget). showcaseview's `Showcase` accepts only title +
+  description, so its driver mounts the same *strings* the card carries —
+  the state-specific content the S2/S3 asserts look for — not the card
+  itself. Decorative-only options (showcaseview's looping "bob" animation,
+  tcm's pulse) are switched off through each library's public API, as an
+  app would; they are UI, outside the contract's scope, and never touch a
+  timing measurement.
+- **`n/a` is a fact, not a removal.** A scenario a solution cannot
+  implement (S4 scroll coupling for the rival overlays, which consume
+  pointer input) stays visible in the table and the footnote — it is never
+  deleted.
+
+Record the rival goldens on the same hardware as hintful's for a
+consistent table:
 
 ```bash
-cd benchmark
-bash ./tool/run_bench_core.sh emulator-5554           # check against goldens
-BENCH_MODE=record bash ./tool/run_bench_core.sh emulator-5554  # record goldens
+cd benchmark/compare
+dart run flutter_bench_contract:contract run --library showcaseview --store ../benchmarks.json --device <id> --mode record
+dart run flutter_bench_contract:contract run --library tutorial_coach_mark --store ../benchmarks.json --device <id> --mode record
 ```
 
-Runs the five benchmarks via `flutter drive --no-dds --profile`, then the
-native-size analysis and the metrics card (a landscape golden rendered on
-the host), collects the report and checks/records it. The same script
-powers the `bench-core` workflow job: it checks goldens on a manual
-dispatch, and records new goldens when dispatched with `record` — a record
-run also re-renders the root README "Performance" section (table + metrics
-card) and commits it.
+Column values never fall back to hintful's numbers: a rival without a
+recorded golden renders `n/a` (fallback `any` is hintful-only).
 
 ## Web-drive caveat
 
-`flutter drive` on web needs a WebDriver server and is fragile (on
-Flutter 3.47 + this setup it hangs right after the web build), so contract
+`flutter drive` on web needs a WebDriver server and is fragile, so contract
 numbers come from the Android emulator path. Web is only used for the
 size-analysis builds.

@@ -1,0 +1,18 @@
+template: 2
+# bench_contract.yaml — multi-library consumer (head-to-head).
+# One scenario list, one driver per solution; goldens go per-library under
+# the legacy refs android-scv / android-tcm (shared store of the parent).
+library: bench_compare
+libraries:
+  showcaseview:
+    driver: bench/drivers/scv_driver.dart
+    driverClass: ScvDriver
+    ref: android-scv
+  tutorial_coach_mark:
+    driver: bench/drivers/tcm_driver.dart
+    driverClass: TcmDriver
+    ref: android-tcm
+contractDir: bench/contract
+scenarios: [idle_zero, idle_resources, show_latency, update_latency,
+            scroll_coupled, active_heap, hide_retention]
+idleClasses: [ShowcaseWidget, TutorialCoachMark]   # S1r idle_resources (device)
