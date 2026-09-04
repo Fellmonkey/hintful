@@ -180,10 +180,10 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 | Metric | hintful | showcaseview | tutorial_coach_mark |
 |---|---|---|---|
 | Idle tree diff (S1) | 4 | 2 | 3 |
-| Show latency (S2) | 655 ms | 358 ms | 1026 ms |
-| Update latency (S3) | 214 ms | 733 ms | 1634 ms |
+| Show latency (S2) | 912 ms | 358 ms | 1026 ms |
+| Update latency (S3) | 209 ms | 733 ms | 1634 ms |
 | Active-step heap (S5) | 42 KB | 65 KB | 95 KB |
-| Heap retained after hide (S6) | -10.2 MB | -123 B | 693 B |
+| Heap retained after hide (S6) | 736 B | -123 B | 693 B |
 | Native AOT size | 73 KB | n/a | n/a |
 | Web startup bundle delta | 49 KB | n/a | n/a |
 
@@ -191,5 +191,5 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-04 13:54 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
+_Recorded 2026-09-04 14:55 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
 <!-- bench:end -->

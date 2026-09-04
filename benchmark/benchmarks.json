@@ -101,7 +101,7 @@
     "show_latency": {
       "unit": "show_latency",
       "goldens": {
-        "android": 655,
+        "android": 912,
         "android-scv": 358,
         "android-tcm": 1026
       }
@@ -109,7 +109,7 @@
     "update_latency": {
       "unit": "update_latency",
       "goldens": {
-        "android": 214,
+        "android": 209,
         "android-scv": 733,
         "android-tcm": 1634
       }
@@ -125,7 +125,7 @@
     "hide_retention": {
       "unit": "hide_retention",
       "goldens": {
-        "android": -10170853,
+        "android": 736,
         "android-scv": -123,
         "android-tcm": 693
       }
