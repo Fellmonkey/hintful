@@ -175,22 +175,21 @@ and migration guides are next.
 <!-- bench:start -->
 ## Performance
 
-Profile build, Android emulator, action-window averages. Methodology:
-`benchmark/README.md`.
+One scene, three solutions: the contract scenarios S1–S6 on a profile Android emulator plus the host size builds (S7). Values are the recorded goldens in `benchmarks.json` (refs `android` / `android-scv` / `android-tcm`). Methodology: `benchmark/README.md`; `benchmark/compare` hosts the rival drivers.
 
-| Metric | hintful |
-|---|---|
-| Startup to first tooltip | 2 frames |
-| Step transition (avg build) | 916 µs |
-| Scroll frame (avg build) | 1603 µs |
-| Heap drift after finish | 37 KB |
-| Active step heap delta | 171 KB |
-| Native AOT size | 69 KB |
-| Web startup bundle delta | 54 KB |
+| Metric | hintful | showcaseview | tutorial_coach_mark |
+|---|---|---|---|
+| Idle tree diff (S1) | 4 | 2 | 3 |
+| Show latency (S2) | 655 ms | 358 ms | 1026 ms |
+| Update latency (S3) | 214 ms | 733 ms | 1634 ms |
+| Active-step heap (S5) | 42 KB | 65 KB | 95 KB |
+| Heap retained after hide (S6) | -10.2 MB | -123 B | 693 B |
+| Native AOT size | 73 KB | n/a | n/a |
+| Web startup bundle delta | 49 KB | n/a | n/a |
 
-Head-to-head runs against showcaseview / tutorial_coach_mark will add their columns here.
+**n/a** = not applicable for this solution: scroll coupling (S4) and the resource count (S1r) are two-sided in-scenario asserts / diagnostics, not numeric rows — hintful follows the anchor under programmatic scroll on-device, while showcaseview and tutorial_coach_mark do not re-anchor (their overlays consume pointer input). The size rows are hintful-only because the rival scenes were never shipped as size targets.
 
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-02 15:15 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
+_Recorded 2026-09-04 13:54 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
 <!-- bench:end -->

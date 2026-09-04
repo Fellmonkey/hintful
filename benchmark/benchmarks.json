@@ -101,7 +101,7 @@
     "show_latency": {
       "unit": "show_latency",
       "goldens": {
-        "android": 72,
+        "android": 655,
         "android-scv": 358,
         "android-tcm": 1026
       }
@@ -109,7 +109,7 @@
     "update_latency": {
       "unit": "update_latency",
       "goldens": {
-        "android": 66,
+        "android": 214,
         "android-scv": 733,
         "android-tcm": 1634
       }
@@ -117,7 +117,7 @@
     "active_heap": {
       "unit": "active_heap",
       "goldens": {
-        "android": 41632,
+        "android": 41600,
         "android-scv": 64816,
         "android-tcm": 95184
       }
@@ -125,9 +125,15 @@
     "hide_retention": {
       "unit": "hide_retention",
       "goldens": {
-        "android": 539,
+        "android": -10170853,
         "android-scv": -123,
         "android-tcm": 693
+      }
+    },
+    "custom.startup_to_show": {
+      "unit": "custom.startup_to_show",
+      "goldens": {
+        "android-custom": 2
       }
     }
   }
