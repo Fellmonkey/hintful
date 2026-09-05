@@ -35,7 +35,7 @@ jobs:
       # Rivals first: per-library goldens (android-scv / android-tcm) land in
       # the parent store before the hintful record re-renders the table/card.
       - name: Compare (rivals → shared store)
-        if: ${{ inputs.compare == 'true' }}
+        if: ${{ inputs.compare }}
         uses: Fellmonkey/flutter_bench_contract/action@v1
         with:
           mode: ${{ inputs.record && 'record' || 'check' }}
