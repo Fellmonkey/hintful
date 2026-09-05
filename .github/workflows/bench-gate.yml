@@ -1,52 +1,21 @@
 name: bench-gate
 
-# PR-gate for the contract: long device run (~20 min) with emulator.
-# Not on every PR — needs owner permission. Trigger:
-#   1. add label `bench` to the PR, or
-#   2. comment `/bench` as Fellmonkey, or
-#   3. dispatch manually with PR number.
-# On success → check passes; on regression → PR comment with table (same
-# marker as bench-record's `comment:`). Charts are NOT pushed from PRs.
+# Long device gate (~20 min) — not on every PR. Add `bench` label to run.
+# On regression → PR comment, on success → check passes. Charts not pushed.
 on:
   pull_request:
-    types: [labeled, synchronize, opened, reopened]
-  issue_comment:
-    types: [created]
-  workflow_dispatch:
-    inputs:
-      pr:
-        description: 'PR number to gate (for manual dispatch)'
-        required: false
-        type: string
+    types: [labeled]
 
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 jobs:
   gate:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bench')) ||
-          (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/bench') && github.actor == 'Fellmonkey') }}
+    if: contains(github.event.pull_request.labels.*.name, 'bench')
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve PR number
-        id: pr
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "number=${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-          fi
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.pr.outputs.number && format('refs/pull/{0}/head', steps.pr.outputs.number) || github.ref }}
-          fetch-depth: 0
       - name: Bench gate (check, no record)
         uses: Fellmonkey/flutter_bench_contract/action@v1
         with:
