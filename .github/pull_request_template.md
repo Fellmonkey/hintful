@@ -4,6 +4,7 @@
 <!-- Describe what and why, whether it touches lib/ or benchmark/ -->
 
 ## Final performance gate
-<!-- ~20 min on Android emulator, needs maintainer approval -->
-The full benchmark (S1–S7) requires maintainer approval...
-ping @Fellmonkey ...
+<!-- ~20 min on Android emulator, maintainer-triggered 
+The full benchmark (S1–S7 on an Android emulator, ~20 min) is not run on every PR.
+
+To request a performance check, please add the `bench` label to this PR. A maintainer will trigger the gate — if it passes, the PR is good to merge. If it reports a regression, the bot will add a comment with details. -->
