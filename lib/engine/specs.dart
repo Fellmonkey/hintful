@@ -148,6 +148,40 @@ class HintStep {
 
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => waitTimeout ?? fallback;
+
+  Map<String, dynamic> toJson() => {
+        'targetId': targetId,
+        if (moreTargets.isNotEmpty) 'moreTargets': moreTargets,
+        if (moreTooltips.isNotEmpty)
+          'moreTooltips': moreTooltips.map((t) => t.toJson()).toList(),
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+        'position': position.name,
+        if (waitTimeout != null) 'waitTimeoutMs': waitTimeout!.inMilliseconds,
+        'showSkip': showSkip,
+        'tapOnTarget': tapOnTarget,
+        'tapOnOverlay': tapOnOverlay,
+      };
+
+  factory HintStep.fromJson(Map<String, dynamic> json) => HintStep(
+        targetId: json['targetId'] as String,
+        moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
+        moreTooltips: (json['moreTooltips'] as List?)
+                ?.map((e) => HintTooltip.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        title: json['title'] as String?,
+        description: json['description'] as String?,
+        position: json['position'] == null
+            ? TooltipPosition.auto
+            : TooltipPosition.values.byName(json['position'] as String),
+        waitTimeout: json['waitTimeoutMs'] == null
+            ? null
+            : Duration(milliseconds: json['waitTimeoutMs'] as int),
+        showSkip: json['showSkip'] as bool? ?? true,
+        tapOnTarget: json['tapOnTarget'] as bool? ?? true,
+        tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
+      );
 }
 
 /// An additional tooltip of a step (multi-content): a slot with its own
@@ -184,6 +218,18 @@ class HintTooltip {
     HintStep step,
     HintTooltipContext ctx,
   )? tooltipBuilder;
+
+  Map<String, dynamic> toJson() => {
+        'position': position.name,
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      };
+
+  factory HintTooltip.fromJson(Map<String, dynamic> json) => HintTooltip(
+        position: TooltipPosition.values.byName(json['position'] as String),
+        title: json['title'] as String?,
+        description: json['description'] as String?,
+      );
 }
 
 /// A hint tour — a declarative sequence of [HintStep]s.
@@ -254,4 +300,22 @@ class HintTour {
     }
     return duplicates;
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'steps': steps.map((s) => s.toJson()).toList(),
+        'stepTimeoutMs': stepTimeout.inMilliseconds,
+        'disableBackButton': disableBackButton,
+      };
+
+  factory HintTour.fromJson(Map<String, dynamic> json) => HintTour(
+        id: json['id'] as String,
+        steps: (json['steps'] as List)
+            .map((e) => HintStep.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        stepTimeout: json['stepTimeoutMs'] == null
+            ? const Duration(seconds: 3)
+            : Duration(milliseconds: json['stepTimeoutMs'] as int),
+        disableBackButton: json['disableBackButton'] as bool? ?? false,
+      );
 }
