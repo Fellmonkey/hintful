@@ -33,32 +33,32 @@
       "unit": "show_latency",
       "goldens": {
         "android": 135,
-        "android-scv": 804,
-        "android-tcm": 1476
+        "android-scv": 817,
+        "android-tcm": 1409
       }
     },
     "update_latency": {
       "unit": "update_latency",
       "goldens": {
         "android": 170,
-        "android-scv": 783,
-        "android-tcm": 1614
+        "android-scv": 813,
+        "android-tcm": 1719
       }
     },
     "active_heap": {
       "unit": "active_heap",
       "goldens": {
         "android": 41419,
-        "android-scv": -10069488,
-        "android-tcm": 94672
+        "android-scv": 3443024,
+        "android-tcm": 94011
       }
     },
     "hide_retention": {
       "unit": "hide_retention",
       "goldens": {
         "android": 736,
-        "android-scv": -123,
-        "android-tcm": 645
+        "android-scv": -304,
+        "android-tcm": -432
       }
     },
     "custom.startup_to_show": {
