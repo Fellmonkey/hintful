@@ -139,7 +139,17 @@ Bloc/Riverpod/Provider/GetX are on the roadmap.
 - Hot-reload friendly; debug diagnosis of every failed show, with closest-id
   candidates when a `targetId` is a typo
 
-Roadmap: server-driven tours, migration guides.
+Roadmap: migration guides.
+
+Server-driven tours — no extra dependency: `HintTour.fromJson/toJson` + `FetcherHintTourFactory` (bring your own `http`/`dio`):
+```dart
+final factory = FetcherHintTourFactory(
+  baseUrl: 'https://cdn.example.com/tours',
+  fetcher: (uri) async => (await http.get(uri)).body, // your client
+);
+final tour = await factory.fetch('onboarding');
+await controller.start(tour);
+```
 
 ## Getting started
 
