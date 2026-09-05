@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 — server-driven tours + adapters
+
+- `HintTour`/`HintStep`/`HintTooltip` now `fromJson`/`toJson` (`specs.dart:194`) — `steps` are `title/description` + `position`/`moreTargets`/`moreTooltips`, `tooltipBuilder` stays code-side. `FetcherHintTourFactory` (`engine/tour_factory.dart`) takes your fetcher `(Uri)=>Future<String>` — no `http` dependency in `hintful`.
+- Adapters `lib/src/adapters/{bloc,riverpod,provider,getx}.dart` — thin `ValueListenable→Cubit/Provider` stubs (~15 lines) over `HintController.state`, core stays `dart:ui+widgets`.
+
 ## 0.3.0 — control, accessibility, versions, visual depth
 
 **New capabilities**
