@@ -66,10 +66,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_bench_contract
-      sha256: "1c5536f7f0a84b58b225f86b8053f8b372a66029c36f8622f6beaa8c649d0bfb"
+      sha256: bfa2c93e6b5108d69f8af0fbcd6cfa0bcb64f4dae041cc18188c67777335850e
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.0"
+    version: "0.4.1"
   flutter_driver:
     dependency: transitive
     description: flutter
