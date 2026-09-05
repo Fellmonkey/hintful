@@ -180,16 +180,17 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 | Metric | hintful | showcaseview | tutorial_coach_mark |
 |---|---|---|---|
 | Idle tree diff (S1) | 4 | 2 | 3 |
-| Show latency (S2) | 912 ms | 358 ms | 1026 ms |
-| Update latency (S3) | 209 ms | 733 ms | 1634 ms |
-| Active-step heap (S5) | 42 KB | 65 KB | 95 KB |
-| Heap retained after hide (S6) | 736 B | -123 B | 693 B |
+| Idle resources (S1r) | 0 | 0 | 0 |
+| Show latency (S2) | 135 ms | 804 ms | 1476 ms |
+| Update latency (S3) | 170 ms | 783 ms | 1614 ms |
+| Active-step heap (S5) | 41 KB | -10.1 MB | 95 KB |
+| Heap retained after hide (S6) | 736 B | -123 B | 645 B |
 | Native AOT size | 73 KB | n/a | n/a |
 | Web startup bundle delta | 49 KB | n/a | n/a |
 
-**n/a** = not applicable for this solution: scroll coupling (S4) and the resource count (S1r) are two-sided in-scenario asserts / diagnostics, not numeric rows — hintful follows the anchor under programmatic scroll on-device, while showcaseview and tutorial_coach_mark do not re-anchor (their overlays consume pointer input). The size rows are hintful-only because the rival scenes were never shipped as size targets.
+**n/a** = not applicable for this solution. Scroll coupling (S4) is a two-sided in-scenario assert, not a numeric row: hintful re-anchors its content to the target under programmatic scroll on-device, while showcaseview and tutorial_coach_mark do not (their overlays consume pointer input). The idle-resources row (S1r) is declared on-device via `idleClasses` — 0 means the solution holds no live control-plane instances while idle. The size rows are hintful-only because the rival scenes were never shipped as size targets.
 
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-04 14:55 UTC. Regenerate: dispatch the `bench-core` workflow with `record`._
+_Recorded 2026-09-05 15:56 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
 <!-- bench:end -->
