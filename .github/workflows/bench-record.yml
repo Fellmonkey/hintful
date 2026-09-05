@@ -56,6 +56,8 @@ jobs:
           flutter: ${{ inputs.flutter-version }}
           commit: ${{ inputs.record }}
           commit-patterns: README.md docs/hint_metrics.png benchmark/benchmarks.json
+          charts: ${{ inputs.record }}
+          comment: 'false'
       - name: Upload reports (on failure)
         if: failure()
         uses: actions/upload-artifact@v4

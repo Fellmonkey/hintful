@@ -64,3 +64,4 @@ readme:
   image: docs/hint_metrics.png
   imageAlt: hintful benchmark metrics
   stamp: '_Recorded {ts}. Regenerate: dispatch the `bench-record` workflow with `record`._'
+  chartsUrl: https://fellmonkey.github.io/hintful/bench/
