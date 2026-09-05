@@ -83,6 +83,8 @@ class HintfulDriver implements LibraryDriver {
       await _controller.start(_tour());
     }
     _goToState(state);
+    // TEST REGRESSION: artificial 200 ms delay to trigger S2 show_latency gate
+    await Future.delayed(const Duration(milliseconds: 200));
   }
 
   @override
