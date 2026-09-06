@@ -3,10 +3,9 @@
 **Hints & onboarding tours for Flutter.** Spotlight targets, tooltips, coach marks,
 guided walkthroughs — a single source of truth for teaching users your product.
 
-`hintful` is a domain-driven **hint tokenizer**: you wrap one widget in
-`HintTarget`, describe what to show in a `HintTour`, and let the engine render,
-reposition and remember it — without a single hand-written overlay, scroll math
-or duplicated per-screen styling.
+You wrap one widget in `HintTarget`, describe what to show in a `HintTour`,
+and the engine renders, repositions and remembers it — without a single
+hand-written overlay, scroll math or duplicated per-screen styling.
 
 ---
 
@@ -34,7 +33,7 @@ scrolls and lays out. That model is precisely why tours break:
 | References to widget contexts | **Registry by id** — `HintTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
 | "Wait until the widget is built" by hand | **Wait-for-target** — a tour waits for a deferred target instead of dying |
 | Per-hint hard-coded styling | **ThemeExtension** — hint inherits your design system, light and dark, from `Theme.of` |
-| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<HintState>`, no state-management imports (adapters are roadmap) |
+| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<HintState>`, no state-management imports |
 | Overlay mounted even when idle | **Zero-idle cost** — zero engine widgets in the tree until a tour actually starts |
 
 ## What you write
@@ -50,40 +49,63 @@ HintTarget(
 final introTour = HintTour(
   id: 'intro',
   steps: [
-    HintStep(targetId: 'exerciseSelector', tooltipBuilder: _buildTooltip),
-    HintStep(targetId: 'addSet',        tooltipBuilder: _buildTooltip),
+    HintStep(
+      targetId: 'exerciseSelector',
+      title: 'Pick a movement',
+      description: 'Filter by muscle, equipment or name.',
+    ),
+    HintStep(
+      targetId: 'addSet',
+      title: 'Log your set',
+      description: 'Weight × reps, one tap.',
+    ),
   ],
 );
 
-// 3. Show it once
+// 3. Wire once, show once
+final controller = HintController(
+  overlayHostBuilder: defaultOverlayHost(),
+);
 controller.start(introTour);
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
-That's it.
+That's the whole tour.
+
+```dart
+// Just one tip? No tour needed:
+controller.showHint(
+  HintStep(targetId: 'addSet', title: 'Swipe left to delete a set'),
+);
+```
+
+## Fast — measured, not promised
+
+One scene, three libraries, profile Android emulator — recorded by CI into
+`benchmark/benchmarks.json` and rendered into the table below by the bot, so
+the numbers have a single source of truth. Table, charts, methodology:
+[Performance](#performance).
 
 ## Zero-config, then total control
 
-`hintful` works with a single `HintTarget(id: ..., title: ..., desc: ...)` and a
-default theme out of the box (or `showHint` for one tip without a `HintTour`). When
-you need more, the API grows through an explicit "ladder of customization" —
-`HintTheme` styles → a fully custom tooltip through `tooltipBuilder` — each
-step optional. Your design system, your call.
+Out of the box, `title`/`description` steps render in a default tooltip under
+a default theme — the tour above is already complete. When you need more, the
+API grows rung by rung, each optional: `HintTheme` styles → `HintTooltipLabels`
+(button texts, waiting placeholder, screen-reader announcements) → a fully
+custom tooltip through `tooltipBuilder`. Your design system, your call.
 
 ## Diagnosis over mystery
 
 When a hint doesn't show, you'll know why in one log line:
 
 ```
-[hintful] statsIntro not shown: target-not-rendered (step 2 → 'statsPeriodSelector')
+[hintful] statsIntro step 2 not shown: timeout (target 'statsPeriodSelector') — target 'statsPeriodSelector' did not appear within 0:00:03.000000
 ```
 
 Not "it just didn't appear." If you typo a `targetId`, `hintful` tells you loudly in
 debug — with the closest candidates.
 
 ## Accessibility, on by default
-
-`hintful` treats accessibility as a default, not an option:
 
 - **Screen readers**: every step is announced as "Step N of M: <title>".
 - **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
@@ -95,53 +117,55 @@ debug — with the closest candidates.
 - **Contrast**: the default theme meets WCAG AA (4.5:1) for text and
   buttons, in light and dark.
 
-All of it is covered by tests, not just intentions.
-
 ## Works anywhere
 
 The core is framework-agnostic by construction: it imports only `dart:ui` +
 `flutter/widgets`, no state-management package. Vanilla Flutter works out of the
-box via `ValueListenableBuilder` — zero dependencies. Thin adapters for
-Bloc/Riverpod/Provider/GetX are on the roadmap.
+box via `ValueListenableBuilder` — zero dependencies. Bloc/Riverpod/Provider/GetX
+wiring ships as copy-paste recipes in `lib/src/adapters/` (bring your own package).
 
 ## Features
 
-- Registry-based targets (no `GlobalKey`) with self-cancellation in `dispose`
-- CompositedTransform tooltip + scrim — follows scroll/layout/animation for free
+**Tour control**
+
+- `start/next/previous/goTo/skip/finish`; safe variants
+  `tryStart/restart/tryShowHint` + `isIdle` — no manual guards before starting
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
-- ThemeExtension design-system integration, light/dark by default
+- Missing targets: `HintMissingTargetPolicy.skipStep` (tour default or per-step)
+  skips an absent target with a `timeout` diagnosis and continues the tour;
+  short/`Duration.zero` `waitTimeout` for conditionally-absent targets
+- Scoped controllers: `scopePrefix` isolates tabs/split-view sharing one
+  registry (foreign ids neither activate steps nor false-fire typo candidates)
+- `disableBackButton` owns the Android back button while a tour is active;
+  Skip auto-hides on the last step (Done does the same)
+
+**Rendering**
+
+- CompositedTransform tooltip + scrim — follows scroll/layout/animation for free
 - Smart positioning: auto-flip to the side with room, keep-in-safe-area,
   and a tail (arrow) tying the tooltip to its target
-- Multi-target steps: several elements spotlighted at once (one tooltip on
-  the primary), the tooltip avoiding the other spotlighted targets
-- Multi-content: several tooltips around one target (informational slots by
-  default), guaranteed not to overlap each other or the targets
-- Optional blur scrim and a pulsing ring around the target (theme options;
-  the default stays the cheap plain dim)
-- Programmatic controller: `start/next/previous/goTo/skip/finish`;
-  keyboard (Tab/Shift+Tab/Enter, Esc = skip); optional `disableBackButton`;
-  one-line `showHint` for a single tip; Skip is auto-hidden on a single-step
-  hint (a lone Skip is meaningless — Done does the same)
+- Multi-target steps: several elements spotlighted at once, the tooltip
+  avoiding the other spotlighted targets
+- Multi-content: several tooltips around one target, guaranteed not to
+  overlap each other or the targets
+- Optional blur scrim and pulsing ring (theme options; the default stays the
+  cheap plain dim)
 - Tap regions: tap-on-target vs tap-on-overlay with per-step callbacks and
   tap position; scroll-through — the page scrolls under an active tour
-- Accessibility on by default: screen-reader step announcements, keyboard
-  navigation, reduce-motion, fits at 2× text scale, WCAG AA contrast,
-  focus restored after a tour
+
+**Content & reuse**
+
+- Enum-typed tours: `HintTour.fromEnum` — the exhaustive `stepFor` switch
+  makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
-  `shouldShow(key, minVersion:)` before start, `markShown` on exit; the
-  "show again" semantic is a version bump, not flag-wiping
-- Enum-typed steps: `HintTour.fromEnum` builds a tour from an enum — the
-  exhaustive `stepFor` switch makes adding/removing a step a compile error
-- "Want a tour?" pre-dialog (`showHintTourOffer`): optional offer with an
-  "Apply to all pages" checkbox; declines persist per page or globally via
-  the store, the tour stays reachable from other entry points
-- Zero-idle cost: zero engine widgets in the tree until a tour actually starts
-- Hot-reload friendly; debug diagnosis of every failed show, with closest-id
-  candidates when a `targetId` is a typo
+  `shouldShow(key, minVersion:)` before start, `markShown` on exit
+- "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
+  declines persist per page or globally, the tour stays reachable from other
+  entry points
 
-Roadmap: migration guides.
+## Server-driven tours
 
-Server-driven tours — no extra dependency: `HintTour.fromJson/toJson` + `FetcherHintTourFactory` (bring your own `http`/`dio`):
+No extra dependency: `HintTour.fromJson/toJson` + `FetcherHintTourFactory` (bring your own `http`/`dio`):
 ```dart
 final factory = FetcherHintTourFactory(
   baseUrl: 'https://cdn.example.com/tours',
@@ -157,7 +181,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hintful: ^0.3.0
+  hintful: ^0.5.0
 ```
 
 ```dart
@@ -168,19 +192,6 @@ See `example/` for a complete tour — 4 steps with a scrollable list, a
 deferred target that appears mid-tour, light/dark switching and `showHint`.
 
 ---
-
-### Status
-
-Stage 0 (early engine) is complete: registry, state machine with tests, tour
-controller, CompositedTransform overlay with scrim hole that follows the target
-for free, auto-flip tooltip placement, theme integration, DX diagnosis and an
-end-to-end example. Stage 1 is in progress: tour navigation
-(`previous`/`goTo`, `disableBackButton`), smart positioning (keep-in-safe-area,
-tooltip tail), accessibility (reduce-motion, 2× text scale, WCAG AA contrast,
-focus restore), versioned hints (`HintStore`), multi-target and multi-content
-steps, blur/pulse options and tap regions with scroll-through are done; the
-Bloc adapter ships as a separate `hintful_bloc` package. Server-driven tours
-and migration guides are next.
 
 <!-- bench:start -->
 ## Performance

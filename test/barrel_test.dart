@@ -5,7 +5,7 @@ import 'package:hintful/hintful.dart';
 /// Compile-time contract of the public barrel: the test uses every exported
 /// symbol — if an export disappears from `hintful.dart`, this file stops
 /// compiling and the contract breaks loudly.
-void main() {
+  void main() {
   test('barrel: the whole public contract is reachable from one import point',
       () {
     // Tour data (specs).
@@ -13,6 +13,7 @@ void main() {
     final tour = HintTour(id: 'intro', steps: [step]);
     expect(step.position, TooltipPosition.auto);
     expect(tour.steps[0].targetId, 'stats');
+    expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
 
     // Registry + controller (headless: no overlay host).
     final registry = HintTargetRegistry();
@@ -20,6 +21,8 @@ void main() {
     addTearDown(controller.dispose);
     expect(registry.ids, isEmpty);
     expect(controller.currentState, isA<HintIdle>());
+    expect(controller.isIdle, isTrue);
+    expect(controller.inScope('anything'), isTrue);
 
     // Machine states — the public observable (HintState + subtypes).
     expect(HintWaiting(tour: tour, stepIndex: 0), isA<HintState>());
@@ -37,6 +40,8 @@ void main() {
       ColorScheme.fromSeed(seedColor: Colors.teal),
     );
     expect(theme, isA<HintTheme>());
+    expect(theme.tooltipLabels, const HintTooltipLabels());
+    expect(const HintTooltipLabels().next, 'Next');
 
     // Widgets.
     expect(HintTarget, same(HintTarget));

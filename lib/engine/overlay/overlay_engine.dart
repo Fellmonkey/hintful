@@ -18,7 +18,6 @@ import 'tooltip_placement.dart';
 import 'tooltip_tail.dart';
 
 const _kTooltipGap = 12.0;
-const _kWaitingText = 'Preparing…';
 
 /// Standard render-mechanics wiring: the engine over [registry] (defaults to
 /// the registry singleton — zero-config).
@@ -310,7 +309,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
         Positioned.fill(child: scrim),
         Center(
           child: Text(
-            _kWaitingText,
+            theme.tooltipLabels.preparing,
             style: TextStyle(color: theme.tooltipForeground, fontSize: 16),
           ),
         ),

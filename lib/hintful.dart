@@ -13,7 +13,7 @@
 ///   ([HintOverlayHost]) — the single control point;
 /// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
 ///   [DebugPrintDiagnostics], typo candidates);
-/// - theme ([HintTheme]) and widgets ([HintTarget], [DefaultTooltip], the
+/// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget], [DefaultTooltip], the
 ///   "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - position resolver ([HintPositionResolver]) — for custom hosts;
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
@@ -28,6 +28,7 @@ library;
 
 export 'engine/controller.dart' show HintController, HintOverlayHost;
 export 'engine/diagnostics.dart';
+export 'engine/labels.dart';
 export 'engine/overlay/overlay_engine.dart' show defaultOverlayHost;
 export 'engine/machine.dart' show HintActive, HintIdle, HintState, HintWaiting;
 export 'engine/position_resolver.dart';

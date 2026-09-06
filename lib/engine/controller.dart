@@ -109,6 +109,7 @@ class HintController implements HintActions {
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     HintOverlayHost Function(HintController)? overlayHostBuilder,
+    this.scopePrefix,
   })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics =
             diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
@@ -127,6 +128,20 @@ class HintController implements HintActions {
   final HintOverlayHost Function(HintController)? _overlayHostBuilder;
   HintOverlayHost? _builtHost;
 
+  /// Scope: which registry ids belong to this controller's screen.
+  ///
+  /// Screens mounted at once (tabs, split-view) share
+  /// [HintTargetRegistry.defaultInstance]: without a scope a controller sees
+  /// foreign ids — a step can activate on another screen's target, and typo
+  /// candidates can false-fire. One controller per screen with ids prefixed
+  /// per screen (`scopePrefix: 'greenhouse-'` / `'spread-'`); null — no
+  /// scoping (global).
+  final String? scopePrefix;
+
+  /// True when [id] belongs to this controller's scope.
+  bool inScope(String id) =>
+      scopePrefix == null || id.startsWith(scopePrefix!);
+
   final HintMachine _machine = HintMachine();
   final ValueNotifier<HintState> _stateNotifier =
       ValueNotifier<HintState>(const HintIdle());
@@ -140,6 +155,9 @@ class HintController implements HintActions {
   ValueListenable<HintState> get state => _stateNotifier;
 
   HintState get currentState => _stateNotifier.value;
+
+  /// No tour is running.
+  bool get isIdle => _machine.state.isIdle;
 
   /// Start a tour: typo validation → machine → seeding of already-mounted
   /// targets. The wait-for-target timer is armed by a machine effect.
@@ -163,7 +181,7 @@ class HintController implements HintActions {
 
     final classification = classifyStepTargets(
       tour,
-      Set<String>.of(_registry.ids),
+      {for (final id in _registry.ids) if (inScope(id)) id},
     );
     if (classification.typos.isNotEmpty) {
       final message = _describeTypos(tour, classification.typos);
@@ -178,9 +196,26 @@ class HintController implements HintActions {
     // change) — seed them synchronously, otherwise waiting(0) would spin
     // forever.
     for (final id in _registry.ids) {
+      if (!inScope(id)) continue;
       _dispatch(TargetAppeared(targetId: id));
     }
-    _lastKnownIds = _registry.ids;
+    _lastKnownIds = {for (final id in _registry.ids) if (inScope(id)) id};
+  }
+
+  /// Start a tour unless one is already running: false when busy (no assert,
+  /// no state change), otherwise starts and returns true.
+  Future<bool> tryStart(HintTour tour) async {
+    if (!isIdle) return false;
+    await start(tour);
+    return true;
+  }
+
+  /// Replace the running tour with [tour]: finishes the current one silently
+  /// (normal completion — no skip diagnostics) and starts the new tour.
+  /// When idle, equivalent to [start].
+  Future<void> restart(HintTour tour) async {
+    if (!isIdle) finish();
+    await start(tour);
   }
 
   /// Fast path for a single hint: a one-step tour without HintTour ceremony.
@@ -190,6 +225,11 @@ class HintController implements HintActions {
   /// full tour. One tour at a time: calling it during an active tour is an
   /// assert (same as [start]).
   Future<void> showHint(HintStep step) => start(
+        HintTour(id: 'hint:${step.targetId}', steps: [step]),
+      );
+
+  /// [showHint] unless a tour is already running (false when busy).
+  Future<bool> tryShowHint(HintStep step) => tryStart(
         HintTour(id: 'hint:${step.targetId}', steps: [step]),
       );
 
@@ -255,7 +295,7 @@ class HintController implements HintActions {
       _lastKnownIds = const {};
       return;
     }
-    final current = _registry.ids;
+    final current = {for (final id in _registry.ids) if (inScope(id)) id};
     final previous = _lastKnownIds;
     for (final id in current.difference(previous)) {
       _dispatch(TargetAppeared(targetId: id));
@@ -270,7 +310,7 @@ class HintController implements HintActions {
     final before = _machine.state;
     final transition = _machine.dispatch(
       event,
-      targetPresent: (id) => _registry.lookup(id) != null,
+      targetPresent: (id) => inScope(id) && _registry.lookup(id) != null,
     );
     _applyEffects(transition, before);
     _stateNotifier.value = transition.state;
@@ -314,8 +354,20 @@ class HintController implements HintActions {
           _timer?.cancel();
           _timer = null;
           break;
+        case StepSkippedEffect(
+          :final stepIndex,
+          :final reason,
+          :final detail
+        ):
+          _reportStepSkipped(before, stepIndex, reason, detail);
+          break;
         case AbortEffect(:final reason, :final detail):
-          _reportAbort(before, reason, detail);
+          _reportStepSkipped(
+            before,
+            before.stepIndex ?? 0,
+            reason,
+            detail,
+          );
           break;
         case EnterStepEffect():
         case FinishedEffect():
@@ -326,12 +378,16 @@ class HintController implements HintActions {
     }
   }
 
-  /// An abort carries the "before" context: after the transition the machine
-  /// is already idle, and tourId/stepIndex/targetId would have to be
-  /// reconstructed from nothing.
-  void _reportAbort(HintState before, HintSkipReason reason, String detail) {
+  /// A skipped step carries the "before" context: after the transition the
+  /// machine already moved on, and tourId/targetId would have to be
+  /// reconstructed from nothing. Covers aborts and skipStep alike.
+  void _reportStepSkipped(
+    HintState before,
+    int stepIndex,
+    HintSkipReason reason,
+    String detail,
+  ) {
     final tourId = before.tour?.id ?? '?';
-    final stepIndex = before.stepIndex ?? 0;
     final targetId = switch (before) {
       HintWaiting(:final targetId) => targetId,
       HintActive(:final targetId) => targetId,
@@ -367,6 +423,7 @@ class HintController implements HintActions {
       steps: kept,
       stepTimeout: tour.stepTimeout,
       disableBackButton: tour.disableBackButton,
+      missingTargetPolicy: tour.missingTargetPolicy,
     );
   }
 }

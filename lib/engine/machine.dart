@@ -258,6 +258,36 @@ class AbortEffect extends HintEffect {
   String toString() => 'AbortEffect(${reason.label}, "$detail")';
 }
 
+/// A step was skipped but the tour continues ([HintMissingTargetPolicy.skipStep]
+/// on timeout: diagnosed with [reason]/[detail], then the machine advances).
+/// Skipping the last step ends the tour — [FinishedEffect] arrives with it.
+@immutable
+class StepSkippedEffect extends HintEffect {
+  const StepSkippedEffect({
+    required this.stepIndex,
+    required this.reason,
+    required this.detail,
+  });
+
+  final int stepIndex;
+  final HintSkipReason reason;
+  final String detail;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StepSkippedEffect &&
+      other.stepIndex == stepIndex &&
+      other.reason == reason &&
+      other.detail == detail;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, stepIndex, reason, detail);
+
+  @override
+  String toString() =>
+      'StepSkippedEffect($stepIndex, ${reason.label}, "$detail")';
+}
+
 /// Normal tour completion (last step passed or [UserFinish]).
 @immutable
 class FinishedEffect extends HintEffect {
@@ -395,6 +425,17 @@ class HintMachine {
         final detail = missing.length == 1
             ? "target '${missing.single}' did not appear within $timeout"
             : 'targets $missing did not appear within $timeout';
+        if (step.resolveMissingPolicy(tour.missingTargetPolicy) ==
+            HintMissingTargetPolicy.skipStep) {
+          effects.add(
+            StepSkippedEffect(
+              stepIndex: index,
+              reason: HintSkipReason.timeout,
+              detail: detail,
+            ),
+          );
+          return _advanceAfterSkip(tour, index, effects, targetPresent);
+        }
         effects.add(
           AbortEffect(reason: HintSkipReason.timeout, detail: detail),
         );
@@ -527,6 +568,27 @@ class HintMachine {
       return HintActive(tour: tour, stepIndex: toIndex);
     }
     return _armWaiting(tour, toIndex, effects);
+  }
+
+  /// Continue after a skipped missing step: activate the next step when all
+  /// its targets are present, else wait for it. Past the last step — finish
+  /// (the skip itself is already diagnosed via [StepSkippedEffect]).
+  HintState _advanceAfterSkip(
+    HintTour tour,
+    int fromIndex,
+    List<HintEffect> effects,
+    bool Function(String targetId)? targetPresent,
+  ) {
+    final nextIndex = fromIndex + 1;
+    if (nextIndex >= tour.steps.length) {
+      effects.add(FinishedEffect(tourId: tour.id));
+      return const HintIdle();
+    }
+    if (_allPresent(targetPresent, tour.steps[nextIndex])) {
+      effects.add(EnterStepEffect(stepIndex: nextIndex));
+      return HintActive(tour: tour, stepIndex: nextIndex);
+    }
+    return _armWaiting(tour, nextIndex, effects);
   }
 
   static bool _present(

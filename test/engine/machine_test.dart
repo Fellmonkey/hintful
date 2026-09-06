@@ -522,6 +522,140 @@ void main() {
     });
   });
 
+  group('missing-target policy (skipStep vs abortTour)', () {
+    HintTour skipTour() => HintTour(
+          id: 'skip',
+          missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+          steps: [
+            HintStep(targetId: 'target0', title: 'Step 0'),
+            HintStep(targetId: 'target1', title: 'Step 1'),
+          ],
+        );
+
+    test('timeout on a middle step → skip + waiting for the next step', () {
+      final tour = skipTour();
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour));
+
+      final transition = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (_) => false,
+      );
+
+      expect(
+        transition.state,
+        HintWaiting(tour: tour, stepIndex: 1),
+      );
+      expect(
+        transition.effects[0],
+        const ClearTimeoutEffect(),
+      );
+      expect(
+        transition.effects[1],
+        isA<StepSkippedEffect>()
+            .having((e) => e.stepIndex, 'stepIndex', 0)
+            .having((e) => e.reason, 'reason', HintSkipReason.timeout),
+      );
+      expect(
+        transition.effects[2],
+        const ArmTimeoutEffect(timeout: Duration(seconds: 3)),
+      );
+    });
+
+    test('timeout on the last step → skip + normal finish', () {
+      final tour = skipTour();
+      final machine = HintMachine(
+        initialState: HintWaiting(tour: tour, stepIndex: 1),
+      );
+
+      final transition = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (_) => false,
+      );
+
+      expect(transition.state, const HintIdle());
+      expect(
+        transition.effects,
+        [
+          const ClearTimeoutEffect(),
+          isA<StepSkippedEffect>()
+              .having((e) => e.stepIndex, 'stepIndex', 1),
+          const FinishedEffect(tourId: 'skip'),
+        ],
+      );
+    });
+
+    test('skip lands active when the next target is present', () {
+      final tour = skipTour();
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour));
+
+      final transition = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (id) => id == 'target1',
+      );
+
+      expect(transition.state, HintActive(tour: tour, stepIndex: 1));
+      expect(
+        transition.effects,
+        [
+          const ClearTimeoutEffect(),
+          isA<StepSkippedEffect>(),
+          const EnterStepEffect(stepIndex: 1),
+        ],
+      );
+    });
+
+    test('per-step override beats the tour default', () {
+      final tour = HintTour(
+        id: 'mixed',
+        steps: [
+          HintStep(
+            targetId: 'target0',
+            title: 'Step 0',
+            missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+          ),
+          HintStep(targetId: 'target1', title: 'Step 1'),
+        ],
+      );
+      final machine = HintMachine();
+      machine.dispatch(HintStart(tour: tour));
+
+      // Step 0 skips despite the tour default (abortTour).
+      final skipped = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (_) => false,
+      );
+      expect(skipped.state, HintWaiting(tour: tour, stepIndex: 1));
+
+      // Step 1 aborts per the tour default.
+      final aborted = machine.dispatch(
+        const WaitTimeout(),
+        targetPresent: (_) => false,
+      );
+      expect(aborted.state, const HintIdle());
+      expect(
+        aborted.effects.last,
+        isA<AbortEffect>().having(
+          (e) => e.reason,
+          'reason',
+          HintSkipReason.timeout,
+        ),
+      );
+    });
+
+    test('default policy is abortTour (historical behavior)', () {
+      expect(
+        _tour().missingTargetPolicy,
+        HintMissingTargetPolicy.abortTour,
+      );
+      expect(
+        const HintStep(targetId: 'x', title: 'X').missingTargetPolicy,
+        isNull,
+      );
+    });
+  });
+
   group('contracts', () {
     test('a second start over an active tour — assert in debug', () {
       final tour = _tour();
@@ -682,6 +816,24 @@ void _expectInvariants(
         break;
       case AbortEffect() || FinishedEffect():
         expect(state, isA<HintIdle>(), reason: 'Abort/Finished ⇒ idle');
+        break;
+      case StepSkippedEffect(:final stepIndex):
+        // Skip ⇒ the tour continues: waiting/active for the next step, or
+        // idle with a FinishedEffect when the last step was skipped.
+        expect(stepIndex, inInclusiveRange(0, tour.steps.length - 1));
+        if (state is HintIdle) {
+          expect(
+            transition.effects.any((e) => e is FinishedEffect),
+            isTrue,
+            reason: 'skip into idle ⇒ the last step was skipped (finish)',
+          );
+        } else {
+          expect(
+            state.stepIndex,
+            isNot(stepIndex),
+            reason: 'skip ⇒ a different step',
+          );
+        }
         break;
     }
   }

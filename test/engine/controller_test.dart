@@ -395,6 +395,196 @@ void main() {
     });
   });
 
+  group('safe start (tryStart/restart/isIdle)', () {
+    testWidgets('tryStart while busy — false, no assert, tour untouched',
+        (tester) async {
+      final registry = HintTargetRegistry();
+      final controller = HintController(registry: registry);
+      addTearDown(controller.dispose);
+
+      await controller.start(_tour2());
+      expect(controller.isIdle, isFalse);
+
+      // No AssertionError (unlike start): a plain false.
+      expect(await controller.tryStart(_tour2()), isFalse);
+      expect(controller.currentState.stepIndex, 0);
+
+      controller.dispose();
+    });
+
+    testWidgets('tryStart while idle — starts and returns true',
+        (tester) async {
+      final registry = HintTargetRegistry();
+      final controller = HintController(registry: registry);
+      addTearDown(controller.dispose);
+
+      expect(controller.isIdle, isTrue);
+      expect(await controller.tryStart(_tour2()), isTrue);
+      expect(controller.isIdle, isFalse);
+
+      controller.dispose();
+    });
+
+    testWidgets('restart replaces the running tour without diagnostics',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final diag = _DiagRecorder();
+      final controller = HintController(
+        registry: registry,
+        diagnostics: diag,
+      );
+      addTearDown(controller.dispose);
+
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+      registry.register(HintTargetRegistration(
+        id: 'target1',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      final first = _tour2();
+      await controller.start(first);
+      expect(controller.currentState, HintActive(tour: first, stepIndex: 0));
+
+      final second = HintTour(
+        id: 'second',
+        steps: const [HintStep(targetId: 'target1', title: 'B')],
+      );
+      await controller.restart(second);
+
+      expect(controller.currentState, HintActive(tour: second, stepIndex: 0));
+      expect(diag.events, isEmpty,
+          reason: 'restart finishes the old tour silently');
+    });
+
+    testWidgets('restart while idle — equivalent to start', (tester) async {
+      final registry = HintTargetRegistry();
+      final controller = HintController(registry: registry);
+      addTearDown(controller.dispose);
+
+      await controller.restart(_tour2());
+      expect(controller.currentState, isA<HintWaiting>());
+
+      controller.dispose();
+    });
+  });
+
+  group('scope (tabs sharing one registry)', () {
+    testWidgets('out-of-scope targets do not activate steps', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final controller = HintController(
+        registry: registry,
+        scopePrefix: 'greenhouse-',
+      );
+      addTearDown(controller.dispose);
+
+      // A foreign screen's target with a similar id mounts first.
+      registry.register(HintTargetRegistration(
+        id: 'spread-target',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      final tour = HintTour(
+        id: 'g',
+        steps: const [HintStep(targetId: 'greenhouse-target', title: 'x')],
+      );
+      await controller.start(tour);
+      // Waiting: the foreign target must not satisfy the step.
+      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+
+      registry.register(HintTargetRegistration(
+        id: 'greenhouse-target',
+        link: LayerLink(),
+        context: ctx,
+      ));
+      await tester.pump();
+      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+    });
+
+    testWidgets('typo candidates ignore out-of-scope ids', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final controller = HintController(
+        registry: registry,
+        scopePrefix: 'greenhouse-',
+      );
+      addTearDown(controller.dispose);
+
+      // Only a foreign id is close to the typo: without scoping this would
+      // assert as a typo; with scoping it is a legitimate deferred target.
+      registry.register(HintTargetRegistration(
+        id: 'spread-habit',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      final tour = HintTour(
+        id: 'g',
+        steps: const [HintStep(targetId: 'greenhouse-habit', title: 'x')],
+      );
+      await controller.start(tour);
+      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+
+      controller.dispose();
+    });
+  });
+
+  group('skipStep policy (controller integration)', () {
+    testWidgets('timeout skips the step and the tour continues',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final diag = _DiagRecorder();
+      final host = _RecordingHost();
+      final controller = HintController(
+        registry: registry,
+        diagnostics: diag,
+        overlayHostBuilder: (_) => host,
+      );
+      addTearDown(controller.dispose);
+
+      registry.register(HintTargetRegistration(
+        id: 'target1',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      final tour = HintTour(
+        id: 't',
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+        // The missing step times out fast; the present step waits normally.
+        steps: [
+          HintStep(
+            targetId: 'target0',
+            title: 'Missing',
+            waitTimeout: const Duration(milliseconds: 10),
+          ),
+          HintStep(targetId: 'target1', title: 'Present'),
+        ],
+      );
+      await controller.start(tour);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(controller.currentState.stepIndex, 1);
+      expect(controller.currentState, isA<HintActive>());
+      expect(diag.events, hasLength(1));
+      expect(diag.events.single.reason, HintSkipReason.timeout);
+      expect(diag.events.single.stepIndex, 0);
+      expect(diag.events.single.targetId, 'target0');
+
+      // The tour continues to a normal finish (no abort).
+      controller.next();
+      expect(controller.currentState, isA<HintIdle>());
+    });
+  });
+
   group('classifyStepTargets (typo classification)', () {
     test('valid / typos with candidates / deferred are separated', () {
       const known = {'statsPeriodSelector', 'addSet'};

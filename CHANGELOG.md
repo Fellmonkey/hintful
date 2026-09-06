@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.5.0 — production hardening (l10n, skip-missing, safe start, scopes)
+
+Four battle-feedback fixes, all backward-compatible:
+
+- Localization hook: `HintTooltipLabels` (`engine/labels.dart`) — `skip/
+  back/next/done`, waiting placeholder `preparing`, screen-reader
+  `announceStep`. Wired as `HintTheme.tooltipLabels` (English default) + a
+  per-tooltip `DefaultTooltip(labels:)` override — localize once in the
+  theme instead of duplicating the tooltip layout per language. The
+  waiting-phase "Preparing…" comes from the labels too.
+- Missing-target policy: `HintMissingTargetPolicy.skipStep` vs `abortTour`
+  (default) — on `HintTour` (incl. `fromEnum`, JSON) with a per-step
+  override. A timed-out step is diagnosed (`timeout`) and the tour continues;
+  skipping the last step finishes normally. Pair with a short `waitTimeout`
+  (`Duration.zero` skips instantly, no waiting flash). New machine effect
+  `StepSkippedEffect`.
+- Safe start: `isIdle`, `tryStart` (false when busy — no assert, no
+  state change), `restart` (silently replaces the running tour),
+  `tryShowHint`. `start` keeps its debug contract.
+- Controller scopes: `scopePrefix` isolates
+  tabs/split-view sharing one registry — foreign ids neither activate steps
+  nor count as typo candidates.
+
 ## 0.4.0 — server-driven tours + adapters
 
 - `HintTour`/`HintStep`/`HintTooltip` now `fromJson`/`toJson` (`specs.dart:194`) — `steps` are `title/description` + `position`/`moreTargets`/`moreTooltips`, `tooltipBuilder` stays code-side. `FetcherHintTourFactory` (`engine/tour_factory.dart`) takes your fetcher `(Uri)=>Future<String>` — no `http` dependency in `hintful`.

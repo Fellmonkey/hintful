@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hintful/engine/labels.dart';
 import 'package:hintful/engine/specs.dart';
 import 'package:hintful/engine/theme/hint_theme.dart';
 import 'package:hintful/widgets/default_tooltip.dart';
@@ -292,4 +293,70 @@ void main() {
     expect(material.color, scheme.inverseSurface);
     expect(material.color, isNot(Colors.white));
   });
+
+  testWidgets('theme labels localize buttons (no custom tooltip needed)',
+      (tester) async {
+    const ru = HintTooltipLabels(
+      skip: 'Пропустить',
+      back: 'Назад',
+      next: 'Далее',
+      done: 'Готово',
+    );
+    final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+    await tester.pumpWidget(_wrap(
+      DefaultTooltip(
+        step: step,
+        ctx: _ctx(_FakeActions(), 0, 2),
+      ),
+      extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: ru)],
+    ));
+
+    expect(find.text('Далее'), findsOneWidget);
+    expect(find.text('Пропустить'), findsOneWidget);
+    expect(find.text('Next'), findsNothing);
+    expect(find.text('Skip'), findsNothing);
+  });
+
+  testWidgets('per-tooltip labels override the theme', (tester) async {
+    const themeLabels = HintTooltipLabels(next: 'ThemeNext');
+    const ownLabels = HintTooltipLabels(next: 'OwnNext');
+    final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+    await tester.pumpWidget(_wrap(
+      DefaultTooltip(
+        step: step,
+        ctx: _ctx(_FakeActions(), 0, 2),
+        labels: ownLabels,
+      ),
+      extensions: [
+        HintTheme.minimal(scheme).copyWith(tooltipLabels: themeLabels)
+      ],
+    ));
+
+    expect(find.text('OwnNext'), findsOneWidget);
+    expect(find.text('ThemeNext'), findsNothing);
+  });
+
+  testWidgets('custom announcement for screen readers', (tester) async {
+    final handle = tester.ensureSemantics();
+    const labels = HintTooltipLabels(
+      announceStep: _announceRu,
+    );
+    final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+    await tester.pumpWidget(_wrap(
+      DefaultTooltip(
+        step: step,
+        ctx: _ctx(_FakeActions(), 0, 3),
+      ),
+      extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: labels)],
+    ));
+
+    expect(
+      find.bySemanticsLabel(RegExp(r'Шаг 1 из 3: Title')),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
 }
+
+String _announceRu(int stepIndex, int totalSteps, String title) =>
+    'Шаг ${stepIndex + 1} из $totalSteps: $title';

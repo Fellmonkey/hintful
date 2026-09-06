@@ -50,6 +50,20 @@ void main() {
       expect(tour.disableBackButton, isTrue);
     });
 
+    test('missingTargetPolicy passes through fromEnum', () {
+      final tour = HintTour.fromEnum(
+        id: 'home',
+        values: _TourStep.values,
+        stepFor: _stepFor,
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+      );
+
+      expect(
+        tour.missingTargetPolicy,
+        HintMissingTargetPolicy.skipStep,
+      );
+    });
+
     test('the built tour participates in duplicate detection', () {
       final tour = HintTour.fromEnum(
         id: 'dup',
@@ -75,6 +89,67 @@ void main() {
           stepFor: (value) => throw UnimplementedError(),
         ),
         throwsAssertionError,
+      );
+    });
+  });
+
+  group('missingTargetPolicy JSON round-trip', () {
+    test('tour + step policies survive toJson/fromJson', () {
+      final tour = HintTour(
+        id: 't',
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+        steps: const [
+          HintStep(
+            targetId: 'a',
+            title: 'A',
+            missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+          ),
+          HintStep(targetId: 'b', title: 'B'),
+        ],
+      );
+
+      final restored = HintTour.fromJson(tour.toJson());
+
+      expect(
+        restored.missingTargetPolicy,
+        HintMissingTargetPolicy.skipStep,
+      );
+      expect(
+        restored.steps[0].missingTargetPolicy,
+        HintMissingTargetPolicy.skipStep,
+      );
+      expect(restored.steps[1].missingTargetPolicy, isNull);
+    });
+
+    test('absent keys default to abortTour (old payloads)', () {
+      final restored = HintTour.fromJson({
+        'id': 't',
+        'steps': [
+          {'targetId': 'a', 'title': 'A'},
+        ],
+      });
+
+      expect(
+        restored.missingTargetPolicy,
+        HintMissingTargetPolicy.abortTour,
+      );
+      expect(restored.steps.single.missingTargetPolicy, isNull);
+    });
+
+    test('resolveMissingPolicy: step overrides tour', () {
+      const step = HintStep(
+        targetId: 'a',
+        title: 'A',
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+      );
+      expect(
+        step.resolveMissingPolicy(HintMissingTargetPolicy.abortTour),
+        HintMissingTargetPolicy.skipStep,
+      );
+      const plain = HintStep(targetId: 'a', title: 'A');
+      expect(
+        plain.resolveMissingPolicy(HintMissingTargetPolicy.skipStep),
+        HintMissingTargetPolicy.skipStep,
       );
     });
   });

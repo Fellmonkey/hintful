@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hintful/engine/labels.dart';
 import 'package:hintful/engine/theme/hint_theme.dart';
 
 void main() {
@@ -175,6 +176,42 @@ void main() {
       expect(a.lerp(on, 1.0).imageFilter, isNotNull);
       expect(a.lerp(on, 0.0).showPulse, isFalse);
       expect(a.lerp(on, 1.0).showPulse, isTrue);
+    });
+
+    test('lerp picks tooltipLabels by the interpolation point', () {
+      const ru = HintTooltipLabels(next: 'Далее');
+      final localized = a.copyWith(tooltipLabels: ru);
+      expect(a.lerp(localized, 0.0).tooltipLabels.next, 'Next');
+      expect(a.lerp(localized, 1.0).tooltipLabels.next, 'Далее');
+    });
+  });
+
+  group('tooltipLabels (l10n hook)', () {
+    test('default is English', () {
+      const labels = HintTooltipLabels();
+      expect(labels.skip, 'Skip');
+      expect(labels.back, 'Back');
+      expect(labels.next, 'Next');
+      expect(labels.done, 'Done');
+      expect(
+        labels.announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        'Step 1 of 3: T',
+      );
+    });
+
+    test('minimal theme carries the default labels', () {
+      final theme = HintTheme.minimal(
+        ColorScheme.fromSeed(seedColor: Colors.teal),
+      );
+      expect(theme.tooltipLabels, const HintTooltipLabels());
+    });
+
+    test('copyWith replaces labels wholesale', () {
+      final theme = HintTheme.minimal(
+        ColorScheme.fromSeed(seedColor: Colors.teal),
+      );
+      const ru = HintTooltipLabels(next: 'Далее');
+      expect(theme.copyWith(tooltipLabels: ru).tooltipLabels, ru);
     });
   });
 }

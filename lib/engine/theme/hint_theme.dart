@@ -2,6 +2,8 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../labels.dart';
+
 /// Hint theme — a product design-system `ThemeExtension`.
 ///
 /// The product describes hints as part of its design system: register
@@ -26,6 +28,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     this.showTail = true,
     this.imageFilter,
     this.showPulse = false,
+    this.tooltipLabels = const HintTooltipLabels(),
   });
 
   /// Tooltip background (default — `inverseSurface` of the ColorScheme).
@@ -65,6 +68,10 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// active with this flag on.
   final bool showPulse;
 
+  /// Button + announcement strings of the zero-config tooltip (English by
+  /// default): localize once here, every [DefaultTooltip] inherits it.
+  final HintTooltipLabels tooltipLabels;
+
   /// Default derived from a [ColorScheme] (inverseSurface pair).
   factory HintTheme.minimal(ColorScheme scheme) {
     final onSurface = scheme.onInverseSurface;
@@ -100,6 +107,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     bool? showTail,
     ImageFilter? imageFilter,
     bool? showPulse,
+    HintTooltipLabels? tooltipLabels,
   }) {
     return HintTheme(
       tooltipBackground: tooltipBackground ?? this.tooltipBackground,
@@ -113,6 +121,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       showTail: showTail ?? this.showTail,
       imageFilter: imageFilter ?? this.imageFilter,
       showPulse: showPulse ?? this.showPulse,
+      tooltipLabels: tooltipLabels ?? this.tooltipLabels,
     );
   }
 
@@ -140,6 +149,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
       // No lerp for the filter (filters do not interpolate) — pick by point.
       imageFilter: t < 0.5 ? imageFilter : other.imageFilter,
       showPulse: t < 0.5 ? showPulse : other.showPulse,
+      // Strings do not interpolate either — same point-pick.
+      tooltipLabels: t < 0.5 ? tooltipLabels : other.tooltipLabels,
     );
   }
 }

@@ -53,6 +53,15 @@ class HintTooltipContext {
   bool get isLast => stepIndex == totalSteps - 1;
 }
 
+/// What to do when a step's target never appears within its wait timeout.
+///
+/// - [abortTour] (default) — the tour ends with a `timeout` diagnosis.
+/// - [skipStep] — the step is diagnosed and the tour continues with the next
+///   one; skipping the last step finishes the tour. For conditionally-absent
+///   targets pair with a short `waitTimeout` (`Duration.zero` skips instantly,
+///   no waiting flash).
+enum HintMissingTargetPolicy { abortTour, skipStep }
+
 /// A single tour step — data, not a widget.
 ///
 /// Two content paths: zero-config (`title`/`description`, rendered by the
@@ -70,6 +79,7 @@ class HintStep {
     this.position = TooltipPosition.auto,
     this.waitTimeout,
     this.showSkip = true,
+    this.missingTargetPolicy,
     this.tapOnTarget = true,
     this.tapOnOverlay = true,
     this.onTapTarget,
@@ -113,6 +123,10 @@ class HintStep {
   /// only when this flag is true.
   final bool showSkip;
 
+  /// Missing-target policy for this step; null — inherits
+  /// [HintTour.missingTargetPolicy].
+  final HintMissingTargetPolicy? missingTargetPolicy;
+
   /// Whether a tap on a spotlighted target advances the tour (when
   /// [onTapTarget] is not set). Both taps default to "next" — the same
   /// behavior as before region distinction; set false to require an explicit
@@ -149,6 +163,12 @@ class HintStep {
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => waitTimeout ?? fallback;
 
+  /// The step's missing-target policy, honoring inheritance.
+  HintMissingTargetPolicy resolveMissingPolicy(
+    HintMissingTargetPolicy tourPolicy,
+  ) =>
+      missingTargetPolicy ?? tourPolicy;
+
   Map<String, dynamic> toJson() => {
         'targetId': targetId,
         if (moreTargets.isNotEmpty) 'moreTargets': moreTargets,
@@ -159,6 +179,8 @@ class HintStep {
         'position': position.name,
         if (waitTimeout != null) 'waitTimeoutMs': waitTimeout!.inMilliseconds,
         'showSkip': showSkip,
+        if (missingTargetPolicy != null)
+          'missingTargetPolicy': missingTargetPolicy!.name,
         'tapOnTarget': tapOnTarget,
         'tapOnOverlay': tapOnOverlay,
       };
@@ -179,6 +201,10 @@ class HintStep {
             ? null
             : Duration(milliseconds: json['waitTimeoutMs'] as int),
         showSkip: json['showSkip'] as bool? ?? true,
+        missingTargetPolicy: json['missingTargetPolicy'] == null
+            ? null
+            : HintMissingTargetPolicy.values
+                .byName(json['missingTargetPolicy'] as String),
         tapOnTarget: json['tapOnTarget'] as bool? ?? true,
         tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
       );
@@ -243,6 +269,7 @@ class HintTour {
     required this.steps,
     this.stepTimeout = const Duration(seconds: 3),
     this.disableBackButton = false,
+    this.missingTargetPolicy = HintMissingTargetPolicy.abortTour,
   })  : assert(id != '', 'HintTour.id must not be empty'),
         assert(steps.length > 0, 'HintTour.steps must not be empty');
 
@@ -251,6 +278,11 @@ class HintTour {
 
   /// Default wait-for-target timeout for all steps of the tour.
   final Duration stepTimeout;
+
+  /// Default missing-target policy for all steps ([HintStep.missingTargetPolicy]
+  /// overrides per step): abort the tour, or show every step whose target
+  /// exists ([HintMissingTargetPolicy.skipStep]).
+  final HintMissingTargetPolicy missingTargetPolicy;
 
   /// Block the system back button (Android back / route pop) while the tour
   /// is active, instead of letting it dismiss the app/screen mid-tour.
@@ -274,12 +306,15 @@ class HintTour {
     required HintStep Function(T value) stepFor,
     Duration stepTimeout = const Duration(seconds: 3),
     bool disableBackButton = false,
+    HintMissingTargetPolicy missingTargetPolicy =
+        HintMissingTargetPolicy.abortTour,
   }) {
     return HintTour(
       id: id,
       steps: [for (final value in values) stepFor(value)],
       stepTimeout: stepTimeout,
       disableBackButton: disableBackButton,
+      missingTargetPolicy: missingTargetPolicy,
     );
   }
 
@@ -306,6 +341,7 @@ class HintTour {
         'steps': steps.map((s) => s.toJson()).toList(),
         'stepTimeoutMs': stepTimeout.inMilliseconds,
         'disableBackButton': disableBackButton,
+        'missingTargetPolicy': missingTargetPolicy.name,
       };
 
   factory HintTour.fromJson(Map<String, dynamic> json) => HintTour(
@@ -317,5 +353,9 @@ class HintTour {
             ? const Duration(seconds: 3)
             : Duration(milliseconds: json['stepTimeoutMs'] as int),
         disableBackButton: json['disableBackButton'] as bool? ?? false,
+        missingTargetPolicy: json['missingTargetPolicy'] == null
+            ? HintMissingTargetPolicy.abortTour
+            : HintMissingTargetPolicy.values
+                .byName(json['missingTargetPolicy'] as String),
       );
 }

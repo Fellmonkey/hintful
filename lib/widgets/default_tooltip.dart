@@ -2,11 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../engine/labels.dart';
 import '../engine/specs.dart';
 import '../engine/theme/hint_theme.dart';
 
 /// Zero-config tooltip: title + description + Skip/Back/Next/Done from
-/// [HintTheme].
+/// [HintTheme.tooltipLabels].
 ///
 /// Rendered when a step has no `tooltipBuilder`. A separate widget so the
 /// builder path (full customization) and the default do not duplicate
@@ -35,6 +36,7 @@ class DefaultTooltip extends StatelessWidget {
     this.title,
     this.description,
     this.showActions = true,
+    this.labels,
   });
 
   final HintStep step;
@@ -48,6 +50,10 @@ class DefaultTooltip extends StatelessWidget {
   /// tooltips); the primary tooltip keeps its Skip/Back/Next/Done controls.
   final bool showActions;
 
+  /// Button + announcement strings for this tooltip only; null — inherit
+  /// [HintTheme.tooltipLabels].
+  final HintTooltipLabels? labels;
+
   /// Actions + position in the tour: the same contract that `tooltipBuilder`
   /// receives ([HintTooltipContext]) — the default tooltip and a custom one
   /// do not diverge.
@@ -56,6 +62,7 @@ class DefaultTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).hintTheme;
+    final l = labels ?? theme.tooltipLabels;
     final isLast = ctx.isLast;
     final onSurface = theme.tooltipForeground;
     final screenSize = MediaQuery.sizeOf(context);
@@ -145,10 +152,10 @@ class DefaultTooltip extends StatelessWidget {
             Row(
               children: [
                 if (step.showSkip && !isLast)
-                  plainButton('Skip', ctx.actions.skip, compact: true),
+                  plainButton(l.skip, ctx.actions.skip, compact: true),
                 const Spacer(),
                 if (ctx.stepIndex > 0) ...[
-                  plainButton('Back', ctx.actions.previous),
+                  plainButton(l.back, ctx.actions.previous),
                   const SizedBox(width: 8),
                 ],
                 // Inverted pair: the accent button contrasts with the
@@ -165,7 +172,7 @@ class DefaultTooltip extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                         child: Text(
-                          isLast ? 'Done' : 'Next',
+                          isLast ? l.done : l.next,
                           style: (buttonText ?? const TextStyle(fontSize: 14))
                               .copyWith(
                             fontSize: 14,
@@ -186,8 +193,11 @@ class DefaultTooltip extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: 'Step ${ctx.stepIndex + 1} of ${ctx.totalSteps}: '
-          '${title ?? step.targetId}',
+      label: l.announce(
+        stepIndex: ctx.stepIndex,
+        totalSteps: ctx.totalSteps,
+        title: title ?? step.targetId,
+      ),
       child: Material(
         color: theme.tooltipBackground,
         borderRadius: theme.tooltipRadius,
