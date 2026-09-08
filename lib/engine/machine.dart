@@ -340,7 +340,7 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
     HintStep step,
   ) =>
-      step.targetIds.every((id) => _present(targetPresent, id));
+      step.hasRectTarget || step.targetIds.every((id) => _present(targetPresent, id));
 
   /// The single entry point. Returns the transition and applies it to the
   /// internal state.
@@ -377,9 +377,25 @@ class HintMachine {
 
   HintState _reduceIdle(HintEvent event, List<HintEffect> effects) =>
       switch (event) {
-        HintStart(:final tour) => _armWaiting(tour, 0, effects),
+        HintStart(:final tour) => tour.steps[0].hasRectTarget
+            // Explicit coordinates need no waiting: enter immediately, with
+            // no timeout armed (there is nothing to wait for — the overlay
+            // spotlights the rect statically).
+            ? _enterActive(tour, 0, effects)
+            : _armWaiting(tour, 0, effects),
         _ => const HintIdle(),
       };
+
+  /// Enter [index] as an active step (no waiting involved): used for
+  /// rect-anchored starts. No timeout to clear — none was armed.
+  HintState _enterActive(
+    HintTour tour,
+    int index,
+    List<HintEffect> effects,
+  ) {
+    effects.add(EnterStepEffect(stepIndex: index));
+    return HintActive(tour: tour, stepIndex: index);
+  }
 
   HintState _armWaiting(HintTour tour, int index, List<HintEffect> effects) {
     effects.add(
@@ -388,6 +404,25 @@ class HintMachine {
       ),
     );
     return HintWaiting(tour: tour, stepIndex: index);
+  }
+
+  /// Enter [index] as an active step when all its targets are present, else
+  /// arm waiting for it. [clearTimeout] clears a previously armed wait timer
+  /// (transitions leaving a waiting state); skip/timeout/active paths
+  /// already consumed theirs — or never armed one.
+  HintState _enterOrWait(
+    HintTour tour,
+    int index,
+    List<HintEffect> effects,
+    bool Function(String targetId)? targetPresent, {
+    required bool clearTimeout,
+  }) {
+    if (_allPresent(targetPresent, tour.steps[index])) {
+      if (clearTimeout) effects.add(const ClearTimeoutEffect());
+      effects.add(EnterStepEffect(stepIndex: index));
+      return HintActive(tour: tour, stepIndex: index);
+    }
+    return _armWaiting(tour, index, effects);
   }
 
   HintState _reduceWaiting(
@@ -470,12 +505,14 @@ class HintMachine {
     final step = tour.steps[index];
     switch (event) {
       case TargetVanished(:final targetId)
-          when step.targetIds.contains(targetId):
+          when !step.hasRectTarget && step.targetIds.contains(targetId):
         // Any spotlighted target vanished on an active step (scroll
         // recycling, a collapsed tab) → re-wait for all of them instead of
         // aborting: the tour survives a transient unmount and continues when
         // the target comes back; the re-armed timeout still guards against a
         // permanent loss (a vanished target that never returns times out).
+        // Rect-anchored steps are exempt: their spotlight is static
+        // coordinates, registry targets (if any) are not rendered.
         effects.add(
           ArmTimeoutEffect(
             timeout: step.resolveTimeout(tour.stepTimeout),
@@ -494,11 +531,13 @@ class HintMachine {
           effects.add(FinishedEffect(tourId: tour.id));
           return const HintIdle();
         }
-        if (_allPresent(targetPresent, tour.steps[nextIndex])) {
-          effects.add(EnterStepEffect(stepIndex: nextIndex));
-          return HintActive(tour: tour, stepIndex: nextIndex);
-        }
-        return _armWaiting(tour, nextIndex, effects);
+        return _enterOrWait(
+          tour,
+          nextIndex,
+          effects,
+          targetPresent,
+          clearTimeout: false, // active → active: no wait timer is armed
+        );
       case UserSkip():
         effects.add(
           const AbortEffect(
@@ -533,13 +572,13 @@ class HintMachine {
           ? HintWaiting(tour: tour, stepIndex: 0)
           : HintActive(tour: tour, stepIndex: 0);
     }
-    final prev = fromIndex - 1;
-    if (_allPresent(targetPresent, tour.steps[prev])) {
-      if (fromWaiting) effects.add(const ClearTimeoutEffect());
-      effects.add(EnterStepEffect(stepIndex: prev));
-      return HintActive(tour: tour, stepIndex: prev);
-    }
-    return _armWaiting(tour, prev, effects);
+    return _enterOrWait(
+      tour,
+      fromIndex - 1,
+      effects,
+      targetPresent,
+      clearTimeout: fromWaiting,
+    );
   }
 
   /// Jump to [toIndex] (0-based). Out-of-range: assert in debug, no-op in
@@ -562,12 +601,13 @@ class HintMachine {
       "hintful: goTo($toIndex) out of range 0..${tour.steps.length - 1}",
     );
     if (toIndex < 0 || toIndex >= tour.steps.length) return stay;
-    if (_allPresent(targetPresent, tour.steps[toIndex])) {
-      if (fromWaiting) effects.add(const ClearTimeoutEffect());
-      effects.add(EnterStepEffect(stepIndex: toIndex));
-      return HintActive(tour: tour, stepIndex: toIndex);
-    }
-    return _armWaiting(tour, toIndex, effects);
+    return _enterOrWait(
+      tour,
+      toIndex,
+      effects,
+      targetPresent,
+      clearTimeout: fromWaiting,
+    );
   }
 
   /// Continue after a skipped missing step: activate the next step when all
@@ -584,11 +624,14 @@ class HintMachine {
       effects.add(FinishedEffect(tourId: tour.id));
       return const HintIdle();
     }
-    if (_allPresent(targetPresent, tour.steps[nextIndex])) {
-      effects.add(EnterStepEffect(stepIndex: nextIndex));
-      return HintActive(tour: tour, stepIndex: nextIndex);
-    }
-    return _armWaiting(tour, nextIndex, effects);
+    return _enterOrWait(
+      tour,
+      nextIndex,
+      effects,
+      targetPresent,
+      // Skip/timeout paths already consumed their wait timer.
+      clearTimeout: false,
+    );
   }
 
   static bool _present(

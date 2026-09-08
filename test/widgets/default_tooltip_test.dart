@@ -156,28 +156,35 @@ void main() {
     expect(skip.height, lessThan(next.height));
   });
 
-  testWidgets('single-step tour: no Skip (a lone Skip is meaningless)',
+  testWidgets('single-step hint: no action row at all (no Done)',
       (tester) async {
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: step,
-      // totalSteps == 1: a single hint — Skip is hidden even though the
-      // step's showSkip defaults to true (Done does the same thing).
+      // totalSteps == 1: a lone hint, not a tour — informational only.
+      // Dismissal is via tap-on-overlay/target and keyboard; a Done button
+      // would be meaningless, and its absence keeps a hint visually
+      // distinct from a tour step.
       ctx: _ctx(_FakeActions(), 0, 1),
     )));
 
-    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Title'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
+    expect(find.text('Done'), findsNothing);
+    expect(find.text('Next'), findsNothing);
     expect(find.text('Skip'), findsNothing);
+    expect(find.text('Back'), findsNothing);
   });
 
   testWidgets('showSkip: false — no Skip button', (tester) async {
     final noSkip = HintStep(targetId: 'stats', title: 't', showSkip: false);
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: noSkip,
-      ctx: _ctx(_FakeActions(), 0, 1),
+      // First step of two: the action row exists (Next), Skip is opted out.
+      ctx: _ctx(_FakeActions(), 0, 2),
     )));
 
     expect(find.text('Skip'), findsNothing);
-    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
   });
 
   testWidgets('text scale 1.0: no scrollable is built (content grows '

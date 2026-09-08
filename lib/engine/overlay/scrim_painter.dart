@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 
 import '../position_resolver.dart';
+import '../specs.dart' show FocusShape;
 
 /// Screen dimming with \"holes\" over the step's targets (one or more).
 ///
@@ -18,12 +20,16 @@ import '../position_resolver.dart';
 /// this canvas's space (`theirTranslation - primaryTranslation`). A resolver
 /// that yields [UnpositionedHint] simply contributes no hole.
 ///
-/// \"Screen minus holes\" is drawn as **non-overlapping rectangles** around
-/// the union of holes ([scrimStrips]), not `Path.combine(difference)`:
-/// boolean geometry on a full-screen path is the most expensive part of a
-/// frame during movement, plain `drawRect` calls are not (the only per-frame
-/// work while scrolling). Strips must not overlap: the scrim color is
-/// semi-transparent, and overlapping strips would double-darken.
+/// ONE mechanism for every shape: the full dim first, then each hole punched
+/// with `BlendMode.clear` — plain canvas ops, no boolean path geometry,
+/// overlap-correct (clearing the same pixels twice changes nothing, so
+/// multi-target holes never double-darken). Only the hole *shape* varies
+/// per step (rectangle / circle / rounded rect + padding).
+///
+/// The dim + punch run inside a `saveLayer`: without isolation `clear`
+/// would erase the app content painted beneath this picture (leaving a
+/// white box instead of the target). With isolation it erases only the
+/// dim — the transparent hole composites over the app on every backend.
 ///
 /// The painter is pure: positions are read from [resolvers] at `paint` time
 /// (each resolver holds the compositor's current transform), no state is
@@ -32,10 +38,12 @@ import '../position_resolver.dart';
 /// `shouldRepaint` only answers \"was the widget rebuilt with a different
 /// config?\" (resolvers/color).
 class ScrimHolePainter extends CustomPainter {
-  ScrimHolePainter({
+  const ScrimHolePainter({
     required this.resolvers,
     required this.color,
     this.paintFullScrimWhenUnpositioned = false,
+    this.focusShape = FocusShape.rectangle,
+    this.focusPadding = 4.0,
   });
 
   /// All resolvers of the step's targets; index 0 — the primary (the canvas
@@ -43,6 +51,8 @@ class ScrimHolePainter extends CustomPainter {
   /// position watcher creates the resolvers).
   final List<HintPositionResolver> resolvers;
   final Color color;
+  final FocusShape focusShape;
+  final double focusPadding;
 
   /// true — the waiting mode: the primary is not in the tree at all, dim the
   /// whole screen (no hole). false — the active mode: an unpositioned
@@ -70,29 +80,82 @@ class ScrimHolePainter extends CustomPainter {
       size.height,
     );
     final holes = <Rect>[
-      Offset.zero & primary.size,
+      (Offset.zero & primary.size).inflate(focusPadding),
       for (final resolver in resolvers.skip(1))
         if (resolver.resolve()
             case PositionedHint(
               :final translation,
               :final size,
             ))
-          (translation - primary.translation) & size,
+          ((translation - primary.translation) & size).inflate(focusPadding),
     ];
-    final paint = Paint()..color = color;
-    for (final strip in scrimStrips(screenLocal, holes)) {
-      canvas.drawRect(strip, paint);
+    // Isolated layer: BlendMode.clear below must erase only the dim —
+    // never the app painted beneath this picture.
+    canvas.saveLayer(screenLocal, Paint());
+    canvas.drawRect(screenLocal, Paint()..color = color);
+    final clear = Paint()..blendMode = BlendMode.clear;
+    for (final h in holes) {
+      final shape = holeShape(h, focusShape);
+      if (shape == null) continue;
+      canvas.drawPath(shape, clear);
     }
+    canvas.restore();
+  }
+
+  /// One hole shape for [hole]: rectangle / inscribed circle / rounded rect
+  /// with clamped corners. Null — an over-shrunk (inverted/empty) rect cuts
+  /// nothing. Shared by the painters (drawn with the clear paint) and the
+  /// blur clip below, so the shape semantics lives in exactly one place.
+  static Path? holeShape(Rect hole, FocusShape focusShape) {
+    // Over-shrunk (negative padding beyond the target size) inverts the
+    // rect — skip explicitly: an empty hole cuts nothing.
+    if (hole.isEmpty) return null;
+    final path = Path();
+    switch (focusShape) {
+      case FocusShape.circle:
+        final side = math.max(hole.width, hole.height);
+        path.addOval(
+          Rect.fromCenter(center: hole.center, width: side, height: side),
+        );
+      case FocusShape.roundedRect:
+        // The corner radius must not exceed the hole itself (tiny targets +
+        // negative padding) — clamp to half the shortest side.
+        final radius = math.min(12.0, hole.shortestSide / 2);
+        path.addRRect(
+          RRect.fromRectAndRadius(hole, Radius.circular(radius)),
+        );
+      case FocusShape.rectangle:
+        path.addRect(hole);
+    }
+    return path;
+  }
+
+  /// Clip path for the blur scrim: the screen rect plus the hole shapes in
+  /// ONE path with even-odd fill — no boolean ops. The blur
+  /// `BackdropFilter` is clipped to it (visible only outside the holes).
+  /// Shared by every blur scrim (follower-anchored and rect-anchored, all
+  /// shapes): only the hole list differs.
+  static Path scrimClipPath(
+    Rect screen,
+    List<Rect> holes,
+    FocusShape focusShape,
+  ) {
+    final path = Path()..addRect(screen);
+    for (final h in holes) {
+      final shape = holeShape(h, focusShape);
+      if (shape == null) continue;
+      path.addPath(shape, Offset.zero);
+    }
+    path.fillType = PathFillType.evenOdd;
+    return path;
   }
 
   @override
   bool shouldRepaint(covariant ScrimHolePainter oldDelegate) {
-    // Element-wise: the State keeps resolver instances stable per target, so
-    // a content-only rebuild (same target set) does not repaint the scrim;
-    // a changed target set (new step) does.
     if (oldDelegate.color != color ||
-        oldDelegate.paintFullScrimWhenUnpositioned !=
-            paintFullScrimWhenUnpositioned ||
+        oldDelegate.focusShape != focusShape ||
+        oldDelegate.focusPadding != focusPadding ||
+        oldDelegate.paintFullScrimWhenUnpositioned != paintFullScrimWhenUnpositioned ||
         oldDelegate.resolvers.length != resolvers.length) {
       return true;
     }
@@ -101,76 +164,51 @@ class ScrimHolePainter extends CustomPainter {
     }
     return false;
   }
+}
 
-  /// Dimming strips around the **union** of [holes] within [screen] — the
-  /// complement of the holes, split into non-overlapping rectangles (no
-  /// boolean geometry, no overlaps → no double-darkening with a translucent
-  /// scrim).
-  ///
-  /// Algorithm (banding): take the distinct horizontal edges of the screen
-  /// and all holes; between each consecutive pair of edges all holes that
-  /// intersect the band cut out their x-ranges, merged, and the gaps between
-  /// the cuts become strips. Pure function — unit-tested directly. Holes are
-  /// clamped into the screen first (a target may stick out beyond an edge);
-  /// a hole fully outside the screen contributes nothing.
-  static List<Rect> scrimStrips(Rect screen, List<Rect> holes) {
-    if (holes.isEmpty) return [screen];
+/// Screen dimming with holes at explicit screen-space rects — the
+/// `targetRect` path ([HintStep.targetRect]), where there is no
+/// `CompositedTransformTarget` leader to anchor a follower painter to.
+///
+/// Unlike [ScrimHolePainter] (whose canvas rides on the primary target and
+/// reads live compositor transforms), this painter lives in a full-screen
+/// global box and cuts [holes] exactly where given — static coordinates, no
+/// movement tracking, no resolvers. Empty/inverted rects cut nothing (full
+/// dim); holes outside the canvas contribute nothing.
+class RectScrimPainter extends CustomPainter {
+  const RectScrimPainter({
+    required this.holes,
+    required this.color,
+    this.focusShape = FocusShape.rectangle,
+  });
 
-    final clamped = <Rect>[];
-    for (final hole in holes) {
-      final left = math.max(hole.left, screen.left);
-      final top = math.max(hole.top, screen.top);
-      final right = math.min(hole.right, screen.right);
-      final bottom = math.min(hole.bottom, screen.bottom);
-      if (right <= left || bottom <= top) continue; // fully outside
-      clamped.add(Rect.fromLTRB(left, top, right, bottom));
+  /// Hole rects in the canvas's own (screen) coordinates, padding already
+  /// applied by the caller.
+  final List<Rect> holes;
+  final Color color;
+
+  /// Hole shape — same semantics as [ScrimHolePainter.holeShape].
+  final FocusShape focusShape;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final screen = Offset.zero & size;
+    // Isolated layer (see ScrimHolePainter): the clear punch must erase
+    // only the dim, never the app beneath.
+    canvas.saveLayer(screen, Paint());
+    canvas.drawRect(screen, Paint()..color = color);
+    final clear = Paint()..blendMode = BlendMode.clear;
+    for (final h in holes) {
+      final shape = ScrimHolePainter.holeShape(h, focusShape);
+      if (shape == null) continue;
+      canvas.drawPath(shape, clear);
     }
-    if (clamped.isEmpty) return [screen]; // everything is covered — no strips
-
-    final edges = <double>{screen.top, screen.bottom};
-    for (final hole in clamped) {
-      edges.add(hole.top);
-      edges.add(hole.bottom);
-    }
-    final sorted = edges.toList()..sort();
-
-    final strips = <Rect>[];
-    for (var i = 0; i + 1 < sorted.length; i++) {
-      final y0 = sorted[i];
-      final y1 = sorted[i + 1];
-      if (y1 - y0 <= 0) continue;
-      // Holes intersecting this band, by their x-range, sorted by left edge.
-      final cuts = <(double, double)>[
-        for (final hole in clamped)
-          if (hole.top <= y0 && hole.bottom >= y1) (hole.left, hole.right),
-      ]..sort((a, b) => a.$1.compareTo(b.$1));
-      if (cuts.isEmpty) {
-        strips.add(Rect.fromLTRB(screen.left, y0, screen.right, y1));
-        continue;
-      }
-      // Merge overlapping cuts, emitting the scrim gaps between them.
-      var cursor = screen.left;
-      var cutStart = cuts.first.$1;
-      var cutEnd = cuts.first.$2;
-      for (final (start, end) in cuts.skip(1)) {
-        if (start <= cutEnd) {
-          cutEnd = math.max(cutEnd, end);
-        } else {
-          if (cutStart > cursor) {
-            strips.add(Rect.fromLTRB(cursor, y0, cutStart, y1));
-          }
-          cursor = cutEnd;
-          cutStart = start;
-          cutEnd = end;
-        }
-      }
-      if (cutStart > cursor) {
-        strips.add(Rect.fromLTRB(cursor, y0, cutStart, y1));
-      }
-      if (screen.right > cutEnd) {
-        strips.add(Rect.fromLTRB(cutEnd, y0, screen.right, y1));
-      }
-    }
-    return strips;
+    canvas.restore();
   }
+
+  @override
+  bool shouldRepaint(covariant RectScrimPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.focusShape != focusShape ||
+      !listEquals(oldDelegate.holes, holes);
 }

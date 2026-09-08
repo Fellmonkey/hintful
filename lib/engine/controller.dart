@@ -344,6 +344,12 @@ class HintController implements HintActions {
   }
 
   void _applyEffects(HintTransition transition, HintState before) {
+    final newState = transition.state;
+    if (newState is HintActive) {
+      final step = newState.tour.steps[newState.stepIndex];
+      step.onBeforeAction?.call();
+      if (before is HintActive) before.tour.steps[before.stepIndex].onAfterAction?.call();
+    }
     for (final effect in transition.effects) {
       switch (effect) {
         case ArmTimeoutEffect(:final timeout):

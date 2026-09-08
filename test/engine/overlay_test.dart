@@ -478,6 +478,9 @@ void main() {
             targetId: 'primary',
             moreTargets: const ['extra'],
             title: 'Title',
+            // Two lines: the tooltip is tall enough that auto-placement
+            // keeps it below the primary (a short tooltip would fit above).
+            description: 'A second line so the tooltip lands below',
           ),
         ],
       );
@@ -669,9 +672,9 @@ void main() {
           reason: 'the primary tooltip is still there');
       expect(find.text('custom slot'), findsOneWidget,
           reason: 'the builder extra renders its own content');
-      expect(find.text('Done'), findsOneWidget,
-          reason: 'only the primary keeps the button row (the tour has one '
-              'step → Done, not Next)');
+      expect(find.text('Done'), findsNothing,
+          reason: 'a single-step tour keeps no button row — the primary is '
+              'informational like the extra slot');
     });
 
     testWidgets('pulse ring renders when showPulse is on', (tester) async {
@@ -742,7 +745,7 @@ void main() {
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump(); // frame 1: position snapshot post-frame
-      await tester.pump(); // blur strips + pulse + tooltip
+      await tester.pump(); // blur + pulse + tooltip
 
       // Both layers are present…
       final pulseFinder = find.byWidgetPredicate(

@@ -193,10 +193,11 @@ Offset placeTooltip({
 /// overlay_engine.dart), so placement — auto-flip and safe-area included —
 /// is recomputed on scroll, not just on step change.
 ///
-/// Keep-in-safe-area: the tooltip stays inside `screenLocal.deflate(safeArea)`
-/// (system insets — notch, home indicator). The safe rect is also the space
-/// auto-placement counts free space against, so a target under the notch does
-/// not pick a side that only \"fits\" in the inset zone.
+/// Keep-in-safe-area: the tooltip stays inside the safe rect (the screen
+/// shrunk by the system insets — notch, home indicator — clamped, never
+/// inverted). The safe rect is also the space auto-placement counts free
+/// space against, so a target under the notch does not pick a side that
+/// only "fits" in the inset zone.
 ///
 /// Why `CustomSingleChildLayout`: the tooltip size is unknown before layout
 /// (text), and the delegate receives it from the framework in
@@ -236,8 +237,7 @@ class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
   final double gap;
 
   /// System insets (`MediaQuery.padding` — notch, home indicator): the
-  /// tooltip stays inside `screenLocal.deflate(safeArea)`. Zero — the whole
-  /// screen is usable (the previous behavior).
+  /// tooltip stays inside the safe rect. Zero — the whole screen is usable.
   final EdgeInsets safeArea;
 
   /// Additional spotlighted targets of the step (multi-target steps): the

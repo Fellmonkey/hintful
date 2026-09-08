@@ -2,6 +2,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/engine/overlay/scrim_painter.dart';
 import 'package:hintful/engine/position_resolver.dart';
+import 'package:hintful/engine/specs.dart' show FocusShape;
 
 /// Fake resolver: a deterministic position (or Unpositioned).
 class _FakeResolver implements HintPositionResolver {
@@ -14,122 +15,48 @@ class _FakeResolver implements HintPositionResolver {
 }
 
 void main() {
-  const screen = Rect.fromLTWH(0, 0, 800, 600);
+  /// Recorded paint ops that punch holes: any canvas draw whose paint
+  /// clears (BlendMode.clear), regardless of the shape call.
+  Iterable<RecordedInvocation> holeOps(TestRecordingCanvas canvas) =>
+      canvas.invocations.where((record) {
+        final args = record.invocation.positionalArguments;
+        return args.length > 1 &&
+            args[1] is Paint &&
+            (args[1] as Paint).blendMode == BlendMode.clear;
+      });
 
-  /// Strips must never overlap (a translucent scrim would double-darken).
-  void expectNoOverlaps(List<Rect> strips) {
-    for (var i = 0; i < strips.length; i++) {
-      for (var j = i + 1; j < strips.length; j++) {
-        final a = strips[i].deflate(0.01);
-        final b = strips[j].deflate(0.01);
-        expect(a.overlaps(b), isFalse, reason: '$a and $b overlap');
-      }
-    }
-  }
-
-  group('scrimStrips (rectangles around the union of holes)', () {
-    test('one hole in the center — 4 strips without overlaps', () {
-      const hole = Rect.fromLTWH(300, 200, 200, 100);
-      final strips = ScrimHolePainter.scrimStrips(screen, [hole]);
-
-      expect(strips, hasLength(4));
-      // Top/bottom span the whole screen width; left/right — the hole height.
-      expect(strips, contains(const Rect.fromLTWH(0, 0, 800, 200)));
-      expect(strips, contains(const Rect.fromLTWH(0, 300, 800, 300)));
-      expect(strips, contains(const Rect.fromLTWH(0, 200, 300, 100)));
-      expect(strips, contains(const Rect.fromLTWH(500, 200, 300, 100)));
-      expectNoOverlaps(strips);
-    });
-
-    test('two side-by-side holes — strips between them, no overlaps', () {
-      const a = Rect.fromLTWH(100, 100, 200, 80);
-      const b = Rect.fromLTWH(500, 100, 200, 80);
-      final strips = ScrimHolePainter.scrimStrips(screen, [a, b]);
-
-      // top (0..100), between the holes (300..500 at 100..180), right,
-      // bottom — plus the outer sides.
-      expect(strips, contains(const Rect.fromLTWH(0, 0, 800, 100)));
-      expect(strips, contains(const Rect.fromLTWH(300, 100, 200, 80)));
-      expect(strips, contains(const Rect.fromLTWH(700, 100, 100, 80)));
-      expect(strips, contains(const Rect.fromLTWH(0, 100, 100, 80)));
-      expect(strips, contains(const Rect.fromLTWH(0, 180, 800, 420)));
-      expectNoOverlaps(strips);
-    });
-
-    test('overlapping holes — the union refined into non-overlapping strips',
-        () {
-      // b is fully inside a: the union of holes is just a. The strip
-      // decomposition may be finer (b's edges add bands) but must cover the
-      // same area and never touch b (the hole area is scrim-free).
-      const a = Rect.fromLTWH(100, 100, 300, 150);
-      const b = Rect.fromLTWH(150, 120, 100, 80);
-      final strips = ScrimHolePainter.scrimStrips(screen, [a, b]);
-
-      double area(List<Rect> rs) =>
-          rs.fold(0.0, (s, r) => s + r.width * r.height);
-      expect(
-        area(strips),
-        area(ScrimHolePainter.scrimStrips(screen, [a])),
-        reason: 'b is inside a — the scrim area is unchanged',
-      );
-      expectNoOverlaps(strips);
-      for (final s in strips) {
-        expect(s.overlaps(b), isFalse,
-            reason: 'no strip covers the inner hole $s');
-      }
-    });
-
-    test('a hole at the left edge — 3 strips (no left one)', () {
-      const hole = Rect.fromLTWH(0, 200, 200, 100);
-      final strips = ScrimHolePainter.scrimStrips(screen, [hole]);
-      expect(strips, hasLength(3));
-      expect(
-        strips.every((r) => r.left >= 0),
-        isTrue,
-        reason: 'no strip is left of the screen',
-      );
-    });
-
-    test('a hole partially above the screen — strips clamped, none degenerate',
-        () {
-      // The hole starts above the screen: hole.top = -50.
-      const hole = Rect.fromLTWH(300, -50, 200, 400); // bottom = 350
-      final strips = ScrimHolePainter.scrimStrips(screen, [hole]);
-      // No top strip (the hole covers the top), sides run from 0 to 350.
-      expect(strips, hasLength(3));
-      expect(strips, contains(const Rect.fromLTWH(0, 350, 800, 250))); // bottom
-      expect(strips, contains(const Rect.fromLTWH(0, 0, 300, 350))); // left
-      expect(strips, contains(const Rect.fromLTWH(500, 0, 300, 350))); // right
-      for (final r in strips) {
-        expect(r.height > 0 && r.width > 0, isTrue,
-            reason: 'degenerate strip: $r');
-      }
-    });
-
-    test('a hole bigger than the screen — no scrim (nothing to darken)', () {
-      const hole = Rect.fromLTWH(-100, -100, 1000, 800);
-      final strips = ScrimHolePainter.scrimStrips(screen, [hole]);
-      expect(strips, isEmpty);
-    });
-
-    test('a hole exactly the screen — no scrim', () {
-      final strips = ScrimHolePainter.scrimStrips(screen, [screen]);
-      expect(strips, isEmpty);
-    });
-
-    test('no holes — the whole screen is scrimmed', () {
-      final strips = ScrimHolePainter.scrimStrips(screen, const []);
-      expect(strips, [screen]);
-    });
-
-    test('a hole fully outside the screen — the whole screen is scrimmed', () {
-      const offscreen = Rect.fromLTWH(-500, -500, 100, 100);
-      final strips = ScrimHolePainter.scrimStrips(screen, [offscreen]);
-      expect(strips, [screen]);
-    });
-  });
+  /// Recorded dim rects: drawRect ops with a normal (non-clear) paint.
+  Iterable<RecordedInvocation> dimRects(TestRecordingCanvas canvas) =>
+      canvas.invocations.where((record) =>
+          record.invocation.memberName == #drawRect &&
+          (record.invocation.positionalArguments[1] as Paint).blendMode !=
+              BlendMode.clear);
 
   group('ScrimHolePainter paint (no first-frame flash)', () {
+    test('dim + punch run inside an isolated layer', () {
+      // BlendMode.clear without saveLayer would erase the app painted
+      // beneath this picture (white box instead of the target). The layer
+      // confines the punch to the dim.
+      final canvas = TestRecordingCanvas();
+      final resolver = _FakeResolver(const PositionedHint(
+        translation: Offset(100, 100),
+        size: Size(200, 80),
+      ));
+      ScrimHolePainter(
+        resolvers: [resolver],
+        color: const Color(0x80000000),
+      ).paint(canvas, const Size(800, 600));
+      final ops = canvas.invocations
+          .map((r) => r.invocation.memberName)
+          .toList();
+      expect(ops.first, #saveLayer);
+      expect(ops.last, #restore);
+      expect(ops.where((m) => m == #drawRect).length, 1,
+          reason: 'the dim rect');
+      expect(ops.where((m) => m == #drawPath).length, 1,
+          reason: 'the punched hole path');
+    });
+
     test('unpositioned in active mode — paints NOTHING', () {
       final canvas = TestRecordingCanvas();
       final painter = ScrimHolePainter(
@@ -151,11 +78,10 @@ void main() {
         paintFullScrimWhenUnpositioned: true,
       );
       painter.paint(canvas, const Size(800, 600));
-      expect(canvas.invocations, hasLength(1));
-      expect(canvas.invocations.single.invocation.memberName, #drawRect);
+      expect(dimRects(canvas), hasLength(1));
+      expect(holeOps(canvas), isEmpty);
     });
-
-    test('positioned — one drawRect per strip', () {
+    test('positioned — one dim rect + one clear hole', () {
       final canvas = TestRecordingCanvas();
       final resolver = _FakeResolver(const PositionedHint(
         translation: Offset(100, 100),
@@ -166,13 +92,279 @@ void main() {
         color: const Color(0x80000000),
       );
       painter.paint(canvas, const Size(800, 600));
+      // The full-screen dim (follower-local coords: shifted by -translation).
+      final dims = dimRects(canvas).toList();
+      expect(dims, hasLength(1));
       expect(
-        canvas.invocations
-            .where((r) => r.invocation.memberName == #drawRect)
-            .length,
-        4,
-        reason: 'a centered hole → 4 strips',
+        dims.single.invocation.positionalArguments[0],
+        const Rect.fromLTWH(-100, -100, 800, 600),
       );
+      // One punched hole: the target rect + default padding.
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(-4, -4, 208, 88),
+      );
+    });
+  });
+
+  group('ScrimHolePainter.holeShape (one place for every hole)', () {
+    test('rectangle — exact bounds', () {
+      const hole = Rect.fromLTWH(10, 20, 80, 40);
+      final shape = ScrimHolePainter.holeShape(hole, FocusShape.rectangle)!;
+      expect(shape.getBounds(), hole);
+    });
+
+    test('circle — oval inscribed by the longest side', () {
+      const hole = Rect.fromLTWH(10, 20, 80, 40);
+      final shape = ScrimHolePainter.holeShape(hole, FocusShape.circle)!;
+      expect(shape.getBounds(), const Rect.fromLTWH(10, 0, 80, 80));
+    });
+
+    test('rounded — RRect with radius 12', () {
+      const hole = Rect.fromLTWH(10, 20, 80, 40);
+      final shape = ScrimHolePainter.holeShape(hole, FocusShape.roundedRect)!;
+      expect(shape.getBounds(), hole);
+      // Corner pixel outside the R12 arc, inside the rect.
+      expect(shape.contains(const Offset(11, 21)), isFalse);
+      expect(shape.contains(const Offset(50, 40)), isTrue);
+    });
+
+    test('tiny hole — radius clamped to half the shortest side', () {
+      const hole = Rect.fromLTWH(0, 0, 20, 20);
+      final shape = ScrimHolePainter.holeShape(hole, FocusShape.roundedRect)!;
+      // With the clamp (r = 10) the (3, 3) corner is inside the pill;
+      // with an unclamped r = 12 arc it would fall outside.
+      expect(shape.contains(const Offset(3, 3)), isTrue);
+      expect(shape.contains(const Offset(0.5, 0.5)), isFalse);
+      expect(shape.contains(const Offset(10, 10)), isTrue);
+    });
+
+    test('empty hole — null (cuts nothing)', () {
+      expect(ScrimHolePainter.holeShape(Rect.zero, FocusShape.rectangle), isNull);
+      expect(
+        ScrimHolePainter.holeShape(
+          const Rect.fromLTWH(0, 0, 100, 50).inflate(-100), FocusShape.roundedRect,
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('ScrimHolePainter focusShape', () {
+    test('rect (default) — sharp clear hole path', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(translation: Offset(100, 100), size: Size(80, 40)));
+      final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.rectangle, focusPadding: 4);
+      p.paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(-4, -4, 88, 48),
+      );
+    });
+
+    test('circle — one clear oval path', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(translation: Offset(100, 100), size: Size(80, 40)));
+      final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.circle, focusPadding: 0);
+      p.paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      // Ø = the longest side (80), centered on the hole.
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(0, -20, 80, 80),
+      );
+    });
+
+    test('rounded — one clear RRect path', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(translation: Offset(100, 100), size: Size(80, 40)));
+      final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.roundedRect, focusPadding: 4);
+      p.paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(-4, -4, 88, 48),
+      );
+    });
+
+    test('negative padding shrinks hole', () {
+      final r = _FakeResolver(const PositionedHint(translation: Offset(0, 0), size: Size(100, 50)));
+      final plain = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.rectangle, focusPadding: 4);
+      final shrink = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.rectangle, focusPadding: -8);
+      expect(plain.shouldRepaint(shrink), isTrue);
+    });
+
+    test('over-shrunk hole (inverted rect) paints full dim, no throw', () {
+      // Negative padding beyond the target size inverts the hole rect.
+      // Every shape degrades to a full dim (no hole punched), never throws.
+      final r = _FakeResolver(const PositionedHint(translation: Offset(0, 0), size: Size(100, 50)));
+      for (final shape in FocusShape.values) {
+        final canvas = TestRecordingCanvas();
+        final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: shape, focusPadding: -100);
+        p.paint(canvas, const Size(800, 600));
+        expect(dimRects(canvas), hasLength(1), reason: 'shape $shape');
+        expect(holeOps(canvas), isEmpty, reason: 'shape $shape: no hole cut');
+      }
+    });
+
+    test('tiny hole: corner radius clamped, no throw', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(translation: Offset(0, 0), size: Size(20, 20)));
+      final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.roundedRect, focusPadding: 0);
+      p.paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(0, 0, 20, 20),
+      );
+    });
+
+    test('window size 800x600 — hole punched in follower-local coords', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(translation: Offset(200, 150), size: Size(120, 80)));
+      final p = ScrimHolePainter(resolvers: [r], color: const Color(0x80000000), focusShape: FocusShape.roundedRect, focusPadding: 4);
+      p.paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      // Follower-local: the (128, 88) hole sits at the canvas origin.
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(-4, -4, 128, 88),
+      );
+    });
+  });
+
+  group('RectScrimPainter (explicit screen-space holes)', () {
+    test('dim + punch run inside an isolated layer', () {
+      final canvas = TestRecordingCanvas();
+      RectScrimPainter(
+        holes: const [Rect.fromLTWH(100, 300, 120, 40)],
+        color: const Color(0x80000000),
+      ).paint(canvas, const Size(800, 600));
+      final ops = canvas.invocations
+          .map((r) => r.invocation.memberName)
+          .toList();
+      expect(ops.first, #saveLayer);
+      expect(ops.last, #restore);
+    });
+
+    RectScrimPainter painter({
+      List<Rect> holes = const [Rect.fromLTWH(100, 300, 120, 40)],
+      FocusShape focusShape = FocusShape.rectangle,
+    }) =>
+        RectScrimPainter(
+          holes: holes,
+          color: const Color(0x80000000),
+          focusShape: focusShape,
+        );
+
+    test('dims fullscreen, then punches the hole with clear', () {
+      final canvas = TestRecordingCanvas();
+      painter().paint(canvas, const Size(800, 600));
+      expect(dimRects(canvas), hasLength(1));
+      final holes = holeOps(canvas).toList();
+      expect(holes, hasLength(1));
+      expect(holes.single.invocation.memberName, #drawPath);
+      expect(
+        (holes.single.invocation.positionalArguments[0] as Path).getBounds(),
+        const Rect.fromLTWH(100, 300, 120, 40),
+      );
+    });
+
+    test('shaped variants punch shaped holes', () {
+      for (final shape in [FocusShape.circle, FocusShape.roundedRect]) {
+        final canvas = TestRecordingCanvas();
+        painter(
+          holes: const [Rect.fromLTWH(100, 100, 120, 80)],
+          focusShape: shape,
+        ).paint(canvas, const Size(800, 600));
+        expect(dimRects(canvas), hasLength(1));
+        final holes = holeOps(canvas).toList();
+        expect(holes, hasLength(1));
+        expect(holes.single.invocation.memberName, #drawPath);
+      }
+    });
+
+    test('empty holes paint a full dim, no throw', () {
+      for (final holes in [
+        <Rect>[],
+        [Rect.zero],
+      ]) {
+        final canvas = TestRecordingCanvas();
+        painter(holes: holes).paint(canvas, const Size(800, 600));
+        expect(dimRects(canvas), hasLength(1));
+        expect(holeOps(canvas), isEmpty);
+      }
+    });
+
+    test('outside holes are harmless (clipped by the canvas), no throw', () {
+      for (final holes in [
+        [const Rect.fromLTWH(-200, -200, 50, 50)],
+        [const Rect.fromLTWH(900, 700, 50, 50)],
+      ]) {
+        final canvas = TestRecordingCanvas();
+        painter(holes: holes).paint(canvas, const Size(800, 600));
+        expect(dimRects(canvas), hasLength(1));
+      }
+    });
+
+    test('shouldRepaint on color/shape/holes change', () {
+      final a = painter();
+      expect(a.shouldRepaint(painter()), isFalse);
+      expect(
+        a.shouldRepaint(
+          painter(holes: const [Rect.fromLTWH(0, 0, 10, 10)]),
+        ),
+        isTrue,
+      );
+      expect(a.shouldRepaint(painter(focusShape: FocusShape.roundedRect)), isTrue);
+    });
+  });
+
+  group('scrimClipPath (even-odd clip for the blur scrim)', () {
+    const screen = Rect.fromLTWH(0, 0, 800, 600);
+
+    test('cuts every shape without boolean ops', () {
+      for (final shape in FocusShape.values) {
+        final path = ScrimHolePainter.scrimClipPath(
+          screen,
+          const [Rect.fromLTWH(100, 100, 120, 80)],
+          shape,
+        );
+        expect(path.fillType, PathFillType.evenOdd);
+        expect(path.contains(const Offset(160, 140)), isFalse,
+            reason: 'shape $shape: hole center is cut out');
+        expect(path.contains(const Offset(10, 10)), isTrue,
+            reason: 'shape $shape: far corner stays clipped in');
+      }
+    });
+
+    test('empty holes clip to the full screen, no throw', () {
+      final path = ScrimHolePainter.scrimClipPath(
+        screen,
+        const [],
+        FocusShape.roundedRect,
+      );
+      expect(path.contains(const Offset(400, 300)), isTrue);
+      expect(path.contains(const Offset(10, 10)), isTrue);
     });
   });
 
@@ -206,3 +398,6 @@ void main() {
     });
   });
 }
+
+
+

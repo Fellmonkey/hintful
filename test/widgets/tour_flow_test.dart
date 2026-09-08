@@ -103,7 +103,49 @@ void main() {
         reason: 'the tooltip rides with the target',
       );
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
+    testWidgets(
+        'target out of paint but kept in cache: the spotlight retracts '
+        'instead of freezing, returns on scroll back', (tester) async {
+      final h = TourHarness(
+        targets: [
+          HarnessTarget('stats', top: 200, height: 80),
+          HarnessTarget('far', top: 800, height: 80),
+        ],
+        scrollable: true,
+      );
+      final tour = HintTour(
+        id: 'cull',
+        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(find.text('Statistics'), findsOneWidget);
+
+      // Scroll the target fully out of the viewport but inside the sliver
+      // cache (content 200..280 goes to -150..-70): the registration — and
+      // the Active state — survive, but the leader stops painting and the
+      // follower unlinks.
+      h.scrollController.jumpTo(350);
+      await TourHarness.settle(tester);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(find.text('Statistics'), findsNothing,
+          reason: 'no stale spotlight frozen on the background');
+
+      // Scroll back: the follower re-links, the snapshot re-mounts the
+      // tooltip (and the hole) through the first-snapshot path.
+      h.scrollController.jumpTo(0);
+      await TourHarness.settle(tester);
+      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(find.text('Statistics'), findsOneWidget);
+
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -232,7 +274,8 @@ void main() {
       expect(tipAfter.top, greaterThan(targetAfter.bottom),
           reason: 'the side was re-picked on scroll (not stuck above)');
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -253,7 +296,11 @@ void main() {
           HintStep(
             targetId: 'stats',
             title: 'Statistics',
-            description: 'A longer description so the tooltip is tall enough',
+            // Tall enough to cross the home-indicator inset even without
+            // the action row (a single-step hint keeps no buttons).
+            description: 'A longer description so the tooltip is tall enough '
+                'to cross the bottom inset and must mirror above the target '
+                'instead of fitting below it on the bare screen.',
             position: TooltipPosition.bottom,
           ),
         ],
@@ -268,7 +315,8 @@ void main() {
       expect(tip.bottom, lessThanOrEqualTo(600 - 60 + 0.5),
           reason: 'the tooltip stays inside the safe rect');
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -289,7 +337,8 @@ void main() {
       expect(tailFinder, findsOneWidget,
           reason: 'showTail defaults to true — the arrow is drawn');
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -317,7 +366,8 @@ void main() {
       );
       expect(tailFinder, findsNothing);
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -354,6 +404,35 @@ void main() {
       h.disposeNow(); // waiting holds a timer — release in the body
     });
 
+    testWidgets('sprung entry is instant under reduce-motion (no bounce)',
+        (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'sprung-rm',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            title: 'Statistics',
+            transitionCurve: HintCurve.sprung,
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      expect(find.text('Statistics'), findsOneWidget);
+      expect(find.byType(TweenAnimationBuilder), findsNothing,
+          reason: 'reduce-motion: the sprung entry mounts instantly');
+      h.controller.finish();
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
     testWidgets('text scale 2.0: the tooltip still fits on screen',
         (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 2.0;
@@ -387,10 +466,9 @@ void main() {
       expect(tip.left, greaterThanOrEqualTo(0));
       expect(tip.right, lessThanOrEqualTo(800));
 
-      // The content scrolls inside the tooltip — the action stays reachable.
-      await tester.ensureVisible(find.text('Done'));
-      await tester.pump();
-      await tester.tap(find.text('Done'));
+      // The content scrolls inside the tooltip at 2×; the tour itself
+      // finishes via a tap on the target (no Done on a single-step hint).
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -426,7 +504,7 @@ void main() {
       expect(focusNode.hasFocus, isFalse);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
       // Focus is back where it was before the tour.
@@ -457,12 +535,14 @@ void main() {
       expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
       expect(find.text('Statistics'), findsOneWidget);
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the primary finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
 
-    testWidgets('a single hint has no Skip button', (tester) async {
+    testWidgets('a single hint has no buttons at all (no Done, no Skip)',
+        (tester) async {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
       final tour = HintTour(
         id: 'single',
@@ -471,12 +551,18 @@ void main() {
       await h.pump(tester);
       await h.start(tester, tour);
 
-      expect(find.text('Done'), findsOneWidget);
+      expect(find.text('Statistics'), findsOneWidget);
+      expect(find.text('Done'), findsNothing,
+          reason: 'a lone hint is informational — no Done');
+      expect(find.text('Next'), findsNothing);
       expect(find.text('Skip'), findsNothing,
           reason: 'a lone hint: Skip is meaningless (Done does the same)');
+      expect(find.text('Back'), findsNothing);
 
-      await tester.tap(find.text('Done'));
+      // A tap on the target finishes a single-step tour.
+      await tester.tap(find.text('stats'));
       await tester.pump();
+      expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
     });
 
@@ -504,19 +590,20 @@ void main() {
       await h.start(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
-      // Both slots are visible; only the primary keeps the action buttons
-      // (the tour has one step → Done, not Next).
+      // Both slots are visible; a single-step tour keeps no action row —
+      // the primary is informational like the extra slot (tap on the target
+      // finishes the tour).
       expect(find.text('Primary'), findsOneWidget);
       expect(find.text('Extra'), findsOneWidget);
-      expect(find.text('Done'), findsOneWidget,
-          reason: 'the extra slot is informational (no button row)');
+      expect(find.text('Done'), findsNothing);
+      expect(find.text('Next'), findsNothing);
 
       // The slots never overlap (N3 collision handling).
       final primaryRect = tester.getRect(find.text('Primary'));
       final extraRect = tester.getRect(find.text('Extra'));
       expect(primaryRect.overlaps(extraRect), isFalse);
 
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });
@@ -583,7 +670,8 @@ void main() {
       final tipAfter = tester.getRect(find.text('Statistics'));
       expect(tipAfter.top, greaterThan(targetAfter.bottom));
 
-      await tester.tap(find.text('Done'));
+      // No Done on a single-step hint — a tap on the target finishes it.
+      await tester.tap(find.text('stats'));
       await tester.pump();
       h.expectIdleClean();
     });

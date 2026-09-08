@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0 — spotlight correctness (saveLayer scrim, rect targets, honest states)
+
+- One scrim mechanism for every shape: fullscreen dim + `BlendMode.clear`
+  holes in an isolated layer (no boolean geometry, overlap-correct); blur
+  clips to one even-odd path. Removed the strips path (`scrimStrips`,
+  pre-1.0 breaking note).
+- First shown step renders dim + hole together with the tooltip (was:
+  tooltip without dim until a step change).
+- `targetRect` steps: immediate Active, static spotlight with tooltip;
+  explicit `overlay` provider for zero-target tours.
+- Offscreen/culled targets: no frozen spotlight — retracted while
+  unpainted, remounted on return; bringing targets into view stays the
+  app's job. No stale tooltip on step change (transition frame unmounts).
+- Single-step hints keep no action row (no meaningless Done).
+- Hardened holes: over-shrunk padding degrades to full dim, corner radius
+  clamped, never throws.
+- DRY: one hole geometry, one tooltip content/placement/entry source,
+  `FocusShape` end to end, one machine step-entry path.
+- Accessibility: sprung honors reduce-motion; offer dialog awaits start.
+
 ## 0.5.0 — production hardening (l10n, skip-missing, safe start, scopes)
 
 Four battle-feedback fixes, all backward-compatible:

@@ -111,7 +111,9 @@ Future<HintTourOfferResult> showHintTourOffer({
   );
 
   if (accepted ?? false) {
-    controller.start(tour);
+    // Awaited: start() validates synchronously (typo assert) and must not
+    // fail into an unhandled async error after we already reported success.
+    await controller.start(tour);
     return HintTourOfferResult.started;
   }
   // Declined: remember it — per page, or for all pages when the checkbox

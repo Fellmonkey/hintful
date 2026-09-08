@@ -8,6 +8,21 @@ import 'package:flutter/widgets.dart';
 /// re-picks the side with the most free space.
 enum TooltipPosition { auto, top, bottom, left, right }
 
+enum FocusShape { rectangle, circle, roundedRect }
+
+/// Tooltip entry animation — the animation ladder, rung 2.
+///
+/// - null / [HintCurve.easeOut] — no entry animation: the tooltip simply
+///   appears (`easeOut` is reserved for a future gentle preset);
+/// - [HintCurve.sprung] — the zero-config bounce (scale 0.8 → 1.0 +
+///   fade, `elasticOut`), timed by [HintStep.transitionDuration].
+///
+/// Anything beyond a bounce (slide, fade-then-rise, staggered content) is
+/// rung 3: a custom `tooltipBuilder` with its own animation widgets — the
+/// engine places the built tooltip, the builder owns how it enters. All
+/// entry animation is skipped under the system reduce-motion setting.
+enum HintCurve { easeOut, sprung }
+
 /// Actions available to a step's content (custom tooltips).
 ///
 /// Published instead of the concrete controller: the data contract (specs)
@@ -85,6 +100,13 @@ class HintStep {
     this.onTapTarget,
     this.onTapOverlay,
     this.tooltipBuilder,
+    this.focusShape = FocusShape.rectangle,
+    this.focusPadding = 4.0,
+    this.transitionDuration,
+    this.transitionCurve,
+    this.targetRect,
+    this.onBeforeAction,
+    this.onAfterAction,
   })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
         assert(
           title != null || tooltipBuilder != null,
@@ -157,8 +179,25 @@ class HintStep {
     HintTooltipContext ctx,
   )? tooltipBuilder;
 
+  final FocusShape focusShape;
+  final double focusPadding;
+
+  /// Entry-animation length for [transitionCurve]; null — the curve default
+  /// (800 ms for [HintCurve.sprung]). Ignored without a curve.
+  final Duration? transitionDuration;
+
+  /// Entry-animation preset, see [HintCurve] (rung 2 of the animation
+  /// ladder); null — no animation. Rung 3 (anything custom) is a
+  /// [tooltipBuilder] with its own animation widgets.
+  final HintCurve? transitionCurve;
+  final Rect? targetRect;
+  final Future<void> Function()? onBeforeAction;
+  final Future<void> Function()? onAfterAction;
+
   /// All target ids of the step: the primary [targetId] + [moreTargets].
   List<String> get targetIds => [targetId, ...moreTargets];
+
+  bool get hasRectTarget => targetRect != null;
 
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => waitTimeout ?? fallback;
@@ -183,6 +222,12 @@ class HintStep {
           'missingTargetPolicy': missingTargetPolicy!.name,
         'tapOnTarget': tapOnTarget,
         'tapOnOverlay': tapOnOverlay,
+        if (focusShape != FocusShape.rectangle) 'focusShape': focusShape.name,
+        if (focusPadding != 4.0) 'focusPadding': focusPadding,
+        if (transitionDuration != null) 'transitionDurationMs': transitionDuration!.inMilliseconds,
+        if (transitionCurve != null) 'transitionCurve': transitionCurve!.name,
+        if (targetRect != null)
+          'targetRect': {'left': targetRect!.left, 'top': targetRect!.top, 'width': targetRect!.width, 'height': targetRect!.height},
       };
 
   factory HintStep.fromJson(Map<String, dynamic> json) => HintStep(
@@ -194,12 +239,8 @@ class HintStep {
             const [],
         title: json['title'] as String?,
         description: json['description'] as String?,
-        position: json['position'] == null
-            ? TooltipPosition.auto
-            : TooltipPosition.values.byName(json['position'] as String),
-        waitTimeout: json['waitTimeoutMs'] == null
-            ? null
-            : Duration(milliseconds: json['waitTimeoutMs'] as int),
+        position: json['position'] == null ? TooltipPosition.auto : TooltipPosition.values.byName(json['position'] as String),
+        waitTimeout: json['waitTimeoutMs'] == null ? null : Duration(milliseconds: json['waitTimeoutMs'] as int),
         showSkip: json['showSkip'] as bool? ?? true,
         missingTargetPolicy: json['missingTargetPolicy'] == null
             ? null
@@ -207,6 +248,13 @@ class HintStep {
                 .byName(json['missingTargetPolicy'] as String),
         tapOnTarget: json['tapOnTarget'] as bool? ?? true,
         tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
+        focusShape: json['focusShape'] == null ? FocusShape.rectangle : FocusShape.values.byName(json['focusShape'] as String),
+        focusPadding: (json['focusPadding'] as num?)?.toDouble() ?? 4.0,
+        transitionDuration: json['transitionDurationMs'] == null ? null : Duration(milliseconds: json['transitionDurationMs'] as int),
+        transitionCurve: json['transitionCurve'] == null ? null : HintCurve.values.byName(json['transitionCurve'] as String),
+        targetRect: json['targetRect'] == null
+            ? null
+            : Rect.fromLTWH((json['targetRect']['left'] as num).toDouble(), (json['targetRect']['top'] as num).toDouble(), (json['targetRect']['width'] as num).toDouble(), (json['targetRect']['height'] as num).toDouble()),
       );
 }
 
@@ -260,8 +308,8 @@ class HintTooltip {
 
 /// A hint tour — a declarative sequence of [HintStep]s.
 ///
-/// Pure data, serializable 1-to-1 to JSON (server-driven tours later):
-/// `{id, steps: [{targetId, title, ...}], stepTimeout}`.
+/// Pure data, serializable 1-to-1 to JSON (server-driven tours via
+/// `fromJson`): `{id, steps: [{targetId, title, ...}], stepTimeout}`.
 @immutable
 class HintTour {
   const HintTour({

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,6 +7,7 @@ import '../../widgets/default_tooltip.dart';
 import '../controller.dart' show HintController, HintOverlayHost;
 import '../diagnostics.dart';
 import '../machine.dart';
+import '../motion.dart' show hintTransitionDuration;
 import '../position_resolver.dart';
 import '../registry.dart';
 import '../specs.dart';
@@ -16,8 +16,6 @@ import 'pulse_painter.dart';
 import 'scrim_painter.dart';
 import 'tooltip_placement.dart';
 import 'tooltip_tail.dart';
-
-const _kTooltipGap = 12.0;
 
 /// Standard render-mechanics wiring: the engine over [registry] (defaults to
 /// the registry singleton — zero-config).
@@ -28,14 +26,31 @@ const _kTooltipGap = 12.0;
 /// final controller = HintController(overlayHostBuilder: defaultOverlayHost());
 /// ```
 ///
+/// Pass [overlay] explicitly for targetRect-only tours with zero mounted
+/// targets (nothing to capture the root overlay from — see `targetRect`).
+/// It is a provider, not a value: it is called when the host is built
+/// lazily on the first non-idle state, so a `GlobalKey<OverlayState>` from
+/// the widget tree is already usable there:
+///
+/// ```dart
+/// final overlayKey = GlobalKey<OverlayState>();
+/// HintController(
+///   overlayHostBuilder: defaultOverlayHost(
+///     overlay: () => overlayKey.currentState,
+///   ),
+/// );
+/// ```
+///
 /// The engine itself and its internals (scrim, placement delegate) stay
 /// hidden: they can change without breaking, while this contract is stable.
 HintOverlayHost Function(HintController) defaultOverlayHost({
   HintTargetRegistry? registry,
+  OverlayState? Function()? overlay,
 }) {
   return (controller) => HintOverlayEngine(
         registry: registry ?? HintTargetRegistry.defaultInstance,
         input: controller,
+        overlay: overlay?.call(),
       );
 }
 
@@ -259,19 +274,31 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     final step = tour.steps[stepIndex];
     final hintTheme = Theme.of(context).hintTheme;
 
+    // Rect-anchored step: explicit coordinates win over the registry (a
+    // step whose point is `targetRect` spotlights exactly that rect — even
+    // when its `targetId` happens to be registered too).
+    //
     // Waiting: the primary target does not exist yet — full scrim without a
     // hole + "preparing". No tap handling: the pointer passes through to the
     // app (the page stays scrollable while preparing), and taps are a no-op
     // anyway while waiting (the machine ignores next until the target is up).
-    final body = widget.registry.lookup(step.targetId) == null
-        ? _buildWaitingMode(hintTheme)
-        : _buildTargetMode(
-            context,
-            step,
+    final body = step.hasRectTarget
+        ? _RectTargetContent(
+            step: step,
             stepIndex: stepIndex,
             totalSteps: tour.steps.length,
+            actions: widget.input,
             theme: hintTheme,
-          );
+          )
+        : widget.registry.lookup(step.targetId) == null
+            ? _buildWaitingMode(hintTheme)
+            : _buildTargetMode(
+                context,
+                step,
+                stepIndex: stepIndex,
+                totalSteps: tour.steps.length,
+                theme: hintTheme,
+              );
 
     return FocusScope(
       node: _scopeNode,
@@ -376,16 +403,17 @@ class _HintOverlayViewState extends State<_HintOverlayView>
 /// moves instantly via the compositor; the tooltip catches up on the next
 /// frame — inherent to snapshot placement: a compositor-driven tooltip would
 /// be bounded by the follower's hit-test area and lose full-screen buttons).
-/// The same lag applies to the opt-in blur scrim (its strips are built from
+/// The same lag applies to the opt-in blur scrim (its clip is built from
 /// the watcher's snapshot, not read live at paint).
 ///
 /// The single owner of the targets' positions in the overlay: it creates the
 /// resolvers (compositor transforms) after the followers mount and hands them
 /// to the scrim painter, the pulse and its own watcher. The watcher reads
 /// the primary transform once per frame — movement → `markNeedsPaint` on the
-/// scrim (the picture changes shape) + `setState` (the tooltip follows the
-/// target); the first successful snapshot after mount/target-change mounts
-/// the tooltip at the right place. At rest — zero repaints and zero setState.
+/// scrim (the picture changes shape) + hole-notifier (the tooltip follows
+/// without rebuilding the overlay subtree); the first successful snapshot
+/// after mount/target-change mounts the tooltip at the right place. At
+/// rest — zero repaints and zero setState.
 ///
 /// Taps: the wrapper `GestureDetector` is **translucent** — the overlay owns
 /// taps (its recognizer joins the arena first, it is the topmost hit), while
@@ -440,23 +468,21 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   bool _pollScheduled = false;
   TapDownDetails? _lastTap;
 
-  /// The primary hole's top-left, published to the tooltip repositioner.
-  /// Movement frames update ONLY this notifier (and repaint the scrim) —
-  /// the overlay subtree does not rebuild while scrolling; the repositioner
-  /// (a tiny child) re-places the cached tooltip.
+  /// The primary hole's top-left, published to the tooltip placement
+  /// listener. Movement frames update ONLY this notifier (and repaint the
+  /// scrim) — the overlay subtree does not rebuild while scrolling; the
+  /// listener (a tiny child) re-places the cached tooltip.
   final ValueNotifier<Offset?> _holeNotifier = ValueNotifier<Offset?>(null);
 
-  /// Cached tooltip slots (the content widgets incl. the tail wrapper).
-  /// Rebuilt only when the STEP changes; reused across movement frames so
-  /// the tooltip content stays identical while scrolling — identical widget
-  /// instances mean no re-layout of the tooltip text on every movement
-  /// frame (a fresh DefaultTooltip/TextSpan per frame would re-measure
-  /// paragraphs on every scroll tick). Position/layout updates still happen
-  /// (the placement delegate rebuilds with the fresh hole), only the
-  /// content subtree is skipped.
-  List<Widget>? _slotCache;
-  HintStep? _slotCacheStep;
-  int? _slotCacheIndex;
+  /// Cached tooltip slots (the content widgets incl. the tail wrapper),
+  /// with the step they were built for. Rebuilt only when the STEP changes;
+  /// reused across movement frames so the tooltip content stays identical
+  /// while scrolling — identical widget instances mean no re-layout of the
+  /// tooltip text on every movement frame (a fresh DefaultTooltip/TextSpan
+  /// per frame would re-measure paragraphs on every scroll tick).
+  /// Position/layout updates still happen (the placement delegate rebuilds
+  /// with the fresh hole), only the content subtree is skipped.
+  ({HintStep step, int index, List<Widget> slots})? _slotCache;
 
   /// Pulse ring animation; created lazily — only while `theme.showPulse` is
   /// on (default off), so the common path allocates no controller/ticker.
@@ -475,24 +501,25 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   @override
   void didUpdateWidget(covariant _ActiveOverlayContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-snapshot only when the primary target changes: another leader's
-    // transform is invalid. A step change on the same target keeps the
-    // position — the tooltip does not flash (build re-places it for the new
-    // step).
+    // The primary target changed (steps never share one — the controller
+    // asserts duplicate targetIds): the old transform is invalid, so drop
+    // the snapshot...
     if (oldWidget.registrations.first.link != widget.registrations.first.link) {
       _translation = null;
+      // Unmount the tooltip for the transition frame: the notifier still
+      // holds the old hole, and painting the old step's tooltip at the old
+      // position for a frame is the same misalignment the scrim's no-flash
+      // rule forbids. The snapshot below remounts it at the right place.
+      _holeNotifier.value = null;
     }
     // Drop followers/resolvers of targets no longer in the step; add new ids.
     final currentIds = {for (final r in widget.registrations) r.id};
     _followerKeys.removeWhere((id, _) => !currentIds.contains(id));
     _resolvers.removeWhere((id, _) => !currentIds.contains(id));
     _syncFollowerKeys();
-    // Step change → the cached tooltip content is stale (new title/desc/
-    // buttons); the next build rebuilds the slots.
-    if (!identical(_slotCacheStep, widget.step) ||
-        _slotCacheIndex != widget.stepIndex) {
-      _slotCache = null;
-    }
+    // Note: the tooltip slot cache is NOT invalidated here — _tooltipSlots
+    // detects the step change itself on the next build (the single check
+    // lives in exactly one place).
     // Pulse on/off by the theme.
     _ensurePulse();
   }
@@ -529,48 +556,50 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      // Translucent: the overlay owns taps (topmost → first in the arena),
-      // while drags pass through to the scrollable below (scroll-through —
-      // the page scrolls under an active tour). Tooltip buttons are deeper
-      // than this detector, so their taps win the arena (a Material button
-      // is deeper → first in the arena).
-      behavior: HitTestBehavior.translucent,
+    return _TapShell(
       onTapDown: (details) => _lastTap = details,
-      onTap: _dispatchTap,        child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screen = constraints.biggest;
-          final primary = widget.registrations.first;
-          final blur = widget.theme.imageFilter;
+      onTap: _dispatchTap,
+      builder: (context, screen) {
+        final primary = widget.registrations.first;
+        final blur = widget.theme.imageFilter;
 
-
-          // Primary follower: hosts the scrim painter (non-blur mode). In
-          // blur mode the scrim is the global layer and the follower stays
-          // empty (both read the live resolver). The painters must not
-          // absorb pointer events: `CustomPaint` hit-tests self when it has
-          // a painter, which would stop the translucent pass-through to the
-          // app below (no scroll-through). IgnorePointer keeps them painting
-          // while letting the hit test continue (the wrapper GestureDetector
-          // still joins the arena — translucent adds itself regardless of
-          // children).
-          final Widget followerChild = blur == null
-              ? Stack(
-                  children: [
-                    Positioned.fill(
-                      child: IgnorePointer(
+        // Primary follower: hosts the scrim painter (non-blur mode). In
+        // blur mode the scrim is the global layer and the follower stays
+        // empty (both read the live resolver). The painters must not
+        // absorb pointer events: `CustomPaint` hit-tests self when it has
+        // a painter, which would stop the translucent pass-through to the
+        // app below (no scroll-through). IgnorePointer keeps them painting
+        // while letting the hit test continue (the wrapper GestureDetector
+        // still joins the arena — translucent adds itself regardless of
+        // children).
+        final Widget followerChild = blur == null
+            ? Stack(
+                children: [
+                  Positioned.fill(
+                    child: IgnorePointer(
                         child: CustomPaint(
                           key: _scrimPaintKey,
                           painter: ScrimHolePainter(
-                            resolvers: _resolverList(),
+                            // Live resolvers in registration order (primary
+                            // first). The painter reads them at paint time;
+                            // element-wise identity is what the painter uses
+                            // to skip redundant repaints.
+                            resolvers: [
+                              for (final r in widget.registrations)
+                                if (_resolvers[r.id] != null)
+                                  _resolvers[r.id]!,
+                            ],
                             color: widget.theme.scrimColor,
+                            focusShape: widget.step.focusShape,
+                            focusPadding: widget.step.focusPadding,
                           ),
                           child: const SizedBox.expand(),
                         ),
-                      ),
                     ),
-                  ],
-                )
-              : const SizedBox.shrink();
+                  ),
+                ],
+              )
+            : const SizedBox.shrink();
 
           return Stack(
             children: [
@@ -589,8 +618,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                   child: const SizedBox.shrink(),
                 ),
               // Opt-in blur scrim: a global layer (BackdropFilter) clipped to
-              // the screen-minus-holes strips, built from the build-time hole
-              // rects — one frame behind the compositor, same as the tooltip.
+              // the screen minus the holes (even-odd clip) — built from the
+              // build-time hole rects, one frame behind the compositor, same
+              // as the tooltip.
               if (blur != null)
                 Positioned.fill(
                   child: ValueListenableBuilder<Offset?>(
@@ -608,12 +638,15 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
               // Full-screen layout box (getSize = biggest): tooltip buttons
               // are hit-testable anywhere on screen; taps past the tooltip
               // fall through (hitTestSelf = false) onto the scrim → next.
-              // Rebuilds only on step change or a hole update (movement) —
-              // the repositioner below re-places the cached tooltip content
-              // without rebuilding the overlay subtree.
-              _RepositionTooltip(
-                hole: _holeNotifier,
-                builder: (context, translation) {
+              // Listens to the hole notifier and rebuilds ONLY the tooltip
+              // placement (the cached content child stays identical across
+              // movement frames — no text re-layout).
+              ValueListenableBuilder<Offset?>(
+                valueListenable: _holeNotifier,
+                builder: (context, translation, _) {
+                  // No authoritative snapshot yet: the tooltip must not
+                  // mount at a zero position (it would slide off-screen).
+                  if (translation == null) return const SizedBox.shrink();
                   final holeLocal =
                       translation & (primary.link.leaderSize ?? Size.zero);
                   return _buildTooltip(context, holeLocal, screen);
@@ -622,17 +655,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
             ],
           );
         },
-      ),
-    );
+      );
   }
 
   /// The step's tooltips: the primary alone (single path) or the primary +
   /// the extra slots (multi-content) — a `CustomMultiChildLayout` placing
   /// each slot on its own side; a slot avoids the spotlighted targets and
   /// the already-placed slots, so tooltips never overlap.
-  ///
-  /// The slot content is [cached]; only the placement delegate is rebuilt
-  /// on movement frames (see [_slotCache]).
   Widget _buildTooltip(BuildContext context, Rect holeLocal, Size screen) {
     final ctx = HintTooltipContext(
       actions: widget.actions,
@@ -642,43 +671,37 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     final slots = _tooltipSlots(context, ctx);
     final extras = widget.step.moreTooltips;
     if (extras.isEmpty) {
-      return CustomSingleChildLayout(
-        delegate: TooltipPlacementDelegate(
-          screenLocal: Offset.zero & screen,
-          holeLocal: holeLocal,
-          // Multi-target steps: the tooltip must not cover the other
-          // spotlighted targets.
-          extraHoles: _extraHoleRects(),
-          position: widget.step.position,
-          gap: _kTooltipGap,
-          // Keep-in-safe-area: the tooltip never crosses system insets
-          // (notch, home indicator).
-          safeArea: MediaQuery.paddingOf(context),
-        ),
-        child: slots.single,
+      // The cached slot stays identical across movement frames (no text
+      // re-layout while scrolling); only the placement delegate rebuilds.
+      return _placedPrimaryTooltip(
+        context: context,
+        step: widget.step,
+        stepIndex: widget.stepIndex,
+        content: slots.single,
+        hole: holeLocal,
+        screen: screen,
+        extraHoles: _extraHoleRects(),
       );
     }
-    return CustomMultiChildLayout(
+    final content = CustomMultiChildLayout(
       delegate: TooltipMultiPlacementDelegate(
         screenLocal: Offset.zero & screen,
         holeLocal: holeLocal,
         primaryPosition: widget.step.position,
         extraPositions: [for (final extra in extras) extra.position],
         extraHoles: _extraHoleRects(),
-        gap: _kTooltipGap,
-        safeArea: MediaQuery.paddingOf(context),
+                safeArea: MediaQuery.paddingOf(context),
       ),
       children: [
-        LayoutId(
-          id: TooltipMultiPlacementDelegate.primaryId,
-          child: slots.first,
-        ),
-        for (var i = 0; i < extras.length; i++)
-          LayoutId(
-            id: TooltipMultiPlacementDelegate.extraId(i),
-            child: slots[i + 1],
-          ),
+        LayoutId(id: TooltipMultiPlacementDelegate.primaryId, child: slots.first),
+        for (var i = 0; i < extras.length; i++) LayoutId(id: TooltipMultiPlacementDelegate.extraId(i), child: slots[i + 1]),
       ],
+    );
+    return _sprungTooltipEntry(
+      context: context,
+      step: widget.step,
+      stepIndex: widget.stepIndex,
+      child: content,
     );
   }
 
@@ -688,40 +711,44 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// movement frames — the elements stay mounted and identical, so their
   /// build/re-layout is skipped.
   List<Widget> _tooltipSlots(BuildContext context, HintTooltipContext ctx) {
-    final changed =
-        _slotCache == null ||
-        !identical(_slotCacheStep, widget.step) ||
-        _slotCacheIndex != widget.stepIndex;
-    if (!changed) return _slotCache!;
-    _slotCacheStep = widget.step;
-    _slotCacheIndex = widget.stepIndex;
-    final extras = widget.step.moreTooltips;
-    return _slotCache = [
-      _tooltipSlot(context, null, ctx),
-      for (var i = 0; i < extras.length; i++)
-        _tooltipSlot(context, extras[i], ctx),
-    ];
+    var cache = _slotCache;
+    if (cache == null ||
+        !identical(cache.step, widget.step) ||
+        cache.index != widget.stepIndex) {
+      final extras = widget.step.moreTooltips;
+      cache = _slotCache = (
+        step: widget.step,
+        index: widget.stepIndex,
+        slots: [
+          _tooltipSlot(context, null, ctx),
+          for (var i = 0; i < extras.length; i++)
+            _tooltipSlot(context, extras[i], ctx),
+        ],
+      );
+    }
+    return cache.slots;
   }
 
-  /// The visual content of one slot: the default tooltip — the primary with
-  /// its action buttons, an extra slot informational (no buttons) with the
-  /// slot's own content — or the custom builder. Wrapped in the tail when
-  /// the theme asks for it (the tail points toward the hole from whichever
-  /// side the slot landed on). The hole is read LIVE by the tail at paint
-  /// time — the cached slot follows the moving target without a rebuild.
+  /// The visual content of one slot: the primary (shared content + a tail
+  /// that reads the hole LIVE at paint time, so the cached slot follows a
+  /// moving target without a rebuild) or an extra slot — informational (no
+  /// buttons) with its own content — or a custom builder.
   Widget _tooltipSlot(
     BuildContext context,
     HintTooltip? extra,
     HintTooltipContext ctx,
   ) {
-    final Widget content;
     if (extra == null) {
-      if (widget.step.tooltipBuilder != null) {
-        content = widget.step.tooltipBuilder!(context, widget.step, ctx);
-      } else {
-        content = DefaultTooltip(step: widget.step, ctx: ctx);
-      }
-    } else if (extra.tooltipBuilder != null) {
+      return _primaryTooltipSlot(
+        context: context,
+        step: widget.step,
+        ctx: ctx,
+        theme: widget.theme,
+        holeOf: _primaryHoleGlobal,
+      );
+    }
+    final Widget content;
+    if (extra.tooltipBuilder != null) {
       content = extra.tooltipBuilder!(context, widget.step, ctx);
     } else {
       content = DefaultTooltip(
@@ -750,14 +777,6 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     return translation & (primary.link.leaderSize ?? Size.zero);
   }
 
-  /// Live resolvers in registration order (primary first). The painter reads
-  /// them at paint time; element-wise identity is what [ScrimHolePainter]
-  /// uses to skip redundant repaints.
-  List<HintPositionResolver> _resolverList() => [
-        for (final r in widget.registrations)
-          if (_resolvers[r.id] != null) _resolvers[r.id]!,
-      ];
-
   /// Global rects of the secondary targets (for placement vetoes and tap
   /// regions).
   List<Rect> _extraHoleRects() => [
@@ -770,13 +789,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// Global rects of ALL spotlighted targets (primary + extras) — tap
   /// regions.
   List<Rect> _currentHoleRects() {
-    final translation = _translation;
-    if (translation == null) return const [];
-    final primary = widget.registrations.first;
-    return [
-      translation & (primary.link.leaderSize ?? Size.zero),
-      ..._extraHoleRects(),
-    ];
+    if (_translation == null) return const [];
+    return [_primaryHoleGlobal(), ..._extraHoleRects()];
   }
 
   /// The pulse ring in the global layer: above the scrim (plain and blur),
@@ -795,6 +809,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
             animation: _pulseController!,
             resolver: _resolvers[primary.id],
             color: widget.theme.tooltipForeground,
+            focusShape: widget.step.focusShape,
+            focusPadding: widget.step.focusPadding,
           ),
           child: const SizedBox.expand(),
         ),
@@ -802,25 +818,26 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     );
   }
 
+  /// Opt-in blur scrim: a global layer (BackdropFilter) clipped to the
+  /// screen minus the step's holes. The clip is a single even-odd path for
+  /// every shape — no boolean geometry (see `ScrimHolePainter.scrimClipPath`).
   Widget _buildBlurScrim(Size screen, Offset? translation) {
-    if (translation == null) {
-      // The same no-flash rule as the painter: no blur until the position is
-      // known — a full-screen blur-without-hole would flash before the hole
-      // appears.
-      return const SizedBox.shrink();
-    }
+    if (translation == null) return const SizedBox.shrink();
     final primary = widget.registrations.first;
+    final pad = widget.step.focusPadding;
     final holes = <Rect>[
-      translation & (primary.link.leaderSize ?? Size.zero),
-      ..._extraHoleRects(),
+      (translation & (primary.link.leaderSize ?? Size.zero)).inflate(pad),
+      for (final r in _extraHoleRects()) r.inflate(pad),
     ];
-    final strips = ScrimHolePainter.scrimStrips(Offset.zero & screen, holes);
     return ClipPath(
-      clipper: _ScrimStripsClipper(strips),
-      child: BackdropFilter(
-        filter: widget.theme.imageFilter!,
-        child: ColoredBox(color: widget.theme.scrimColor),
+      clipper: _EvenOddClipper(
+        ScrimHolePainter.scrimClipPath(
+          Offset.zero & screen,
+          holes,
+          widget.step.focusShape,
+        ),
       ),
+      child: BackdropFilter(filter: widget.theme.imageFilter!, child: ColoredBox(color: widget.theme.scrimColor)),
     );
   }
 
@@ -830,32 +847,25 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   void _dispatchTap() {
     final details = _lastTap;
     if (details == null) return;
-    final step = widget.step;
-    final ctx = HintTooltipContext(
+    _dispatchStepTap(
+      step: widget.step,
       actions: widget.actions,
       stepIndex: widget.stepIndex,
       totalSteps: widget.totalSteps,
+      holes: _currentHoleRects(),
+      details: details,
     );
-    final onTarget =
-        _currentHoleRects().any((h) => h.contains(details.globalPosition));
-    if (onTarget) {
-      if (step.onTapTarget != null) {
-        step.onTapTarget!(ctx, details);
-      } else if (step.tapOnTarget) {
-        widget.actions.next();
-      }
-    } else if (step.onTapOverlay != null) {
-      step.onTapOverlay!(ctx, details);
-    } else if (step.tapOnOverlay) {
-      widget.actions.next();
-    }
   }
 
   /// Position watcher: reads the compositor transforms once per frame (cheap:
   /// a matrix + two-float comparison). Movement → repaint the scrim (the
-  /// picture changes shape) + `setState` (the tooltip follows the target);
-  /// the first successful snapshot after mount/target-change mounts the
-  /// tooltip. At rest — zero repaints and zero setState.
+  /// picture changes shape) + hole-notifier (the tooltip follows the target
+  /// without rebuilding the overlay subtree); the first successful snapshot
+  /// after mount/target-change mounts the tooltip AND rebuilds once so the
+  /// scrim painter receives the now-created resolvers (it was built with an
+  /// empty snapshot list — painting with it would stay blank forever, the
+  /// "tooltip without dim" artifact). At rest — zero repaints and zero
+  /// setState.
   void _schedulePoll() {
     if (_pollScheduled) return;
     _pollScheduled = true;
@@ -869,14 +879,30 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         final position = primary.resolve();
         if (position is PositionedHint &&
             _translation != position.translation) {
+          if (_translation == null) {
+            // First snapshot after mount/target-change: the scrim painter
+            // was built with an empty resolver snapshot, so rebuild once
+            // with the populated list. The tooltip mounts via its listener
+            // below either way.
+            setState(() {});
+          }
           _translation = position.translation;
-          // The scrim repaints (the hole shape changed) and the tooltip
-          // re-places via its listener — NO setState on the overlay subtree:
-          // scrolling rebuilds nothing but these two.
+          // Always repaint explicitly: a rebuild with identical resolvers
+          // skips it via `shouldRepaint` (e.g. the follower re-linking
+          // after the target was culled from painting).
           final renderObject =
               _scrimPaintKey.currentContext?.findRenderObject();
           (renderObject as RenderCustomPaint?)?.markNeedsPaint();
           _holeNotifier.value = _translation;
+        } else if (position is! PositionedHint && _translation != null) {
+          // The follower unlinked (its leader stopped painting — scrolled
+          // out / culled) while a position was known: retract the spotlight
+          // instead of freezing it on the background. The scrim itself goes
+          // quiet through the unlinked follower (`showWhenUnlinked: false`);
+          // the tooltip unmounts via its listener. The next snapshot
+          // re-mounts everything through the first-snapshot path above.
+          _translation = null;
+          _holeNotifier.value = null;
         }
       }
       _schedulePoll();
@@ -894,78 +920,300 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   }
 }
 
-/// The tooltip layer: listens to the hole notifier and rebuilds ONLY the
-/// tooltip placement (the cached content child stays identical across
-/// movement frames — no text re-layout). Without this boundary, every
-/// scroll frame would rebuild the entire overlay subtree; with it, movement
-/// touches a subtree of a few widgets.
-class _RepositionTooltip extends StatefulWidget {
-  const _RepositionTooltip({
-    required this.hole,
+/// Shared overlay shell: translucent tap handling over a full-screen
+/// layout box. Both contents (follower-anchored and rect-anchored) share
+/// this tap contract — taps dispatched by region, drags passing through to
+/// the page below (scroll-through) — so it cannot drift between the two.
+class _TapShell extends StatelessWidget {
+  const _TapShell({
+    required this.onTapDown,
+    required this.onTap,
     required this.builder,
   });
 
-  /// The primary hole's top-left (global overlay coordinates).
-  final ValueNotifier<Offset?> hole;
+  final ValueChanged<TapDownDetails> onTapDown;
+  final VoidCallback onTap;
 
-  /// Builds the tooltip layer for the current hole; null hole → nothing
-  /// (the tooltip must not mount before an authoritative snapshot).
-  final Widget Function(BuildContext context, Offset translation) builder;
-
-  @override
-  State<_RepositionTooltip> createState() => _RepositionTooltipState();
-}
-
-class _RepositionTooltipState extends State<_RepositionTooltip> {
-  @override
-  void initState() {
-    super.initState();
-    widget.hole.addListener(_onHoleChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant _RepositionTooltip oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.hole != widget.hole) {
-      oldWidget.hole.removeListener(_onHoleChanged);
-      widget.hole.addListener(_onHoleChanged);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.hole.removeListener(_onHoleChanged);
-    super.dispose();
-  }
-
-  void _onHoleChanged() => setState(() {});
+  /// Builds the overlay content for the full [screen] size.
+  final Widget Function(BuildContext context, Size screen) builder;
 
   @override
   Widget build(BuildContext context) {
-    final translation = widget.hole.value;
-    if (translation == null) return const SizedBox.shrink();
-    return widget.builder(context, translation);
+    return GestureDetector(
+      // Translucent: the overlay owns taps (topmost → first in the arena),
+      // while drags pass through to the scrollable below (scroll-through —
+      // the page scrolls under an active tour). Tooltip buttons are deeper
+      // than this detector, so their taps win the arena (a Material button
+      // is deeper → first in the arena).
+      behavior: HitTestBehavior.translucent,
+      onTapDown: (details) => onTapDown(details),
+      onTap: onTap,
+      child: LayoutBuilder(
+        builder: (context, constraints) => builder(context, constraints.biggest),
+      ),
+    );
   }
 }
 
-/// Clip to the scrim strips (screen minus the step's holes): the blur
-/// `BackdropFilter` samples the full backdrop but is only visible outside
-/// the holes.
-class _ScrimStripsClipper extends CustomClipper<Path> {
-  const _ScrimStripsClipper(this.strips);
+/// One blur scrim for any hole list: a global `BackdropFilter` clipped to
+/// the screen minus the holes (even-odd clip — no boolean geometry).
+/// Shared by the follower-anchored and rect-anchored content.
+Widget _blurScrim({
+  required Size screen,
+  required List<Rect> holes,
+  required FocusShape focusShape,
+  required HintTheme theme,
+}) {
+  return ClipPath(
+    clipper: _EvenOddClipper(
+      ScrimHolePainter.scrimClipPath(
+        Offset.zero & screen,
+        holes,
+        focusShape,
+      ),
+    ),
+    child: BackdropFilter(
+      filter: theme.imageFilter!,
+      child: ColoredBox(color: theme.scrimColor),
+    ),
+  );
+}
 
-  final List<Rect> strips;
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    for (final strip in strips) {
-      path.addRect(strip);
+/// Tap dispatch by hole region, shared by the follower-anchored content and
+/// the rect-anchored content: inside any hole — the target region, otherwise
+/// the overlay region. A per-step callback replaces the default "next" for
+/// its region; the `tapOn*` flags disable a region.
+void _dispatchStepTap({
+  required HintStep step,
+  required HintActions actions,
+  required int stepIndex,
+  required int totalSteps,
+  required List<Rect> holes,
+  required TapDownDetails details,
+}) {
+  final ctx = HintTooltipContext(
+    actions: actions,
+    stepIndex: stepIndex,
+    totalSteps: totalSteps,
+  );
+  final onTarget = holes.any((h) => h.contains(details.globalPosition));
+  if (onTarget) {
+    if (step.onTapTarget != null) {
+      step.onTapTarget!(ctx, details);
+    } else if (step.tapOnTarget) {
+      actions.next();
     }
-    return path;
+  } else if (step.onTapOverlay != null) {
+    step.onTapOverlay!(ctx, details);
+  } else if (step.tapOnOverlay) {
+    actions.next();
   }
+}
+
+/// Primary tooltip content: default or custom, with tail. Shared by the
+/// follower-anchored slots and the rect-anchored content — one source for
+/// what a primary slot looks like.
+Widget _primaryTooltipSlot({
+  required BuildContext context,
+  required HintStep step,
+  required HintTooltipContext ctx,
+  required HintTheme theme,
+  required Rect Function() holeOf,
+}) {
+  final Widget content;
+  if (step.tooltipBuilder != null) {
+    content = step.tooltipBuilder!(context, step, ctx);
+  } else {
+    content = DefaultTooltip(step: step, ctx: ctx);
+  }
+  return theme.showTail
+      ? TooltipTail(
+          holeOf: holeOf,
+          color: theme.tooltipBackground,
+          child: content,
+        )
+      : content;
+}
+
+/// One primary tooltip: placed around [hole] with an entry transition.
+/// The [content] widget is supplied by the caller — the follower path passes
+/// its cached slot (identical instances across movement frames skip text
+/// re-layout while scrolling).
+Widget _placedPrimaryTooltip({
+  required BuildContext context,
+  required HintStep step,
+  required int stepIndex,
+  required Widget content,
+  required Rect hole,
+  required Size screen,
+  required List<Rect> extraHoles,
+}) {
+  final placed = CustomSingleChildLayout(
+    delegate: TooltipPlacementDelegate(
+      screenLocal: Offset.zero & screen,
+      holeLocal: hole,
+      extraHoles: extraHoles,
+      position: step.position,
+      safeArea: MediaQuery.paddingOf(context),
+    ),
+    child: content,
+  );
+  return _sprungTooltipEntry(
+    context: context,
+    step: step,
+    stepIndex: stepIndex,
+    child: placed,
+  );
+}
+
+/// Entry transition (`D5`/`22`): when `sprung` the tooltip scales+bounces on
+/// entry (instant under the system reduce-motion setting), otherwise passes
+/// through untouched.
+Widget _sprungTooltipEntry({
+  required BuildContext context,
+  required HintStep step,
+  required int stepIndex,
+  required Widget child,
+}) {
+  if (step.transitionCurve != HintCurve.sprung) return child;
+  final duration = hintTransitionDuration(
+    MediaQuery.of(context),
+    step.transitionDuration ?? const Duration(milliseconds: 800),
+  );
+  if (duration == Duration.zero) return child;
+  return TweenAnimationBuilder<double>(
+    key: ValueKey('$stepIndex-${step.hashCode}'),
+    tween: Tween(begin: 0.8, end: 1.0),
+    duration: duration,
+    curve: Curves.elasticOut,
+    builder: (context, scale, child) => Transform.scale(
+      scale: scale,
+      alignment: Alignment.center,
+      child: Opacity(opacity: scale.clamp(0.0, 1.0), child: child),
+    ),
+    child: child,
+  );
+}
+
+/// Rect-anchored step content ([HintStep.targetRect]): a static spotlight at
+/// explicit overlay coordinates — no registry targets, no followers, no
+/// position watching.
+///
+/// The scrim is a full-screen global layer ([RectScrimPainter]) and the
+/// tooltip is placed once against the static hole (nothing moves, so there
+/// is no reposition listener and no slot cache). Primary tooltip only: extra
+/// slots ([HintStep.moreTooltips]) and the pulse ring need live targets and
+/// are not rendered in this mode.
+class _RectTargetContent extends StatefulWidget {
+  const _RectTargetContent({
+    required this.step,
+    required this.stepIndex,
+    required this.totalSteps,
+    required this.actions,
+    required this.theme,
+  });
+
+  final HintStep step;
+  final int stepIndex;
+  final int totalSteps;
+  final HintActions actions;
+  final HintTheme theme;
 
   @override
-  bool shouldReclip(covariant _ScrimStripsClipper oldClipper) =>
-      !listEquals(oldClipper.strips, strips);
+  State<_RectTargetContent> createState() => _RectTargetContentState();
 }
+
+class _RectTargetContentState extends State<_RectTargetContent> {
+  TapDownDetails? _lastTap;
+
+  Rect get _hole => widget.step.targetRect!.inflate(widget.step.focusPadding);
+
+  @override
+  Widget build(BuildContext context) {
+    return _TapShell(
+      onTapDown: (details) => _lastTap = details,
+      onTap: _dispatchTap,
+      builder: (context, screen) {
+        final hole = _hole;
+        final Widget scrim = widget.theme.imageFilter != null
+            ? _blurScrim(
+                screen: screen,
+                holes: [hole],
+                focusShape: widget.step.focusShape,
+                theme: widget.theme,
+              )
+            : CustomPaint(
+                painter: RectScrimPainter(
+                  holes: [hole],
+                  color: widget.theme.scrimColor,
+                  focusShape: widget.step.focusShape,
+                ),
+                child: const SizedBox.expand(),
+              );
+        return Stack(
+          children: [
+            Positioned.fill(child: IgnorePointer(child: scrim)),
+            _rectTooltip(context, hole, screen),
+          ],
+        );
+      },
+    );
+  }
+
+  void _dispatchTap() {
+    final details = _lastTap;
+    if (details == null) return;
+    _dispatchStepTap(
+      step: widget.step,
+      actions: widget.actions,
+      stepIndex: widget.stepIndex,
+      totalSteps: widget.totalSteps,
+      holes: [_hole],
+      details: details,
+    );
+  }
+
+  /// The primary tooltip slot at the static hole: shared content, placed
+  /// once (nothing moves, so no slot cache and no hole listener).
+  Widget _rectTooltip(BuildContext context, Rect hole, Size screen) {
+    final ctx = HintTooltipContext(
+      actions: widget.actions,
+      stepIndex: widget.stepIndex,
+      totalSteps: widget.totalSteps,
+    );
+    return _placedPrimaryTooltip(
+      context: context,
+      step: widget.step,
+      stepIndex: widget.stepIndex,
+      content: _primaryTooltipSlot(
+        context: context,
+        step: widget.step,
+        ctx: ctx,
+        theme: widget.theme,
+        holeOf: () => hole,
+      ),
+      hole: hole,
+      screen: screen,
+      extraHoles: const [],
+    );
+  }
+}
+
+/// Clip to a prebuilt even-odd path (screen minus holes, see
+/// `ScrimHolePainter.scrimClipPath`): the blur `BackdropFilter` samples the
+/// full backdrop but stays visible only outside the holes. One clipper for
+/// every blur scrim — only the path differs.
+class _EvenOddClipper extends CustomClipper<Path> {
+  const _EvenOddClipper(this.path);
+
+  final Path path;
+
+  @override
+  Path getClip(Size size) => path;
+
+  @override
+  bool shouldReclip(covariant _EvenOddClipper old) => old.path != path;
+}
+
+
+

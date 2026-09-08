@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:hintful/hintful.dart';
 
 /// All demo tours of the example app, in one place.
@@ -145,3 +148,130 @@ HintTour offerTour() => HintTour.fromEnum(
           ),
       },
     );
+
+/// New 51-feature demos — Visual demos card.
+
+HintTour circleHoleTour() => HintTour(
+      id: 'feat-circle',
+      steps: [HintStep(targetId: 'fab', title: 'Circle hole', focusShape: FocusShape.circle)],
+    );
+
+HintTour roundedHoleTour() => HintTour(
+      id: 'feat-rounded',
+      steps: [HintStep(targetId: 'filter-all', title: 'Rounded hole', focusShape: FocusShape.roundedRect)],
+    );
+
+HintTour negativePaddingTour() => HintTour(
+      id: 'feat-neg-pad',
+      steps: [HintStep(targetId: 'fab', title: 'Shrink', description: 'focusPadding -8', focusPadding: -8)],
+    );
+
+HintTour rectTargetTour() => HintTour(
+      id: 'feat-rect',
+      steps: [
+        HintStep(
+          targetId: 'fab',
+          targetRect: const Rect.fromLTWH(100, 300, 120, 40),
+          title: 'Rect by coords',
+          description: 'targetRect — without HintTarget (test)',
+        ),
+      ],
+    );
+
+HintTour sprungTour() => HintTour(
+      id: 'feat-sprung',
+      steps: [HintStep(targetId: 'fab', title: 'Sprung', description: 'Sprung curve — bouncy', transitionCurve: HintCurve.sprung, transitionDuration: const Duration(milliseconds: 350))],
+    );
+
+HintTour hooksTour(void Function(String m) notify) => HintTour(
+      id: 'feat-hooks',
+      steps: [
+        HintStep(
+          targetId: 'fab',
+          title: 'Hooks',
+          description: 'onBefore/onAfter - prepare scene',
+          onBeforeAction: () async => notify('before hook'),
+          onAfterAction: () async => notify('after hook'),
+        ),
+      ],
+    );
+
+/// Rung 3 of the animation ladder: a fully custom entry (fade + rise)
+/// through `tooltipBuilder` — the engine places whatever the builder
+/// returns (positioning, tail side, safe area all still apply), the builder
+/// owns how it enters, down to its own action button. Honors reduce-motion
+/// by rendering instantly.
+HintTour fadeSlideTour() => HintTour(
+      id: 'feat-fade-slide',
+      steps: [
+        HintStep(
+          targetId: 'fab',
+          title: 'Fade and rise',
+          description: 'Custom entry, custom button.',
+          tooltipBuilder: (context, step, ctx) {
+            final theme = Theme.of(context).hintTheme;
+            final reduceMotion =
+                MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+            final card = Semantics(
+              container: true,
+              label: step.title,
+              child: Material(
+                color: theme.tooltipBackground,
+                borderRadius: theme.tooltipRadius,
+                elevation: 6,
+                child: Padding(
+                  padding: theme.tooltipPadding,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(step.title ?? '', style: theme.tooltipTitleStyle),
+                      if (step.description != null) ...[
+                        const SizedBox(height: 4),
+                        Text(step.description!,
+                            style: theme.tooltipDescriptionStyle),
+                      ],
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: ctx.actions.finish,
+                          child: const Text('Got it'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+            if (reduceMotion) return card;
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOut,
+              builder: (context, t, child) => Opacity(
+                opacity: t,
+                child: Transform.translate(
+                  offset: Offset(0, 20 * (1 - t)),
+                  child: child,
+                ),
+              ),
+              child: card,
+            );
+          },
+        ),
+      ],
+    );
+
+/// Server-driven shape without a server: the exact JSON a backend would
+/// serve, parsed by `HintTour.fromJson` — proves the wire format end to end
+/// (titles, descriptions, positions, timeouts all survive the round trip).
+HintTour jsonTour() => HintTour.fromJson(
+      jsonDecode(_jsonTourDocument) as Map<String, dynamic>,
+    );
+
+const _jsonTourDocument = '''
+{"id":"feat-json","stepTimeoutMs":3000,"steps":[
+{"targetId":"fab","title":"From JSON","description":"This step rode in as JSON, not Dart.","position":"auto"},
+{"targetId":"filter-all","title":"Second from JSON","description":"Multi-step tours serialize too.","position":"auto"}
+]}''';

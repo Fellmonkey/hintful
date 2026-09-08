@@ -47,39 +47,35 @@ Path tailPath({
   double width = _kTailWidth,
 }) {
   final half = width / 2;
+  // Center along the parallel axis (shared by the two sides on each axis).
+  final along = side == TailSide.top || side == TailSide.bottom
+      ? _clampCenter(hole.center.dx - tooltip.left, tooltipSize.width, half)
+      : _clampCenter(hole.center.dy - tooltip.top, tooltipSize.height, half);
   final path = Path();
   switch (side) {
     case TailSide.bottom:
-      final cx =
-          _clampCenter(hole.center.dx - tooltip.left, tooltipSize.width, half);
       path
-        ..moveTo(cx - half, tooltipSize.height - 0.5)
-        ..lineTo(cx + half, tooltipSize.height - 0.5)
-        ..lineTo(cx, tooltipSize.height + length)
+        ..moveTo(along - half, tooltipSize.height - 0.5)
+        ..lineTo(along + half, tooltipSize.height - 0.5)
+        ..lineTo(along, tooltipSize.height + length)
         ..close();
     case TailSide.top:
-      final cx =
-          _clampCenter(hole.center.dx - tooltip.left, tooltipSize.width, half);
       path
-        ..moveTo(cx - half, 0.5)
-        ..lineTo(cx + half, 0.5)
-        ..lineTo(cx, -length)
+        ..moveTo(along - half, 0.5)
+        ..lineTo(along + half, 0.5)
+        ..lineTo(along, -length)
         ..close();
     case TailSide.left:
-      final cy =
-          _clampCenter(hole.center.dy - tooltip.top, tooltipSize.height, half);
       path
-        ..moveTo(0.5, cy - half)
-        ..lineTo(0.5, cy + half)
-        ..lineTo(-length, cy)
+        ..moveTo(0.5, along - half)
+        ..lineTo(0.5, along + half)
+        ..lineTo(-length, along)
         ..close();
     case TailSide.right:
-      final cy =
-          _clampCenter(hole.center.dy - tooltip.top, tooltipSize.height, half);
       path
-        ..moveTo(tooltipSize.width - 0.5, cy - half)
-        ..lineTo(tooltipSize.width - 0.5, cy + half)
-        ..lineTo(tooltipSize.width + length, cy)
+        ..moveTo(tooltipSize.width - 0.5, along - half)
+        ..lineTo(tooltipSize.width - 0.5, along + half)
+        ..lineTo(tooltipSize.width + length, along)
         ..close();
   }
   return path;

@@ -7,7 +7,8 @@ import '../engine/specs.dart';
 import '../engine/theme/hint_theme.dart';
 
 /// Zero-config tooltip: title + description + Skip/Back/Next/Done from
-/// [HintTheme.tooltipLabels].
+/// [HintTheme.tooltipLabels] — except on a single-step hint, which keeps no
+/// action row at all (informational; dismissed by tap or keyboard).
 ///
 /// Rendered when a step has no `tooltipBuilder`. A separate widget so the
 /// builder path (full customization) and the default do not duplicate
@@ -64,6 +65,10 @@ class DefaultTooltip extends StatelessWidget {
     final theme = Theme.of(context).hintTheme;
     final l = labels ?? theme.tooltipLabels;
     final isLast = ctx.isLast;
+    // A single-step hint is informational, not a tour: no action row at all
+    // (tap-on-overlay/target and keyboard already dismiss it). No Done keeps
+    // a lone hint visually distinct from a tour step.
+    final isSingle = ctx.totalSteps <= 1;
     final onSurface = theme.tooltipForeground;
     final screenSize = MediaQuery.sizeOf(context);
     final maxWidth = math.min(360.0, screenSize.width - 32).clamp(160.0, 360.0);
@@ -144,10 +149,11 @@ class DefaultTooltip extends StatelessWidget {
           ],
           // The button row. Skip is meaningless when the tour is about to
           // end anyway ("Done" does the same) — shown on intermediate steps
-          // only, and only when the step opts in. This covers both a
-          // single-step tour/hint and the last step of a multi-step tour.
-          // Hidden for informational slots (showActions: false).
-          if (showActions) ...[
+          // only, and only when the step opts in. This covers the last step
+          // of a multi-step tour. A single-step hint shows no row at all
+          // (see isSingle above). Hidden for informational slots
+          // (showActions: false).
+          if (showActions && !isSingle) ...[
             const SizedBox(height: 12),
             Row(
               children: [

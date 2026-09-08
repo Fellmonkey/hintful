@@ -4,7 +4,7 @@
 /// surface is exported:
 ///
 /// - tour data contracts ([HintStep], [HintTour]) — widget-free, serializable
-///   1-to-1 to JSON (server-driven tours later);
+///   1-to-1 to JSON (server-driven tours via `fromJson`);
 /// - target registry ([HintTargetRegistry], [HintTargetRegistration]) — the
 ///   "no GlobalKey" model;
 /// - observable machine state ([HintState] + subtypes) — the public

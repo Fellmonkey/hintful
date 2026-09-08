@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../position_resolver.dart';
+import '../specs.dart' show FocusShape;
 
 /// Pulsing ring around the primary target (Material feature-discovery
 /// pattern). Opt-in via `HintTheme.showPulse`; the animation runs only while
@@ -18,38 +19,47 @@ class PulsePainter extends CustomPainter {
     required this.animation,
     required this.resolver,
     required this.color,
+    this.focusShape = FocusShape.rectangle,
+    this.focusPadding = 4.0,
   });
 
-  /// The repeating phase in 0..1; null — a static ring at phase 0 (not used
-  /// in practice: the engine starts the controller only when pulsing).
   final Animation<double>? animation;
-
-  /// The primary target's resolver (hole size at paint time).
   final HintPositionResolver? resolver;
-
   final Color color;
+  final FocusShape focusShape;
+  final double focusPadding;
 
   @override
   void paint(Canvas canvas, Size size) {
     final position = resolver?.resolve();
-    if (position is! PositionedHint) return; // nothing to pulse around
-    final (ring, opacity) = pulseRing(animation?.value ?? 0, position.size);
+    if (position is! PositionedHint) return;
+    final hole = (Offset.zero & position.size).inflate(focusPadding).shift(position.translation);
+    final t = (animation?.value ?? 0).clamp(0.0, 1.0);
+    final expansion = 24 * t;
+    final ringRect = hole.inflate(expansion);
+    final opacity = t < 0.5 ? 1.0 : 1.0 - (t - 0.5) * 2;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
-      // withAlpha (not deprecated across the supported 3.10+ range; the
-      // theme uses the same convention).
       ..color = color.withAlpha((opacity * 255).round());
-    // The ring is computed relative to the hole (see [pulseRing]); in the
-    // global layer the canvas origin is the screen corner — shift by the
-    // target's global translation.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        ring.shift(position.translation),
-        const Radius.circular(12),
-      ),
-      paint,
-    );
+    switch (focusShape) {
+      case FocusShape.circle:
+        final side = ringRect.width > ringRect.height
+            ? ringRect.width
+            : ringRect.height;
+        canvas.drawOval(
+            Rect.fromCenter(center: ringRect.center, width: side, height: side),
+            paint);
+      case FocusShape.roundedRect:
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(
+                ringRect, const Radius.circular(12)),
+            paint);
+      case FocusShape.rectangle:
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(ringRect, const Radius.circular(4)),
+            paint);
+    }
   }
 
   @override

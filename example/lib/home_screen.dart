@@ -42,6 +42,14 @@ class HintHomeScreen extends StatelessWidget {
     required this.onMultiContentTour,
     required this.onTapRegionsTour,
     required this.onOfferTour,
+    required this.onCircleHoleTour,
+    required this.onRoundedHoleTour,
+    required this.onNegativePaddingTour,
+    required this.onRectTargetTour,
+    required this.onSprungTour,
+    required this.onHooksTour,
+    required this.onFadeSlideTour,
+    required this.onJsonTour,
   });
 
   final HintController controller;
@@ -63,8 +71,16 @@ class HintHomeScreen extends StatelessWidget {
   final VoidCallback onMultiTargetTour;
   final VoidCallback onMultiContentTour;
   final VoidCallback onTapRegionsTour;
+  final VoidCallback onCircleHoleTour;
+  final VoidCallback onRoundedHoleTour;
+  final VoidCallback onNegativePaddingTour;
+  final VoidCallback onRectTargetTour;
+  final VoidCallback onSprungTour;
+  final VoidCallback onHooksTour;
+  final VoidCallback onFadeSlideTour;
+  final VoidCallback onJsonTour;
 
-  /// The offer flow needs a context UNDER the Navigator (showDialog) — the
+  /// The offer flow needs a context UNDER the Navigator (showDialog) - the
   /// screen's own build context is passed along.
   final void Function(BuildContext context) onOfferTour;
 
@@ -111,14 +127,6 @@ class HintHomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _VersionedIntroCard(
-            appVersion: appVersion,
-            storeReady: storeReady,
-            introWillShow: introWillShow,
-            onBumpVersion: onBumpVersion,
-            onResetStore: onResetStore,
-          ),
-          const SizedBox(height: 16),
           _VisualDemosCard(
             hintStyle: hintStyle,
             tourActive: tourActive,
@@ -127,6 +135,14 @@ class HintHomeScreen extends StatelessWidget {
             onMultiContentTour: onMultiContentTour,
             onTapRegionsTour: onTapRegionsTour,
             onOfferTour: onOfferTour,
+            onCircleHoleTour: onCircleHoleTour,
+            onRoundedHoleTour: onRoundedHoleTour,
+            onNegativePaddingTour: onNegativePaddingTour,
+            onRectTargetTour: onRectTargetTour,
+            onSprungTour: onSprungTour,
+            onHooksTour: onHooksTour,
+            onFadeSlideTour: onFadeSlideTour,
+            onJsonTour: onJsonTour,
           ),
           const SizedBox(height: 24),
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
@@ -175,6 +191,16 @@ class HintHomeScreen extends StatelessWidget {
                 subtitle: Text(entries[i].$2),
               ),
             ),
+          // Version tooling lives at the bottom: it re-triggers the intro
+          // for version-flow testing, but it is not the demo's focus.
+          const SizedBox(height: 24),
+          _VersionedIntroCard(
+            appVersion: appVersion,
+            storeReady: storeReady,
+            introWillShow: introWillShow,
+            onBumpVersion: onBumpVersion,
+            onResetStore: onResetStore,
+          ),
         ],
       ),
     );
@@ -247,6 +273,14 @@ class _VisualDemosCard extends StatelessWidget {
     required this.onMultiContentTour,
     required this.onTapRegionsTour,
     required this.onOfferTour,
+    required this.onCircleHoleTour,
+    required this.onRoundedHoleTour,
+    required this.onNegativePaddingTour,
+    required this.onRectTargetTour,
+    required this.onSprungTour,
+    required this.onHooksTour,
+    required this.onFadeSlideTour,
+    required this.onJsonTour,
   });
 
   final HintStyle hintStyle;
@@ -255,7 +289,31 @@ class _VisualDemosCard extends StatelessWidget {
   final VoidCallback onMultiTargetTour;
   final VoidCallback onMultiContentTour;
   final VoidCallback onTapRegionsTour;
+  final VoidCallback onCircleHoleTour;
+  final VoidCallback onRoundedHoleTour;
+  final VoidCallback onNegativePaddingTour;
+  final VoidCallback onRectTargetTour;
+  final VoidCallback onSprungTour;
+  final VoidCallback onHooksTour;
+  final VoidCallback onFadeSlideTour;
+  final VoidCallback onJsonTour;
   final void Function(BuildContext context) onOfferTour;
+
+  /// One demo button: disabled while a tour runs (starting a second tour
+  /// mid-tour is a contract violation, not a feature).
+  Widget _tourButton(String label, VoidCallback onPressed) {
+    return FilledButton.tonal(
+      onPressed: tourActive ? null : onPressed,
+      child: Text(label),
+    );
+  }
+
+  Widget _sectionLabel(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text, style: Theme.of(context).textTheme.labelLarge),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -284,27 +342,44 @@ class _VisualDemosCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            _sectionLabel(context, 'Tours & content'),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('New here? Start with these — then shapes below.'),
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                FilledButton.tonal(
-                  onPressed: tourActive ? null : onMultiTargetTour,
-                  child: const Text('Multi-target'),
-                ),
-                FilledButton.tonal(
-                  onPressed: tourActive ? null : onMultiContentTour,
-                  child: const Text('Multi-content'),
-                ),
-                FilledButton.tonal(
-                  onPressed: tourActive ? null : onTapRegionsTour,
-                  child: const Text('Tap regions'),
-                ),
-                FilledButton.tonal(
-                  onPressed: tourActive ? null : () => onOfferTour(context),
-                  child: const Text('Offer tour'),
-                ),
+                _tourButton('Multi-target', onMultiTargetTour),
+                _tourButton('Multi-content', onMultiContentTour),
+                _tourButton('Tap regions', onTapRegionsTour),
+                _tourButton('Offer tour', () => onOfferTour(context)),
+                _tourButton('JSON', onJsonTour),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionLabel(context, 'Spotlight shapes'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _tourButton('Circle', onCircleHoleTour),
+                _tourButton('Rounded', onRoundedHoleTour),
+                _tourButton('Neg pad', onNegativePaddingTour),
+                _tourButton('Rect', onRectTargetTour),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionLabel(context, 'Motion & logic'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _tourButton('Sprung', onSprungTour),
+                _tourButton('Custom', onFadeSlideTour),
+                _tourButton('Hooks', onHooksTour),
               ],
             ),
           ],
@@ -354,3 +429,4 @@ class _Stat extends StatelessWidget {
     );
   }
 }
+

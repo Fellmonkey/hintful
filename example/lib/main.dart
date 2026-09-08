@@ -205,6 +205,15 @@ class _ExampleAppState extends State<ExampleApp> {
   void _startTapRegionsTour() =>
       _guardStart(() => _controller.start(tapRegionsTour(_notify)));
 
+  void _startCircleHoleTour() => _guardStart(() => _controller.start(circleHoleTour()));
+  void _startRoundedHoleTour() => _guardStart(() => _controller.start(roundedHoleTour()));
+  void _startNegativePaddingTour() => _guardStart(() => _controller.start(negativePaddingTour()));
+  void _startRectTargetTour() => _guardStart(() => _controller.start(rectTargetTour()));
+  void _startSprungTour() => _guardStart(() => _controller.start(sprungTour()));
+  void _startHooksTour() => _guardStart(() => _controller.start(hooksTour(_notify)));
+  void _startFadeSlideTour() => _guardStart(() => _controller.start(fadeSlideTour()));
+  void _startJsonTour() => _guardStart(() => _controller.start(jsonTour()));
+
   /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
   /// checkbox; the decision (start or decline) is persisted via the store —
   /// per page, or globally when the checkbox is on. The tour itself is built
@@ -314,6 +323,14 @@ class _ExampleAppState extends State<ExampleApp> {
         onMultiContentTour: _startMultiContentTour,
         onTapRegionsTour: _startTapRegionsTour,
         onOfferTour: _startOfferTour,
+        onCircleHoleTour: _startCircleHoleTour,
+        onRoundedHoleTour: _startRoundedHoleTour,
+        onNegativePaddingTour: _startNegativePaddingTour,
+        onRectTargetTour: _startRectTargetTour,
+        onSprungTour: _startSprungTour,
+        onHooksTour: _startHooksTour,
+        onFadeSlideTour: _startFadeSlideTour,
+        onJsonTour: _startJsonTour,
       ),
     );
   }

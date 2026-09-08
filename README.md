@@ -70,7 +70,8 @@ controller.start(introTour);
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
-That's the whole tour.
+That's the whole tour — and it already handles light/dark, scrolling and
+deferred targets.
 
 ```dart
 // Just one tip? No tour needed:
@@ -137,7 +138,8 @@ wiring ships as copy-paste recipes in `lib/src/adapters/` (bring your own packag
 - Scoped controllers: `scopePrefix` isolates tabs/split-view sharing one
   registry (foreign ids neither activate steps nor false-fire typo candidates)
 - `disableBackButton` owns the Android back button while a tour is active;
-  Skip auto-hides on the last step (Done does the same)
+  Skip auto-hides on the last step of a multi-step tour (Done does the
+  same); a single-step hint keeps no action row at all
 
 **Rendering**
 
@@ -150,6 +152,13 @@ wiring ships as copy-paste recipes in `lib/src/adapters/` (bring your own packag
   overlap each other or the targets
 - Optional blur scrim and pulsing ring (theme options; the default stays the
   cheap plain dim)
+- Focus shapes (rectangle/circle/rounded) + padding (including negative
+  shrink), static rect spotlights (`targetRect` — no widget needed), and
+  scroll-into-view: an offscreen target is brought on screen with its step
+- Entry animation in three rungs: none by default; the `sprung` bounce per
+  step (`transitionCurve` + `transitionDuration`); anything custom through
+  `tooltipBuilder` (the engine still places it) — all skipped under the
+  system reduce-motion setting
 - Tap regions: tap-on-target vs tap-on-overlay with per-step callbacks and
   tap position; scroll-through — the page scrolls under an active tour
 
@@ -181,15 +190,16 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hintful: ^0.5.0
+  hintful: ^0.6.0
 ```
 
 ```dart
 import 'package:hintful/hintful.dart';
 ```
 
-See `example/` for a complete tour — 4 steps with a scrollable list, a
-deferred target that appears mid-tour, light/dark switching and `showHint`.
+See `example/` for working demos of every feature above — shaped holes,
+blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the
+offer dialog, and the versioned intro.
 
 ---
 

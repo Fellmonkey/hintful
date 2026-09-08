@@ -1,5 +1,4 @@
-import 'dart:ui' show Size;
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,9 +56,11 @@ void main() {
     expect(find.text('Preparing…'), findsOneWidget);
     expect(find.text('Summary card'), findsNothing);
 
-    // The section "loads" after 600 ms → the target appearing activates the
-    // step.
+    // The section "loads" after 600 ms — the target mounts (on small
+    // screens possibly outside the painted area: no frozen spotlight, just
+    // silence until the app scrolls it into view).
     await tester.pump(const Duration(milliseconds: 700)); // target mounted
+    await tester.scrollUntilVisible(find.text('Summary'), 500);
     await tester.pump(); // active step: frame 1 — scrim (re-snapshot)
     await tester.pump(); // step 3 tooltip
     expect(find.text('Summary card'), findsOneWidget);
@@ -82,7 +83,14 @@ void main() {
   testWidgets('versioned intro: once per version, re-shows after a bump',
       (tester) async {
     await pumpApp(tester);
+    // The version card lives at the bottom of the demo list.
+    await tester.scrollUntilVisible(find.text('Versioned intro'), 500);
+    await tester.pump();
     expect(find.textContaining('will show again'), findsOneWidget);
+
+    // Back to the top: the tour below runs in the standard viewport.
+    await tester.scrollUntilVisible(find.text('Visual demos'), 500);
+    await tester.pump();
 
     // First run: shows.
     await tester.tap(find.byTooltip('Show tour'));
@@ -90,10 +98,13 @@ void main() {
     await tester.pump(); // step 1 tooltip
     expect(find.text('Quick log'), findsOneWidget);
 
-    // Exit (skip) → marked shown for 1.0.0.
+    // Exit (skip) → marked shown for 1.0.0. The version card may be out
+    // of the built range after the scrolls above — scroll it back.
     await tester.tap(find.text('Skip'));
     await tester.pump();
     expect(find.text('Next'), findsNothing);
+    await tester.scrollUntilVisible(find.text('Versioned intro'), 500);
+    await tester.pump();
     expect(
         find.textContaining('already showed in this version'), findsOneWidget);
 
@@ -105,6 +116,8 @@ void main() {
     expect(find.text('Next'), findsNothing);
 
     // Version bump → the intro is available again.
+    await tester.scrollUntilVisible(find.text('Bump version'), 500);
+    await tester.pump();
     await tester.tap(find.text('Bump version'));
     await tester.pump();
     expect(find.textContaining('will show again'), findsOneWidget);
@@ -115,6 +128,8 @@ void main() {
 
     // Reset → the intro will show again.
     await tester.tap(find.text('Skip'));
+    await tester.pump();
+    await tester.scrollUntilVisible(find.text('Reset store'), 500);
     await tester.pump();
     await tester.tap(find.text('Reset store'));
     await tester.pump();
@@ -129,9 +144,12 @@ void main() {
     await tester.pump(); // the tip tooltip
 
     expect(find.text('This is the quick-log button'), findsOneWidget);
-    expect(find.text('Done'), findsOneWidget); // 1 step = last
+    // A single hint keeps no action row (no Done) — a tap on the scrim
+    // dismisses it.
+    expect(find.text('Done'), findsNothing);
+    expect(find.text('Next'), findsNothing);
 
-    await tester.tap(find.text('Done'));
+    await tester.tapAt(const Offset(30, 100));
     await tester.pump();
     expect(find.text('This is the quick-log button'), findsNothing);
   });
@@ -153,9 +171,16 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
+    await tester.ensureVisible(find.text('Multi-target'));
+    await tester.pump();
     await tester.tap(find.text('Multi-target'));
     await tester.pump(); // frame 1: scrim (position snapshot post-frame)
     await tester.pump(); // step 1 tooltip
+    // The filters may sit below the painted area on small screens: the
+    // app scrolls them into view (the engine never moves content).
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pump();
+    await tester.pump();
 
     // Both filters are spotlighted — and both remain visible.
     expect(find.text('Both filters at once'), findsOneWidget);
@@ -184,9 +209,11 @@ void main() {
     expect(find.text('Primary tooltip'), findsOneWidget);
     expect(find.text('Left slot'), findsOneWidget);
     expect(find.text('Top slot'), findsOneWidget);
-    expect(find.text('Done'), findsOneWidget); // controls only on the primary
+    // A single-step tour keeps no action row — not even on the primary.
+    expect(find.text('Done'), findsNothing);
+    expect(find.text('Next'), findsNothing);
 
-    await tester.tap(find.text('Done'));
+    await tester.tapAt(const Offset(30, 100));
     await tester.pump();
     expect(find.text('Primary tooltip'), findsNothing);
   });
@@ -289,9 +316,15 @@ void main() {
     await tester.tap(find.text('Pulse'));
     await tester.pump();
 
+    await tester.ensureVisible(find.text('Multi-target'));
+    await tester.pump();
     await tester.tap(find.text('Multi-target'));
     await tester.pump(); // frame 1: scrim + pulse
     await tester.pump(); // step 1 tooltip
+    // Filters may sit below the painted area: scroll them into view.
+    await tester.scrollUntilVisible(find.text('All sets'), 500);
+    await tester.pump();
+    await tester.pump();
     expect(find.text('Both filters at once'), findsOneWidget);
 
     await tester.tap(find.text('Next'));
@@ -300,5 +333,42 @@ void main() {
     await tester.tap(find.text('Done'));
     await tester.pump();
     expect(find.text('Both filters at once'), findsNothing);
+  });
+
+  testWidgets('custom animation: tooltipBuilder entry with its own button',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.ensureVisible(find.text('Custom'));
+    await tester.pump();
+    await tester.tap(find.text('Custom'));
+    await tester.pump(); // frame 1: scrim
+    await tester.pump(); // tooltip
+    expect(find.text('Fade and rise'), findsOneWidget);
+
+    await tester.tap(find.text('Got it'));
+    await tester.pump();
+    expect(find.text('Fade and rise'), findsNothing);
+  });
+
+  testWidgets('json tour: parsed steps run like declared ones',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.ensureVisible(find.text('JSON'));
+    await tester.pump();
+    await tester.tap(find.text('JSON'));
+    await tester.pump(); // frame 1: scrim
+    await tester.pump(); // step 1 tooltip
+    expect(find.text('From JSON'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Second from JSON'), findsOneWidget);
+
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    expect(find.text('Second from JSON'), findsNothing);
   });
 }
