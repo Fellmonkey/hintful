@@ -4,6 +4,7 @@ doc/
 # Build artifacts at any level (root package and example/).
 build/
 web/
+android/
 
 # The sibling adapter package ships on its own — its sources are not part
 # of the hintful archive.
