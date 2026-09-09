@@ -468,14 +468,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   bool _pollScheduled = false;
   TapDownDetails? _lastTap;
 
-  /// Scroll-driven translation: every ancestor Scrollable that contains the
-  /// primary target is observed. On scroll the target's global position
-  /// moves by -delta, so the hole/tooltip are shifted synchronously — no
-  /// one-frame lag while the scrim already rides the compositor. The map
-  /// keeps the last seen pixels per position; re-measured on (re-)attach
-  /// and after every poll snapshot to avoid drift.
-  final Map<ScrollPosition, double> _scrollLastPixels = {};
-  final Map<ScrollPosition, Axis> _scrollAxes = {};
+  /// Scroll-driven translation: the nearest ancestor Scrollable that
+  /// contains the primary target is observed. On scroll the target's
+  /// global position moves by -delta, so the hole/tooltip are shifted
+  /// synchronously — no one-frame lag. Re-measured on (re-)attach.
+  ScrollPosition? _scrollPos;
+  double _scrollLastPixels = 0;
+  Axis _scrollAxis = Axis.vertical;
 
   /// Cached tooltip slots (the content widgets incl. the tail wrapper),
   /// with the step they were built for. Rebuilt only when the STEP changes;
@@ -879,9 +878,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (!mounted) return;
 
       _ensureResolvers();
-      // Lazily bind scroll listeners once the follower (and thus the
+      // Lazily bind scroll listener once the follower (and thus the
       // target's Scrollable) is mounted — initState is too early.
-      if (_scrollLastPixels.isEmpty) _attachScrollListeners();
+      if (_scrollPos == null) _attachScrollListeners();
       final primary = _resolvers[widget.registrations.first.id];
       if (primary != null) {
         final position = primary.resolve();
@@ -968,46 +967,36 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
 
   void _attachScrollListeners() {
     _detachScrollListeners();
-    // Walk the ancestor chain of the primary target and observe every
-    // Scrollable that contains it (nested scrollables each contribute).
+    ScrollableState? found;
     widget.registrations.first.context.visitAncestorElements((e) {
-      final widget = e.widget;
-      if (widget is Scrollable) {
-        final state = (e as StatefulElement).state as ScrollableState;
-        final pos = state.position;
-        _scrollLastPixels[pos] = pos.pixels;
-        _scrollAxes[pos] = state.widget.axis;
-        pos.addListener(_onScroll);
+      if (found != null) return false;
+      if (e.widget is Scrollable) {
+        found = (e as StatefulElement).state as ScrollableState;
+        return false;
       }
       return true;
     });
+    if (found == null) return;
+    _scrollPos = found!.position;
+    _scrollAxis = found!.widget.axis;
+    _scrollLastPixels = _scrollPos!.pixels;
+    _scrollPos!.addListener(_onScroll);
   }
 
   void _detachScrollListeners() {
-    for (final pos in _scrollLastPixels.keys) {
-      pos.removeListener(_onScroll);
-    }
-    _scrollLastPixels.clear();
-    _scrollAxes.clear();
+    _scrollPos?.removeListener(_onScroll);
+    _scrollPos = null;
   }
 
   void _onScroll() {
-    if (!mounted || _translation == null) return;
-    var delta = Offset.zero;
-    for (final pos in _scrollLastPixels.keys.toList()) {
-      final last = _scrollLastPixels[pos]!;
-      final cur = pos.pixels;
-      if (cur == last) continue;
-      _scrollLastPixels[pos] = cur;
-      final axis = _scrollAxes[pos] ?? Axis.vertical;
-      final d = cur - last;
-      delta += axis == Axis.vertical ? Offset(0, -d) : Offset(-d, 0);
-    }
-    if (delta == Offset.zero) return;
+    if (!mounted || _translation == null || _scrollPos == null) return;
+    final cur = _scrollPos!.pixels;
+    if (cur == _scrollLastPixels) return;
+    final d = cur - _scrollLastPixels;
+    _scrollLastPixels = cur;
+    final delta = _scrollAxis == Axis.vertical ? Offset(0, -d) : Offset(-d, 0);
     _translation = _translation! + delta;
     _holeNotifier.value = _translation;
-    // Blur scrim and pulse ring read the same translation — repaint them
-    // synchronously so the dim never lags the compositor hole.
     final ro = _scrimPaintKey.currentContext?.findRenderObject();
     (ro as RenderCustomPaint?)?.markNeedsPaint();
     _repaintPulse();
