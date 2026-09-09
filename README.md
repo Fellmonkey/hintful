@@ -212,10 +212,10 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 |---|---|---|---|
 | Idle tree diff (S1) | 4 | 2 | 3 |
 | Idle resources (S1r) | 0 | 0 | 0 |
-| Show latency (S2) | 92 ms | 112 ms | 823 ms |
-| Update latency (S3) | 200 ms | 339 ms | 1446 ms |
+| Show latency (S2) | 140 ms | 181 ms | 885 ms |
+| Update latency (S3) | 214 ms | 312 ms | 1441 ms |
 | Active-step heap (S5) | 42 KB | 65 KB | 94 KB |
-| Heap retained after hide (S6) | -107 B | -304 B | -91 B |
+| Heap retained after hide (S6) | -59 B | -325 B | -91 B |
 | Native AOT size | 75 KB | n/a | n/a |
 | Web startup bundle delta | 49 KB | n/a | n/a |
 
@@ -225,5 +225,5 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-09 15:38 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
+_Recorded 2026-09-09 16:18 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
 <!-- bench:end -->
