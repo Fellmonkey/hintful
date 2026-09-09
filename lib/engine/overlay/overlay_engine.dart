@@ -621,7 +621,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                 child: ValueListenableBuilder<Offset?>(
                   valueListenable: _holeNotifier,
                   builder: (context, _, __) {
-                    final holes = _currentHoleRects();
+                    final holes = _visualHoleRects();
                     if (blur == null) {
                       return IgnorePointer(
                         child: CustomPaint(
@@ -801,6 +801,15 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   List<Rect> _currentHoleRects() {
     if (_translation == null) return const [];
     return [_primaryHoleGlobal(), ..._extraHoleRects()];
+  }
+
+  /// Visual holes: tap rects inflated by the step's focus padding
+  /// (positive expands, negative shrinks — may become empty and is then
+  /// skipped by the painter/clip).
+  List<Rect> _visualHoleRects() {
+    final pad = widget.step.focusPadding;
+    if (pad == 0) return _currentHoleRects();
+    return [for (final r in _currentHoleRects()) r.inflate(pad)];
   }
 
   /// The pulse ring in the global layer: above the scrim (plain and blur),
