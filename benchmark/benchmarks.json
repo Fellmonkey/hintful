@@ -10,7 +10,7 @@
       "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
       "goldens": {
         "any": 72669,
-        "android": 72669
+        "android": 74582
       },
       "note": "Deterministic per SDK + ABI: measured on Flutter 3.47.0, android-x64 (2026-09-02). Re-record only when the SDK or engine code changes."
     },
@@ -32,7 +32,7 @@
     "show_latency": {
       "unit": "show_latency",
       "goldens": {
-        "android": 98,
+        "android": 92,
         "android-scv": 112,
         "android-tcm": 823
       }
@@ -40,7 +40,7 @@
     "update_latency": {
       "unit": "update_latency",
       "goldens": {
-        "android": 198,
+        "android": 200,
         "android-scv": 339,
         "android-tcm": 1446
       }
@@ -48,7 +48,7 @@
     "active_heap": {
       "unit": "active_heap",
       "goldens": {
-        "android": 41365,
+        "android": 41904,
         "android-scv": 64955,
         "android-tcm": 93984
       }
@@ -56,7 +56,7 @@
     "hide_retention": {
       "unit": "hide_retention",
       "goldens": {
-        "android": -59,
+        "android": -107,
         "android-scv": -304,
         "android-tcm": -91
       }
@@ -64,7 +64,7 @@
     "custom.startup_to_show": {
       "unit": "custom.startup_to_show",
       "goldens": {
-        "android-custom": 2
+        "android-custom": 1
       }
     },
     "idle_resources": {

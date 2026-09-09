@@ -212,16 +212,18 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 |---|---|---|---|
 | Idle tree diff (S1) | 4 | 2 | 3 |
 | Idle resources (S1r) | 0 | 0 | 0 |
-| Show latency (S2) | 98 ms | 218 ms | 839 ms |
-| Update latency (S3) | 198 ms | 393 ms | 1474 ms |
-| Active-step heap (S5) | 41 KB | 65 KB | 94 KB |
-| Heap retained after hide (S6) | -59 B | -304 B | -91 B |
-| Native AOT size | 73 KB | n/a | n/a |
+| Show latency (S2) | 92 ms | 112 ms | 823 ms |
+| Update latency (S3) | 200 ms | 339 ms | 1446 ms |
+| Active-step heap (S5) | 42 KB | 65 KB | 94 KB |
+| Heap retained after hide (S6) | -107 B | -304 B | -91 B |
+| Native AOT size | 75 KB | n/a | n/a |
 | Web startup bundle delta | 49 KB | n/a | n/a |
 
 **n/a** = not applicable for this solution. Scroll coupling (S4) is a two-sided in-scenario assert, not a numeric row: hintful re-anchors its content to the target under programmatic scroll on-device, while showcaseview and tutorial_coach_mark do not (their overlays consume pointer input). The idle-resources row (S1r) is declared on-device via `idleClasses` — 0 means the solution holds no live control-plane instances while idle. The size rows are hintful-only because the rival scenes were never shipped as size targets.
 
+**Trend history:** [charts](https://fellmonkey.github.io/hintful/bench/)
+
 ![hintful benchmark metrics](docs/hint_metrics.png)
 
-_Recorded 2026-09-05 18:19 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
+_Recorded 2026-09-09 15:38 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
 <!-- bench:end -->
