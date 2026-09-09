@@ -94,6 +94,45 @@ Future<void> _frames(WidgetTester tester, int n) async {
 }
 
 void main() {
+  testWidgets('first frame after start shows positioned content', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: _SyncScreen()));
+    await _frames(tester, 3);
+    await tester.tap(find.byKey(const Key('start')));
+    await tester.pump(); // overlay entry + sync seed (no blank frame)
+    await tester.pump(); // position snapshot → tooltip at the right place
+    expect(find.byType(DefaultTooltip), findsOneWidget);
+    await tester.pump();
+    expect(find.byType(DefaultTooltip), findsOneWidget);
+    // Finish via taps to leave no timers pending at teardown.
+    await tester.tap(find.byKey(const Key('a')));
+    await _frames(tester, 3);
+    await tester.tap(find.byKey(const Key('b')));
+    await _frames(tester, 3);
+    expect(find.byType(DefaultTooltip), findsNothing);
+  });
+
+  testWidgets('step change shows new content after one frame', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: _SyncScreen()));
+    await _frames(tester, 3);
+    await tester.tap(find.byKey(const Key('start')));
+    await _frames(tester, 3);
+    expect(find.text('A'), findsOneWidget);
+
+    // Tap on the spotlighted target advances; snapshot → new tooltip.
+    await tester.tap(find.byKey(const Key('a')));
+    await tester.pump(); // transition + snapshot
+    await tester.pump(); // new tooltip placed
+    expect(find.text('B'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('b')));
+    await _frames(tester, 3);
+    expect(find.byType(DefaultTooltip), findsNothing);
+  });
+
   testWidgets('first shown step: scrim painter holds resolvers', (
     tester,
   ) async {

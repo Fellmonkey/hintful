@@ -456,7 +456,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
 
   /// Live resolvers per target id (created once the follower mounts); read
   /// by the scrim painter at paint time and by the tap regions per tap.
-  final Map<String, CompositorHintResolver> _resolvers = {};
+  final Map<String, HintPositionResolver> _resolvers = {};
 
   /// The primary target's position (global coordinates). null — the tooltip
   /// is not mounted: on the mount frame the transform is not known yet, and
@@ -467,6 +467,15 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   Offset? _translation;
   bool _pollScheduled = false;
   TapDownDetails? _lastTap;
+
+  /// Scroll-driven translation: every ancestor Scrollable that contains the
+  /// primary target is observed. On scroll the target's global position
+  /// moves by -delta, so the hole/tooltip are shifted synchronously — no
+  /// one-frame lag while the scrim already rides the compositor. The map
+  /// keeps the last seen pixels per position; re-measured on (re-)attach
+  /// and after every poll snapshot to avoid drift.
+  final Map<ScrollPosition, double> _scrollLastPixels = {};
+  final Map<ScrollPosition, Axis> _scrollAxes = {};
 
   /// The primary hole's top-left, published to the tooltip placement
   /// listener. Movement frames update ONLY this notifier (and repaint the
@@ -495,7 +504,14 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     super.initState();
     _ensurePulse();
     _syncFollowerKeys();
+    _seedStaticPositions();
     _schedulePoll();
+    // Defer: the primary target's Scrollable ancestor is not attached
+    // during initState (the overlay Entry builds before the target's
+    // Scrollable mounts in the same frame).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _attachScrollListeners();
+    });
   }
 
   @override
@@ -517,6 +533,17 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     _followerKeys.removeWhere((id, _) => !currentIds.contains(id));
     _resolvers.removeWhere((id, _) => !currentIds.contains(id));
     _syncFollowerKeys();
+    // Re-seed synchronously so the next build already has positioned
+    // content — no blank flash, no stale tooltip. Live resolvers upgrade
+    // behind in the poll.
+    _seedStaticPositions();
+    // Scroll listeners are bound to the primary target — re-bind on target
+    // change (otherwise the old Scrollable would be observed).
+    if (oldWidget.registrations.first.link !=
+        widget.registrations.first.link) {
+      _detachScrollListeners();
+      _attachScrollListeners();
+    }
     // Note: the tooltip slot cache is NOT invalidated here — _tooltipSlots
     // detects the step change itself on the next build (the single check
     // lives in exactly one place).
@@ -526,6 +553,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
 
   @override
   void dispose() {
+    _detachScrollListeners();
     _pulseController?.dispose();
     _holeNotifier.dispose();
     super.dispose();
@@ -860,7 +888,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// Position watcher: reads the compositor transforms once per frame (cheap:
   /// a matrix + two-float comparison). Movement → repaint the scrim (the
   /// picture changes shape) + hole-notifier (the tooltip follows the target
-  /// without rebuilding the overlay subtree); the first successful snapshot
+  /// without rebuilding the overlay subtree). The first successful snapshot
   /// after mount/target-change mounts the tooltip AND rebuilds once so the
   /// scrim painter receives the now-created resolvers (it was built with an
   /// empty snapshot list — painting with it would stay blank forever, the
@@ -874,6 +902,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (!mounted) return;
 
       _ensureResolvers();
+      // Lazily bind scroll listeners once the follower (and thus the
+      // target's Scrollable) is mounted — initState is too early.
+      if (_scrollLastPixels.isEmpty) _attachScrollListeners();
       final primary = _resolvers[widget.registrations.first.id];
       if (primary != null) {
         final position = primary.resolve();
@@ -910,14 +941,112 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   }
 
   void _ensureResolvers() {
+    var upgraded = false;
     for (final r in widget.registrations) {
-      if (_resolvers.containsKey(r.id)) continue;
+      if (_resolvers[r.id] is CompositorHintResolver) continue;
       final follower = _followerKeys[r.id]?.currentContext?.findRenderObject();
       if (follower is RenderFollowerLayer) {
+        // Static snapshot → live compositor tracking (same values ± subpixel).
         _resolvers[r.id] = CompositorHintResolver(follower);
+        upgraded = true;
       }
     }
+    if (upgraded && mounted) setState(() {});
   }
+
+  /// Synchronous position snapshot straight from the targets' own render
+  /// objects — no followers, no compositor, no waiting a frame. Called in
+  /// initState and on primary change so the very first build already paints
+  /// positioned content — dim with a hole and a placed tooltip — instead of
+  /// flashing normal UI for a frame.
+  void _seedStaticPositions() {
+    for (final r in widget.registrations) {
+      if (_resolvers.containsKey(r.id)) continue;
+      final position = _measureSync(r);
+      if (position != null) _resolvers[r.id] = _StaticPosition(position);
+    }
+    final primary = _resolvers[widget.registrations.first.id]?.resolve();
+    if (primary is PositionedHint) {
+      _translation = primary.translation;
+      _holeNotifier.value = primary.translation;
+    }
+  }
+
+  /// Measures [registration] synchronously via its own render object.
+  /// Valid exactly when the target is laid out (the common start case);
+  /// null when there is nothing reliable to read yet, and the live path
+  /// takes over.
+  PositionedHint? _measureSync(HintTargetRegistration registration) {
+    try {
+      final box = registration.context.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return null;
+      return PositionedHint(
+        translation: box.localToGlobal(Offset.zero),
+        size: box.size,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _attachScrollListeners() {
+    _detachScrollListeners();
+    // Walk the ancestor chain of the primary target and observe every
+    // Scrollable that contains it (nested scrollables each contribute).
+    widget.registrations.first.context.visitAncestorElements((e) {
+      final widget = e.widget;
+      if (widget is Scrollable) {
+        final state = (e as StatefulElement).state as ScrollableState;
+        final pos = state.position;
+        _scrollLastPixels[pos] = pos.pixels;
+        _scrollAxes[pos] = state.widget.axis;
+        pos.addListener(_onScroll);
+      }
+      return true;
+    });
+  }
+
+  void _detachScrollListeners() {
+    for (final pos in _scrollLastPixels.keys) {
+      pos.removeListener(_onScroll);
+    }
+    _scrollLastPixels.clear();
+    _scrollAxes.clear();
+  }
+
+  void _onScroll() {
+    if (!mounted || _translation == null) return;
+    var delta = Offset.zero;
+    for (final pos in _scrollLastPixels.keys.toList()) {
+      final last = _scrollLastPixels[pos]!;
+      final cur = pos.pixels;
+      if (cur == last) continue;
+      _scrollLastPixels[pos] = cur;
+      final axis = _scrollAxes[pos] ?? Axis.vertical;
+      final d = cur - last;
+      delta += axis == Axis.vertical ? Offset(0, -d) : Offset(-d, 0);
+    }
+    if (delta == Offset.zero) return;
+    _translation = _translation! + delta;
+    _holeNotifier.value = _translation;
+    // Blur scrim and pulse ring read the same translation — repaint them
+    // synchronously so the dim never lags the compositor hole.
+    final ro = _scrimPaintKey.currentContext?.findRenderObject();
+    (ro as RenderCustomPaint?)?.markNeedsPaint();
+    _repaintPulse();
+  }
+}
+
+/// A frozen position snapshot (see `_seedStaticPositions`): resolves to a
+/// fixed [PositionedHint]. Lives in the resolvers map only until its
+/// follower mounts and upgrades it to a [CompositorHintResolver].
+class _StaticPosition implements HintPositionResolver {
+  _StaticPosition(this._position);
+
+  final PositionedHint _position;
+
+  @override
+  HintPosition resolve() => _position;
 }
 
 /// Shared overlay shell: translucent tap handling over a full-screen

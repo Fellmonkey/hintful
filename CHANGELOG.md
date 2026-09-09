@@ -2,6 +2,14 @@
 
 ## 0.6.0 — spotlight correctness (saveLayer scrim, rect targets, honest states)
 
+- First-frame content: positions seed synchronously from the targets'
+  own render objects (`initState` + step changes), so dim + hole + tooltip
+  render on the very first frame — no normal-UI flash on start, no stale
+  step on transitions. Scroll-driven motion follows the compositor
+  synchronously (ancestor Scrollables observed) — no one-frame lag while
+  the screen scrolls. Live compositor resolvers upgrade in behind
+  (same values ± subpixel).
+
 - One scrim mechanism for every shape: fullscreen dim + `BlendMode.clear`
   holes in an isolated layer (no boolean geometry, overlap-correct); blur
   clips to one even-odd path. Removed the strips path (`scrimStrips`,
