@@ -213,6 +213,10 @@ class _ExampleAppState extends State<ExampleApp> {
   void _startHooksTour() => _guardStart(() => _controller.start(hooksTour(_notify)));
   void _startFadeSlideTour() => _guardStart(() => _controller.start(fadeSlideTour()));
   void _startJsonTour() => _guardStart(() => _controller.start(jsonTour()));
+  void _startL10nTour(BuildContext context) =>
+      _guardStart(() => _controller.start(l10nTour(context)));
+  void _startAutoScrollStepTour() =>
+      _guardStart(() => _controller.start(autoScrollStepTour()));
 
   /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
   /// checkbox; the decision (start or decline) is persisted via the store —
@@ -331,7 +335,10 @@ class _ExampleAppState extends State<ExampleApp> {
         onHooksTour: _startHooksTour,
         onFadeSlideTour: _startFadeSlideTour,
         onJsonTour: _startJsonTour,
+        onL10nTour: _startL10nTour,
+        onAutoScrollStepTour: _startAutoScrollStepTour,
       ),
     );
   }
 }
+

@@ -156,17 +156,21 @@ class HintController implements HintActions {
 
   HintState get currentState => _stateNotifier.value;
 
-  /// No tour is running.
+  /// No tour is running — for UI state (disable Start buttons). Not an
+  /// atomic guard for `start` — use `tryStart` for that (see below).
   bool get isIdle => _machine.state.isIdle;
 
   /// Start a tour: typo validation → machine → seeding of already-mounted
   /// targets. The wait-for-target timer is armed by a machine effect.
   ///
-  /// Async deliberately: (1) the typo AssertionError goes into the Future
+  /// `Future` deliberately: (1) the typo AssertionError goes into the Future
   /// (loud failure in debug from `expectLater`) instead of being thrown in
   /// the middle of someone's build; (2) later `start` will await fetching a
   /// server-driven tour — the signature is already ready and won't need a
-  /// breaking change.
+  /// breaking change. For local tours you may `await` or fire-and-forget.
+  ///
+  /// One tour at a time — asserts in debug if busy. For an atomic
+  /// fire-and-forget without asserts, use [tryStart].
   Future<void> start(HintTour tour) async {
     assert(
       _machine.state.isIdle,
@@ -202,8 +206,10 @@ class HintController implements HintActions {
     _lastKnownIds = {for (final id in _registry.ids) if (inScope(id)) id};
   }
 
-  /// Start a tour unless one is already running: false when busy (no assert,
-  /// no state change), otherwise starts and returns true.
+  /// Start a tour unless one is already running — atomic, no assert.
+  /// Returns `false` when busy (no state change), `true` when started.
+  /// Prefer over `if (isIdle) await start(tour)` — that check-then-act
+  /// races if two callers fire at once. `isIdle` stays for UI state.
   Future<bool> tryStart(HintTour tour) async {
     if (!isIdle) return false;
     await start(tour);

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../engine/registry.dart';
+import '../engine/specs.dart';
 
 /// Registers a target with the engine.
 ///
@@ -20,6 +21,8 @@ class HintTarget extends StatefulWidget {
     required this.child,
     this.registry,
     this.semanticsLabel,
+    this.focusShape,
+    this.focusPadding,
   });
 
   /// Key in the target registry.
@@ -33,6 +36,15 @@ class HintTarget extends StatefulWidget {
   /// Screen-reader label; null — no Semantics wrapper (a cheap option that
   /// does not touch the tree in the common case).
   final String? semanticsLabel;
+
+  /// Default hole shape for this target; a step's [HintStep.focusShape]
+  /// overrides it. Useful for round icons — set once on the target instead
+  /// of duplicating per step.
+  final FocusShape? focusShape;
+
+  /// Default hole padding for this target; a step's [HintStep.focusPadding]
+  /// overrides it.
+  final double? focusPadding;
 
   @override
   State<HintTarget> createState() => _HintTargetState();
@@ -68,8 +80,13 @@ class _HintTargetState extends State<HintTarget> {
     }
   }
 
-  HintTargetRegistration _buildRegistration() =>
-      HintTargetRegistration(id: widget.id, link: _link, context: context);
+  HintTargetRegistration _buildRegistration() => HintTargetRegistration(
+        id: widget.id,
+        link: _link,
+        context: context,
+        focusShape: widget.focusShape,
+        focusPadding: widget.focusPadding,
+      );
 
   @override
   void dispose() {

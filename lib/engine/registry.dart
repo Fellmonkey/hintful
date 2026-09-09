@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'specs.dart';
+
 /// An immutable snapshot of a registered target.
 ///
 /// [id] — string key (not a GlobalKey), [link] — the CompositedTransform
@@ -15,11 +17,17 @@ class HintTargetRegistration {
     required this.id,
     required this.link,
     required this.context,
+    this.focusShape,
+    this.focusPadding,
   });
 
   final String id;
   final LayerLink link;
   final BuildContext context;
+
+  /// Default hole shape/padding for this target; a step's value overrides.
+  final FocusShape? focusShape;
+  final double? focusPadding;
 }
 
 /// Target registry by string ids — the heart of the "no GlobalKey" model.

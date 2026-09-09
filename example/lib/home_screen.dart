@@ -50,6 +50,8 @@ class HintHomeScreen extends StatelessWidget {
     required this.onHooksTour,
     required this.onFadeSlideTour,
     required this.onJsonTour,
+    required this.onL10nTour,
+    required this.onAutoScrollStepTour,
   });
 
   final HintController controller;
@@ -79,6 +81,8 @@ class HintHomeScreen extends StatelessWidget {
   final VoidCallback onHooksTour;
   final VoidCallback onFadeSlideTour;
   final VoidCallback onJsonTour;
+  final void Function(BuildContext) onL10nTour;
+  final VoidCallback onAutoScrollStepTour;
 
   /// The offer flow needs a context UNDER the Navigator (showDialog) - the
   /// screen's own build context is passed along.
@@ -143,20 +147,19 @@ class HintHomeScreen extends StatelessWidget {
             onHooksTour: onHooksTour,
             onFadeSlideTour: onFadeSlideTour,
             onJsonTour: onJsonTour,
+            onL10nTour: onL10nTour,
+            onAutoScrollStepTour: onAutoScrollStepTour,
           ),
           const SizedBox(height: 24),
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
             children: [
-              HintTarget(
-                id: 'filter-all',
-                child: ChoiceChip(
-                  label: const Text('All sets'),
-                  selected: selectedFilter == 0,
-                  onSelected: (_) => onFilter(0),
-                ),
-              ),
+              ChoiceChip(
+                label: const Text('All sets'),
+                selected: selectedFilter == 0,
+                onSelected: (_) => onFilter(0),
+              ).withHint('filter-all'),
               const SizedBox(width: 8),
               HintTarget(
                 id: 'filter-daily',
@@ -185,7 +188,11 @@ class HintHomeScreen extends StatelessWidget {
               // Every entry is a target: the registry survives ListView
               // rebuilds (last-wins + identity guard).
               id: 'entry-$i',
+              focusShape: i == 5 ? FocusShape.circle : null,
+              focusPadding: i == 5 ? 6 : null,
               child: ListTile(
+                // entry-8 demonstrates withHint as alternative syntax:
+                // `CircleAvatar(...).withHint('entry-8')` would also work.
                 leading: const CircleAvatar(child: Icon(Icons.fitness_center)),
                 title: Text(entries[i].$1),
                 subtitle: Text(entries[i].$2),
@@ -281,6 +288,8 @@ class _VisualDemosCard extends StatelessWidget {
     required this.onHooksTour,
     required this.onFadeSlideTour,
     required this.onJsonTour,
+    required this.onL10nTour,
+    required this.onAutoScrollStepTour,
   });
 
   final HintStyle hintStyle;
@@ -297,6 +306,8 @@ class _VisualDemosCard extends StatelessWidget {
   final VoidCallback onHooksTour;
   final VoidCallback onFadeSlideTour;
   final VoidCallback onJsonTour;
+  final void Function(BuildContext) onL10nTour;
+  final VoidCallback onAutoScrollStepTour;
   final void Function(BuildContext context) onOfferTour;
 
   /// One demo button: disabled while a tour runs (starting a second tour
@@ -357,6 +368,7 @@ class _VisualDemosCard extends StatelessWidget {
                 _tourButton('Tap regions', onTapRegionsTour),
                 _tourButton('Offer tour', () => onOfferTour(context)),
                 _tourButton('JSON', onJsonTour),
+                _tourButton('L10n', () => onL10nTour(context)),
               ],
             ),
             const SizedBox(height: 16),
@@ -380,6 +392,7 @@ class _VisualDemosCard extends StatelessWidget {
                 _tourButton('Sprung', onSprungTour),
                 _tourButton('Custom', onFadeSlideTour),
                 _tourButton('Hooks', onHooksTour),
+                _tourButton('Step scroll', onAutoScrollStepTour),
               ],
             ),
           ],
@@ -429,4 +442,9 @@ class _Stat extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 

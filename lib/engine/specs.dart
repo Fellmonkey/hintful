@@ -91,6 +91,8 @@ class HintStep {
     this.moreTooltips = const [],
     this.title,
     this.description,
+    this.titleBuilder,
+    this.descriptionBuilder,
     this.position = TooltipPosition.auto,
     this.waitTimeout,
     this.showSkip = true,
@@ -100,8 +102,9 @@ class HintStep {
     this.onTapTarget,
     this.onTapOverlay,
     this.tooltipBuilder,
-    this.focusShape = FocusShape.rectangle,
-    this.focusPadding = 4.0,
+    this.focusShape,
+    this.focusPadding,
+    this.autoScroll,
     this.transitionDuration,
     this.transitionCurve,
     this.targetRect,
@@ -109,8 +112,11 @@ class HintStep {
     this.onAfterAction,
   })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
         assert(
-          title != null || tooltipBuilder != null,
-          'HintStep must have title/description (zero-config) or tooltipBuilder'
+          title != null ||
+              titleBuilder != null ||
+              tooltipBuilder != null,
+          'HintStep must have title/description (zero-config), '
+          'titleBuilder/descriptionBuilder (l10n) or tooltipBuilder'
           ' (custom tooltip)',
         );
 
@@ -132,6 +138,12 @@ class HintStep {
   /// Zero-config title/description; ignored when [tooltipBuilder] is set.
   final String? title;
   final String? description;
+
+  /// Localized builders; called with the overlay's BuildContext at show
+  /// time. Takes precedence over [title]/[description] — use for l10n:
+  /// `titleBuilder: (c) => AppLocalizations.of(c)!.introTitle`.
+  final String Function(BuildContext)? titleBuilder;
+  final String Function(BuildContext)? descriptionBuilder;
 
   final TooltipPosition position;
 
@@ -179,8 +191,25 @@ class HintStep {
     HintTooltipContext ctx,
   )? tooltipBuilder;
 
-  final FocusShape focusShape;
-  final double focusPadding;
+  /// Hole shape for this step; null — inherits from [HintTarget] or
+  /// defaults to [FocusShape.rectangle]. Set on the target for round
+  /// icons to avoid per-step duplication — a step override is for the
+  /// exception, not the rule.
+  final FocusShape? focusShape;
+  final double? focusPadding;
+
+  /// Auto-scroll the primary target into view when the step activates.
+  /// null — inherits from [HintTour.autoScroll]; `false` by default —
+  /// the engine never moves content unless you opt in.
+  final bool? autoScroll;
+
+  /// Effective title/description for the overlay's BuildContext at show
+  /// time. Builders take precedence — use for l10n without threading
+  /// BuildContext through AppTours: `titleBuilder: (c) => l10n.of(c).intro`.
+  String? effectiveTitle(BuildContext context) =>
+      titleBuilder?.call(context) ?? title;
+  String? effectiveDescription(BuildContext context) =>
+      descriptionBuilder?.call(context) ?? description;
 
   /// Entry-animation length for [transitionCurve]; null — the curve default
   /// (800 ms for [HintCurve.sprung]). Ignored without a curve.
@@ -222,8 +251,9 @@ class HintStep {
           'missingTargetPolicy': missingTargetPolicy!.name,
         'tapOnTarget': tapOnTarget,
         'tapOnOverlay': tapOnOverlay,
-        if (focusShape != FocusShape.rectangle) 'focusShape': focusShape.name,
-        if (focusPadding != 4.0) 'focusPadding': focusPadding,
+        if (focusShape != null) 'focusShape': focusShape!.name,
+        if (focusPadding != null) 'focusPadding': focusPadding,
+        if (autoScroll != null) 'autoScroll': autoScroll,
         if (transitionDuration != null) 'transitionDurationMs': transitionDuration!.inMilliseconds,
         if (transitionCurve != null) 'transitionCurve': transitionCurve!.name,
         if (targetRect != null)
@@ -248,8 +278,9 @@ class HintStep {
                 .byName(json['missingTargetPolicy'] as String),
         tapOnTarget: json['tapOnTarget'] as bool? ?? true,
         tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
-        focusShape: json['focusShape'] == null ? FocusShape.rectangle : FocusShape.values.byName(json['focusShape'] as String),
-        focusPadding: (json['focusPadding'] as num?)?.toDouble() ?? 4.0,
+        focusShape: json['focusShape'] == null ? null : FocusShape.values.byName(json['focusShape'] as String),
+        focusPadding: (json['focusPadding'] as num?)?.toDouble(),
+        autoScroll: json['autoScroll'] as bool?,
         transitionDuration: json['transitionDurationMs'] == null ? null : Duration(milliseconds: json['transitionDurationMs'] as int),
         transitionCurve: json['transitionCurve'] == null ? null : HintCurve.values.byName(json['transitionCurve'] as String),
         targetRect: json['targetRect'] == null
@@ -269,10 +300,15 @@ class HintTooltip {
     required this.position,
     this.title,
     this.description,
+    this.titleBuilder,
+    this.descriptionBuilder,
     this.tooltipBuilder,
   }) : assert(
-          title != null || tooltipBuilder != null,
-          'HintTooltip must have title/description (zero-config) or '
+          title != null ||
+              titleBuilder != null ||
+              tooltipBuilder != null,
+          'HintTooltip must have title/description (zero-config), '
+          'titleBuilder/descriptionBuilder (l10n) or '
           'tooltipBuilder (custom tooltip)',
         );
 
@@ -285,6 +321,15 @@ class HintTooltip {
   /// Zero-config content; ignored when [tooltipBuilder] is set.
   final String? title;
   final String? description;
+
+  /// Localized builders; takes precedence over [title]/[description].
+  final String Function(BuildContext)? titleBuilder;
+  final String Function(BuildContext)? descriptionBuilder;
+
+  String? effectiveTitle(BuildContext context) =>
+      titleBuilder?.call(context) ?? title;
+  String? effectiveDescription(BuildContext context) =>
+      descriptionBuilder?.call(context) ?? description;
 
   /// Fully custom content.
   final Widget Function(
@@ -318,6 +363,7 @@ class HintTour {
     this.stepTimeout = const Duration(seconds: 3),
     this.disableBackButton = false,
     this.missingTargetPolicy = HintMissingTargetPolicy.abortTour,
+    this.autoScroll = false,
   })  : assert(id != '', 'HintTour.id must not be empty'),
         assert(steps.length > 0, 'HintTour.steps must not be empty');
 
@@ -339,6 +385,11 @@ class HintTour {
   /// also be ineffective inside an OverlayEntry anyway).
   final bool disableBackButton;
 
+  /// Auto-scroll the primary target into view when a step activates.
+  /// `false` by default — the engine never moves content unless you opt in.
+  /// Per-step [HintStep.autoScroll] overrides this tour default.
+  final bool autoScroll;
+
   /// A tour whose steps come from an enum: the enum values (in declaration
   /// order) ARE the steps — [stepFor] maps each value to its [HintStep].
   ///
@@ -356,6 +407,7 @@ class HintTour {
     bool disableBackButton = false,
     HintMissingTargetPolicy missingTargetPolicy =
         HintMissingTargetPolicy.abortTour,
+    bool autoScroll = false,
   }) {
     return HintTour(
       id: id,
@@ -363,6 +415,7 @@ class HintTour {
       stepTimeout: stepTimeout,
       disableBackButton: disableBackButton,
       missingTargetPolicy: missingTargetPolicy,
+      autoScroll: autoScroll,
     );
   }
 
@@ -390,6 +443,7 @@ class HintTour {
         'stepTimeoutMs': stepTimeout.inMilliseconds,
         'disableBackButton': disableBackButton,
         'missingTargetPolicy': missingTargetPolicy.name,
+        if (autoScroll) 'autoScroll': true,
       };
 
   factory HintTour.fromJson(Map<String, dynamic> json) => HintTour(
@@ -401,6 +455,7 @@ class HintTour {
             ? const Duration(seconds: 3)
             : Duration(milliseconds: json['stepTimeoutMs'] as int),
         disableBackButton: json['disableBackButton'] as bool? ?? false,
+        autoScroll: json['autoScroll'] as bool? ?? false,
         missingTargetPolicy: json['missingTargetPolicy'] == null
             ? HintMissingTargetPolicy.abortTour
             : HintMissingTargetPolicy.values

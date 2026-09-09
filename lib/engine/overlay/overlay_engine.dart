@@ -374,6 +374,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
       actions: widget.input,
       theme: theme,
       registrations: registrations,
+      tourAutoScroll: widget.state.tour?.autoScroll ?? false,
     );
   }
 }
@@ -429,6 +430,7 @@ class _ActiveOverlayContent extends StatefulWidget {
     required this.actions,
     required this.theme,
     required this.registrations,
+    this.tourAutoScroll = false,
   });
 
   final HintStep step;
@@ -436,6 +438,7 @@ class _ActiveOverlayContent extends StatefulWidget {
   final int totalSteps;
   final HintActions actions;
   final HintTheme theme;
+  final bool tourAutoScroll;
 
   /// All spotlighted targets of the step, primary first. Non-empty (the
   /// caller falls back to waiting mode when nothing is mounted).
@@ -486,6 +489,39 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// with the fresh hole), only the content subtree is skipped.
   ({HintStep step, int index, List<Widget> slots})? _slotCache;
 
+  FocusShape _effectiveShape() {
+    final s = widget.step.focusShape;
+    if (s != null) return s;
+    final t = widget.registrations.first.focusShape;
+    if (t != null) return t;
+    return FocusShape.rectangle;
+  }
+
+  double _effectivePadding() {
+    final s = widget.step.focusPadding;
+    if (s != null) return s;
+    final t = widget.registrations.first.focusPadding;
+    if (t != null) return t;
+    return 4.0;
+  }
+
+  bool _effectiveAutoScroll() =>
+      widget.step.autoScroll ?? widget.tourAutoScroll;
+
+  void _maybeAutoScroll() {
+    if (!_effectiveAutoScroll()) return;
+    final ctx = widget.registrations.first.context;
+    if (Scrollable.maybeOf(ctx) == null) return;
+    try {
+      final box = ctx.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final rect = box.localToGlobal(Offset.zero) & box.size;
+      final screen = Offset.zero & MediaQuery.sizeOf(ctx);
+      if (screen.contains(rect.topLeft) && screen.contains(rect.bottomRight)) return;
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+    } catch (_) {}
+  }
+
   /// The primary hole's top-left, published to the tooltip placement
   /// listener. Movement frames update ONLY this notifier (and repaint the
   /// scrim) — the overlay subtree does not rebuild while scrolling; the
@@ -509,7 +545,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     // during initState (the overlay Entry builds before the target's
     // Scrollable mounts in the same frame).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _attachScrollListeners();
+      if (mounted) {
+        _attachScrollListeners();
+        _maybeAutoScroll();
+      }
     });
   }
 
@@ -542,6 +581,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         widget.registrations.first.link) {
       _detachScrollListeners();
       _attachScrollListeners();
+      // Auto-scroll the new primary into view if the step opts in.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeAutoScroll();
+      });
     }
     // Note: the tooltip slot cache is NOT invalidated here — _tooltipSlots
     // detects the step change itself on the next build (the single check
@@ -628,7 +671,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                           painter: RectScrimPainter(
                             holes: holes,
                             color: widget.theme.scrimColor,
-                            focusShape: widget.step.focusShape,
+                            focusShape: _effectiveShape(),
                           ),
                           child: const SizedBox.expand(),
                         ),
@@ -763,8 +806,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       content = DefaultTooltip(
         step: widget.step,
         ctx: ctx,
-        title: extra.title,
-        description: extra.description,
+        title: extra.effectiveTitle(context),
+        description: extra.effectiveDescription(context),
         showActions: false,
       );
     }
@@ -802,11 +845,11 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     return [_primaryHoleGlobal(), ..._extraHoleRects()];
   }
 
-  /// Visual holes: tap rects inflated by the step's focus padding
+  /// Visual holes: tap rects inflated by the effective focus padding
   /// (positive expands, negative shrinks — may become empty and is then
   /// skipped by the painter/clip).
   List<Rect> _visualHoleRects() {
-    final pad = widget.step.focusPadding;
+    final pad = _effectivePadding();
     if (pad == 0) return _currentHoleRects();
     return [for (final r in _currentHoleRects()) r.inflate(pad)];
   }
@@ -827,8 +870,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
             animation: _pulseController!,
             resolver: _resolvers[primary.id],
             color: widget.theme.tooltipForeground,
-            focusShape: widget.step.focusShape,
-            focusPadding: widget.step.focusPadding,
+            focusShape: _effectiveShape(),
+            focusPadding: _effectivePadding(),
           ),
           child: const SizedBox.expand(),
         ),
@@ -842,7 +885,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     return _blurScrim(
       screen: screen,
       holes: holes,
-      focusShape: widget.step.focusShape,
+      focusShape: _effectiveShape(),
       theme: widget.theme,
     );
   }
@@ -1221,7 +1264,11 @@ class _RectTargetContent extends StatefulWidget {
 class _RectTargetContentState extends State<_RectTargetContent> {
   TapDownDetails? _lastTap;
 
-  Rect get _hole => widget.step.targetRect!.inflate(widget.step.focusPadding);
+  FocusShape _effectiveShape() =>
+      widget.step.focusShape ?? FocusShape.rectangle;
+
+  Rect get _hole =>
+      widget.step.targetRect!.inflate(widget.step.focusPadding ?? 4.0);
 
   @override
   Widget build(BuildContext context) {
@@ -1234,14 +1281,14 @@ class _RectTargetContentState extends State<_RectTargetContent> {
             ? _blurScrim(
                 screen: screen,
                 holes: [hole],
-                focusShape: widget.step.focusShape,
+                focusShape: _effectiveShape(),
                 theme: widget.theme,
               )
             : CustomPaint(
                 painter: RectScrimPainter(
                   holes: [hole],
                   color: widget.theme.scrimColor,
-                  focusShape: widget.step.focusShape,
+                  focusShape: _effectiveShape(),
                 ),
                 child: const SizedBox.expand(),
               );
@@ -1309,6 +1356,7 @@ class _EvenOddClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _EvenOddClipper old) => old.path != path;
 }
+
 
 
 

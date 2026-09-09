@@ -39,4 +39,5 @@ export 'engine/theme/hint_theme.dart';
 export 'engine/tour_factory.dart';
 export 'widgets/default_tooltip.dart';
 export 'widgets/hint_target.dart';
+export 'widgets/hint_target_ext.dart';
 export 'widgets/tour_offer.dart';

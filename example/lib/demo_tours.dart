@@ -15,6 +15,7 @@ import 'package:hintful/hintful.dart';
 /// gate in the app shell.
 HintTour introTour() => HintTour(
       id: 'intro',
+      autoScroll: true,
       steps: [
         HintStep(
           targetId: 'fab',
@@ -253,15 +254,57 @@ HintTour fadeSlideTour() => HintTour(
                 opacity: t,
                 child: Transform.translate(
                   offset: Offset(0, 20 * (1 - t)),
-                  child: child,
+                  child: Transform.scale(
+                    scale: 0.85 + 0.15 * t,
+                    child: child,
+                  ),
                 ),
               ),
-              child: card,
+              child: _Float(child: card),
             );
           },
         ),
       ],
     );
+
+/// While-visible float — single ticker, no enter logic.
+class _Float extends StatefulWidget {
+  const _Float({required this.child});
+  final Widget child;
+  @override
+  State<_Float> createState() => _FloatState();
+}
+
+class _FloatState extends State<_Float> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, 5 * (_ctrl.value * 2 - 1)), // -5..+5 px
+        child: child,
+      ),
+      child: widget.child,
+    );
+  }
+}
 
 /// Server-driven shape without a server: the exact JSON a backend would
 /// serve, parsed by `HintTour.fromJson` — proves the wire format end to end
@@ -275,3 +318,30 @@ const _jsonTourDocument = '''
 {"targetId":"fab","title":"From JSON","description":"This step rode in as JSON, not Dart.","position":"auto"},
 {"targetId":"filter-all","title":"Second from JSON","description":"Multi-step tours serialize too.","position":"auto"}
 ]}''';
+
+/// l10n via titleBuilder + target-level focus + withHint.
+HintTour l10nTour(BuildContext context) => HintTour(
+      id: 'feat-l10n',
+      steps: [
+        HintStep(
+          targetId: 'entry-5',
+          titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
+          description: 'Localized via titleBuilder (no context in AppTours).',
+        ),
+        HintStep(
+          targetId: 'fab',
+          title: 'withHint + target shape',
+          description: 'FAB uses withHint + target-level circle.',
+        ),
+      ],
+    );
+
+/// Per-step autoScroll: only the offscreen step scrolls, the first stays.
+HintTour autoScrollStepTour() => HintTour(
+      id: 'feat-autoscroll-step',
+      steps: [
+        HintStep(targetId: 'fab', title: 'No scroll', description: 'Already visible.'),
+        HintStep(targetId: 'entry-5', title: 'Scroll here', description: 'This step autoScrolls.', autoScroll: true),
+      ],
+    );
+

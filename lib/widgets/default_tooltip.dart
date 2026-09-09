@@ -82,8 +82,8 @@ class DefaultTooltip extends StatelessWidget {
     // width-capped (text wraps) and grows freely.
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final maxHeight = math.max(160.0, screenSize.height - 48);
-    final title = this.title ?? step.title;
-    final description = this.description ?? step.description;
+    final title = this.title ?? step.effectiveTitle(context);
+    final description = this.description ?? step.effectiveDescription(context);
     // The buttons keep inheriting the ambient Material theme the way the
     // old Material buttons did (their text style was `textTheme.labelLarge`
     // — a product's fontFamily/letterSpacing/height must survive a theme
