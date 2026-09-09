@@ -477,12 +477,6 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   final Map<ScrollPosition, double> _scrollLastPixels = {};
   final Map<ScrollPosition, Axis> _scrollAxes = {};
 
-  /// The primary hole's top-left, published to the tooltip placement
-  /// listener. Movement frames update ONLY this notifier (and repaint the
-  /// scrim) — the overlay subtree does not rebuild while scrolling; the
-  /// listener (a tiny child) re-places the cached tooltip.
-  final ValueNotifier<Offset?> _holeNotifier = ValueNotifier<Offset?>(null);
-
   /// Cached tooltip slots (the content widgets incl. the tail wrapper),
   /// with the step they were built for. Rebuilt only when the STEP changes;
   /// reused across movement frames so the tooltip content stays identical
@@ -492,6 +486,12 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// Position/layout updates still happen (the placement delegate rebuilds
   /// with the fresh hole), only the content subtree is skipped.
   ({HintStep step, int index, List<Widget> slots})? _slotCache;
+
+  /// The primary hole's top-left, published to the tooltip placement
+  /// listener. Movement frames update ONLY this notifier (and repaint the
+  /// scrim) — the overlay subtree does not rebuild while scrolling; the
+  /// listener (a tiny child) re-places the cached tooltip.
+  final ValueNotifier<Offset?> _holeNotifier = ValueNotifier<Offset?>(null);
 
   /// Pulse ring animation; created lazily — only while `theme.showPulse` is
   /// on (default off), so the common path allocates no controller/ticker.
@@ -591,43 +591,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         final primary = widget.registrations.first;
         final blur = widget.theme.imageFilter;
 
-        // Primary follower: hosts the scrim painter (non-blur mode). In
-        // blur mode the scrim is the global layer and the follower stays
-        // empty (both read the live resolver). The painters must not
-        // absorb pointer events: `CustomPaint` hit-tests self when it has
-        // a painter, which would stop the translucent pass-through to the
-        // app below (no scroll-through). IgnorePointer keeps them painting
-        // while letting the hit test continue (the wrapper GestureDetector
-        // still joins the arena — translucent adds itself regardless of
-        // children).
-        final Widget followerChild = blur == null
-            ? Stack(
-                children: [
-                  Positioned.fill(
-                    child: IgnorePointer(
-                        child: CustomPaint(
-                          key: _scrimPaintKey,
-                          painter: ScrimHolePainter(
-                            // Live resolvers in registration order (primary
-                            // first). The painter reads them at paint time;
-                            // element-wise identity is what the painter uses
-                            // to skip redundant repaints.
-                            resolvers: [
-                              for (final r in widget.registrations)
-                                if (_resolvers[r.id] != null)
-                                  _resolvers[r.id]!,
-                            ],
-                            color: widget.theme.scrimColor,
-                            focusShape: widget.step.focusShape,
-                            focusPadding: widget.step.focusPadding,
-                          ),
-                          child: const SizedBox.expand(),
-                        ),
-                    ),
-                  ),
-                ],
-              )
-            : const SizedBox.shrink();
+        // Followers: only for link tracking (the scrim is now global,
+        // full-screen, so it never leaves a bottom gap when the target
+        // moves — the hole is punched at the live global rects).
+        final Widget followerChild = const SizedBox.shrink();
 
           return Stack(
             children: [
@@ -645,18 +612,33 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                   showWhenUnlinked: false,
                   child: const SizedBox.shrink(),
                 ),
-              // Opt-in blur scrim: a global layer (BackdropFilter) clipped to
-              // the screen minus the holes (even-odd clip) — built from the
-              // build-time hole rects, one frame behind the compositor, same
-              // as the tooltip.
-              if (blur != null)
-                Positioned.fill(
-                  child: ValueListenableBuilder<Offset?>(
-                    valueListenable: _holeNotifier,
-                    builder: (context, translation, _) =>
-                        _buildBlurScrim(screen, translation),
-                  ),
+              // Global scrim: always full-screen, hole(s) at the live global
+              // rects — no follower offset, no bottom flicker on scroll.
+              // Plain: isolated dim + clear holes; Blur: even-odd clip.
+              // Rebuilt synchronously on scroll via _holeNotifier, so the
+              // dim and the tooltip move in the same frame as the content.
+              Positioned.fill(
+                child: ValueListenableBuilder<Offset?>(
+                  valueListenable: _holeNotifier,
+                  builder: (context, _, __) {
+                    final holes = _currentHoleRects();
+                    if (blur == null) {
+                      return IgnorePointer(
+                        child: CustomPaint(
+                          key: _scrimPaintKey,
+                          painter: RectScrimPainter(
+                            holes: holes,
+                            color: widget.theme.scrimColor,
+                            focusShape: widget.step.focusShape,
+                          ),
+                          child: const SizedBox.expand(),
+                        ),
+                      );
+                    }
+                    return _buildBlurScrim(screen, holes);
+                  },
                 ),
+              ),
               // Pulse ring: a global layer above the scrim (the ring must be
               // visible over the blur too — inside the follower it would be
               // painted under the global BackdropFilter). Paints the ring at
@@ -846,26 +828,14 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     );
   }
 
-  /// Opt-in blur scrim: a global layer (BackdropFilter) clipped to the
-  /// screen minus the step's holes. The clip is a single even-odd path for
-  /// every shape — no boolean geometry (see `ScrimHolePainter.scrimClipPath`).
-  Widget _buildBlurScrim(Size screen, Offset? translation) {
-    if (translation == null) return const SizedBox.shrink();
-    final primary = widget.registrations.first;
-    final pad = widget.step.focusPadding;
-    final holes = <Rect>[
-      (translation & (primary.link.leaderSize ?? Size.zero)).inflate(pad),
-      for (final r in _extraHoleRects()) r.inflate(pad),
-    ];
-    return ClipPath(
-      clipper: _EvenOddClipper(
-        ScrimHolePainter.scrimClipPath(
-          Offset.zero & screen,
-          holes,
-          widget.step.focusShape,
-        ),
-      ),
-      child: BackdropFilter(filter: widget.theme.imageFilter!, child: ColoredBox(color: widget.theme.scrimColor)),
+  /// Opt-in blur scrim: a global layer (BackdropFilter) clipped to
+  /// the screen minus the step's holes. Holes are the live global rects.
+  Widget _buildBlurScrim(Size screen, List<Rect> holes) {
+    return _blurScrim(
+      screen: screen,
+      holes: holes,
+      focusShape: widget.step.focusShape,
+      theme: widget.theme,
     );
   }
 
@@ -890,9 +860,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// picture changes shape) + hole-notifier (the tooltip follows the target
   /// without rebuilding the overlay subtree). The first successful snapshot
   /// after mount/target-change mounts the tooltip AND rebuilds once so the
-  /// scrim painter receives the now-created resolvers (it was built with an
-  /// empty snapshot list — painting with it would stay blank forever, the
-  /// "tooltip without dim" artifact). At rest — zero repaints and zero
+  /// scrim receives the live holes. At rest — zero repaints and zero
   /// setState.
   void _schedulePoll() {
     if (_pollScheduled) return;
@@ -1343,6 +1311,7 @@ class _EvenOddClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _EvenOddClipper old) => old.path != path;
 }
+
 
 
 

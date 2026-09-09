@@ -76,12 +76,12 @@ class _SyncScreenState extends State<_SyncScreen> {
   }
 }
 
-List<ScrimHolePainter> _scrimPainters(WidgetTester tester) {
-  final out = <ScrimHolePainter>[];
+List<RectScrimPainter> _scrimPainters(WidgetTester tester) {
+  final out = <RectScrimPainter>[];
   for (final e in tester.elementList(find.byType(CustomPaint))) {
     final ro = e.findRenderObject();
-    if (ro is RenderCustomPaint && ro.painter is ScrimHolePainter) {
-      out.add(ro.painter! as ScrimHolePainter);
+    if (ro is RenderCustomPaint && ro.painter is RectScrimPainter) {
+      out.add(ro.painter! as RectScrimPainter);
     }
   }
   return out;
@@ -146,7 +146,7 @@ void main() {
     var painters = _scrimPainters(tester);
     expect(painters, isNotEmpty);
     for (final p in painters) {
-      expect(p.resolvers, isNotEmpty);
+      expect(p.holes, isNotEmpty);
     }
 
     // Step 2 (tap on the spotlighted target) keeps the scrim wired.
@@ -156,7 +156,7 @@ void main() {
     painters = _scrimPainters(tester);
     expect(painters, isNotEmpty);
     for (final p in painters) {
-      expect(p.resolvers, isNotEmpty);
+      expect(p.holes, isNotEmpty);
     }
 
     // Finish the tour so no tour timers are left pending at teardown.
@@ -222,7 +222,7 @@ void main() {
     final painters = _scrimPainters(tester);
     expect(painters, isNotEmpty);
     for (final p in painters) {
-      expect(p.resolvers, isNotEmpty);
+      expect(p.holes, isNotEmpty);
     }
 
     // Finish the tour so its wait-timeout timer does not outlive the test.

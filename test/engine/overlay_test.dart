@@ -13,9 +13,13 @@ import 'package:hintful/engine/registry.dart';
 import 'package:hintful/engine/specs.dart';
 import 'package:hintful/engine/theme/hint_theme.dart';
 
-/// The scrim layer in both modes — a CustomPaint with ScrimHolePainter.
+/// The scrim layer — plain dim (global RectScrimPainter) or blur + dim.
+/// Plain is a global RectScrimPainter with live holes; blur is a
+/// BackdropFilter clipped by ScrimHolePainter.scrimClipPath.
 final Finder _scrimFinder = find.byWidgetPredicate(
-  (w) => w is CustomPaint && w.painter is ScrimHolePainter,
+  (w) =>
+      w is CustomPaint &&
+      (w.painter is ScrimHolePainter || w.painter is RectScrimPainter),
 );
 
 class _FakeInput implements HintActions {
