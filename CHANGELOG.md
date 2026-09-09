@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — flicker-free spotlight
+
+- First-frame seed from RenderBox — no white flash on start/step change.
+- Global scrim — no bottom gap on scroll.
+- Scroll-synced holes — scrim + tooltip move with content in same frame.
+
 ## 0.6.0 — spotlight correctness (saveLayer scrim, rect targets, honest states)
 
 - First-frame content: positions seed synchronously from the targets'
