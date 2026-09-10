@@ -1,6 +1,3 @@
-# Private planning docs — never published.
-doc/
-
 # Build artifacts at any level (root package and example/).
 build/
 web/
@@ -13,7 +10,7 @@ hintful_bloc/
 # The benchmark package is repo-level engineering artifact — not part of the
 # published archive either.
 benchmark/
-docs/hint_metrics.png
+docs/
 
 # IDE/editor junk.
 *.iml

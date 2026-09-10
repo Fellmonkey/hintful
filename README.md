@@ -223,7 +223,8 @@ One scene, three solutions: the contract scenarios S1–S6 on a profile Android 
 
 **Trend history:** [charts](https://fellmonkey.github.io/hintful/bench/)
 
-![hintful benchmark metrics](docs/hint_metrics.png)
+![hintful benchmark metrics](doc/hint_metrics.png)
 
 _Recorded 2026-09-09 16:18 UTC. Regenerate: dispatch the `bench-record` workflow with `record`._
 <!-- bench:end -->
+

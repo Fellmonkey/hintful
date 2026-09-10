@@ -29,7 +29,7 @@ customScenarios:
 # Card PNG rendered from recorded goldens. Footer/legend = package defaults
 # (head-to-head legend derived from the readme columns below).
 card:
-  out: ../docs/hint_metrics.png
+  out: ../doc/hint_metrics.png
   title: 'hintful benchmarks — contract'
   subtitle: 'profile build · Android x64 · S1–S7 contract scenarios'
 
@@ -61,7 +61,7 @@ readme:
     `idleClasses` — 0 means the solution holds no live control-plane
     instances while idle. The size rows are hintful-only because the rival
     scenes were never shipped as size targets.
-  image: docs/hint_metrics.png
+  image: doc/hint_metrics.png
   imageAlt: hintful benchmark metrics
   stamp: '_Recorded {ts}. Regenerate: dispatch the `bench-record` workflow with `record`._'
   chartsUrl: https://fellmonkey.github.io/hintful/bench/

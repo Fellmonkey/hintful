@@ -97,11 +97,11 @@ cd benchmark && dart run flutter_bench_contract:contract card
 The `bench-record` job runs exactly these two commands inside the
 emulator step (record or check); with the `compare` input on, the compare
 consumer runs first (its own two-command run, recording the rival refs
-into the shared store): `contract run` drives the device contract
-scenarios via `flutter drive --profile --no-dds` and the S7 native size leg
-(`--legs native`; the web leg stays in the plain-CI bundle job) in the same
-invocation, then `contract card` renders the metrics-card PNG on the host
-from the recorded goldens (the PNG lands at `../docs/hint_metrics.png`),
+   into the shared store): `contract run` drives the device contract
+  scenarios via `flutter drive --profile --no-dds` and the S7 native size leg
+  (`--legs native`; the web leg stays in the plain-CI bundle job) in the same
+  invocation, then `contract card` renders the metrics-card PNG on the host
+  from the recorded goldens (the PNG lands at `../doc/hint_metrics.png`),
 checking/recording against `benchmarks.json`. A record dispatch also
 re-renders the root README "Performance" section (`contract readme`: one
 table from the store + the card PNG, between the bench markers) and commits
