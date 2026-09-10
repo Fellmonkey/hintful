@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2 — autoScroll, withHint, target focus and l10n
+
+- `autoScroll` on `HintTour`/`HintStep` (opt-in, `false` by default) — brings offscreen targets into view.
+- `HintTarget(focusShape/padding)` as target default — `HintStep` overrides; no per-step duplication for round icons.
+- `withHint` extension: `child.withHint('id')` sugar over `HintTarget`.
+- `titleBuilder`/`descriptionBuilder` on `HintStep`/`HintTooltip` — l10n via `BuildContext` without threading it through `AppTours`.
+- Example: `Step scroll` (per-step `autoScroll`), `L10n` (builder), `withHint` on `filter-all`, `entry-5` circle, intro `autoScroll: true`, full custom `TweenAnimationBuilder` + float.
+
 ## 0.6.1 — flicker-free spotlight
 
 - First-frame seed from RenderBox — no white flash on start/step change.
