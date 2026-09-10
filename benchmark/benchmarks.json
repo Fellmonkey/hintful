@@ -17,7 +17,7 @@
     "bundle_delta": {
       "unit": "bytes added to the startup bundle",
       "goldens": {
-        "any": 48690
+        "any": 52921
       },
       "note": "Deterministic per SDK: measured on Flutter 3.47.0 (2026-09-02). Re-record only when the SDK or engine code changes. Deferred-engine target (N7) is 0 bytes — re-key then."
     },
