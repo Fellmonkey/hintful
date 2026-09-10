@@ -385,6 +385,8 @@ class _VisualDemosCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _sectionLabel(context, 'Motion & logic'),
+            _MotionNotice(),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -397,6 +399,63 @@ class _VisualDemosCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Inline memo: animations honor the OS reduce-motion setting.
+  const _MotionNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withAlpha(120),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withAlpha(60)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            reduceMotion ? Icons.motion_photos_off_outlined : Icons.motion_photos_on_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reduceMotion
+                      ? 'Reduce Motion is on — animations appear instantly (by design)'
+                      : 'Animations respect Reduce Motion',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Sprung / Custom demos honor the system setting '
+                  '(Android: Remove animations, iOS/macOS: Reduce motion, '
+                  'Web: prefers-reduced-motion). They are included '
+                  'intentionally to showcase the engine — enable animations '
+                  'in OS / browser to see them fully. '
+                  'Chrome: DevTools > Rendering > Emulate prefers-reduced-motion: no-preference.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
