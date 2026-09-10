@@ -1,0 +1,36 @@
+name: example-web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'example/**'
+      - 'lib/**'
+      - '.github/workflows/example-web.yml'
+  workflow_dispatch:
+
+# Allow pushing to gh-pages
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build example (web)
+        working-directory: example
+        run: flutter build web --base-href /hintful/ --release
+
+      - name: Deploy to gh-pages (keep bench charts)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: example/build/web
+          publish_branch: gh-pages
+          keep_files: true
