@@ -405,6 +405,7 @@ class _VisualDemosCard extends StatelessWidget {
 }
 
 /// Inline memo: animations honor the OS reduce-motion setting.
+class _MotionNotice extends StatelessWidget {
   const _MotionNotice();
 
   @override
