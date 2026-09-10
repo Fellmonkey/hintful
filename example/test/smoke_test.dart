@@ -243,6 +243,12 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pump();
     await tester.pump(); // wait-for-target + scroll-into-view
+    // The notice inserted above Motion & logic increased the list height,
+    // so entry-0 may still be offscreen in the 800×900 test viewport —
+    // bring its tile into view so the tooltip can anchor.
+    await tester.scrollUntilVisible(find.text('Bench press'), 500);
+    await tester.pump();
+    await tester.pump();
     expect(find.text('Overlay taps off'), findsOneWidget);
 
     await tester.tapAt(const Offset(30, 100));
