@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.0 — honest presets, tolerant JSON, tighter surface
+
+**Breaking:** `HintSkipReason.targetUnmountedDuringStep` is gone — drop the case
+from an exhaustive `switch` — and four engine symbols leave the public barrel.
+
+- `HintCurve.easeOut` is a real preset: fade + scale 0.96 → 1 on `Curves.easeOut`,
+  200 ms. It used to behave like "no animation".
+- `fromJson` tolerates an unknown enum name: it falls back to the field default
+  and is reported through the new `onWarning` callback (also on
+  `FetcherHintTourFactory`) instead of throwing.
+- Exported `hintTransitionDuration` — the reduce-motion helper the presets use,
+  so a custom `tooltipBuilder` shares the same contract.
+- Duplicate `targetId` warnings now actually print in debug builds; `onWarning`
+  still fires.
+- `autoScroll` no longer flashes the tooltip in a screen corner: while the
+  target is still off screen the tooltip waits at the edge it is coming from
+  and rides the scroll onto it. The position watch dropped the tooltip for the
+  whole animation — an unpainted target has no compositor transform — and the
+  placement parked it in the top-left corner.
+- Removed `findClosestTargetId`; `formatHintSkipped`, `editDistance`,
+  `CompositorHintResolver` and `UnpositionedHintResolver` are no longer exported.
+  They stay public inside `lib/engine/` for the package's own tests, and custom
+  hosts keep `HintPosition`, `PositionedHint`, `UnpositionedHint` and
+  `HintPositionResolver`.
+- Dropped the stale `hintful_bloc/` references from `.pubignore` and
+  `analysis_options.yaml`.
+
+Docs: README rebuilt around badges, a demo section and the `withHint`/l10n paths;
+`doc/best_practices.md` now covers 0–21 with an index; the FAQ grew to ten answers.
+
 ## 0.6.2 — autoScroll, withHint, target focus and l10n
 
 - `autoScroll` on `HintTour`/`HintStep` (opt-in, `false` by default) — brings offscreen targets into view.
@@ -23,7 +53,6 @@
   synchronously (ancestor Scrollables observed) — no one-frame lag while
   the screen scrolls. Live compositor resolvers upgrade in behind
   (same values ± subpixel).
-
 - One scrim mechanism for every shape: fullscreen dim + `BlendMode.clear`
   holes in an isolated layer (no boolean geometry, overlap-correct); blur
   clips to one even-odd path. Removed the strips path (`scrimStrips`,
@@ -76,7 +105,7 @@ Four battle-feedback fixes, all backward-compatible:
 
 - Programmatic control: `previous()`/`goTo()`, `HintTour.disableBackButton`
   (Android back/route pop), Shift+Tab backwards navigation.
-- Smart positioning (full): auto-flip re-picks the side on scroll, keep
+- Smart positioning (full): auto-flip re-picks the side on scroll,
   keep-in-safe-area (notch/home indicator), the tooltip never covers the
   spotlighted targets, tail (arrow) ties the tooltip to its target.
 - Accessibility on by default: screen-reader step announcements, keyboard

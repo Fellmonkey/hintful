@@ -1,7 +1,13 @@
 name: hintful
 description: Onboarding tours and tooltips for Flutter. Registry-based targets, theme-aware coach marks, smart positioning, accessible by default — zero cost when idle.
-version: 0.6.2
+version: 0.7.0
 repository: https://github.com/Fellmonkey/hintful
+topics:
+  - flutter
+  - onboarding
+  - tooltip
+  - coach-marks
+  - walkthrough
 environment:
   # The floor is sealed-classes machine states (Dart 3.0 = Flutter 3.10).
   # The remaining engine contracts are covered by this minimum:
