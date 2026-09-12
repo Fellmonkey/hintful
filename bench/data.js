@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789242174968,
+  "lastUpdate": 1789245829239,
   "repoUrl": "https://github.com/Fellmonkey/hintful",
   "entries": {
     "contract": [
@@ -113,6 +113,68 @@ window.BENCHMARK_DATA = {
           {
             "name": "update_latency@android",
             "value": 180,
+            "unit": "ms"
+          },
+          {
+            "name": "custom.startup_to_show@android-custom",
+            "value": 1,
+            "unit": "undefined"
+          },
+          {
+            "name": "native_size@android",
+            "value": 76228,
+            "unit": "B"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "github-actions[bot]",
+            "username": "github-actions[bot]",
+            "email": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "github-actions[bot]",
+            "username": "github-actions[bot]",
+            "email": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "id": "6e3bbf0f34ad9984fc7ec17a6e5e31bbece11559",
+          "message": "bench: publish results (goldens + metrics card)",
+          "timestamp": "2026-09-12T20:43:42Z",
+          "url": "https://github.com/Fellmonkey/hintful/commit/6e3bbf0f34ad9984fc7ec17a6e5e31bbece11559"
+        },
+        "date": 1789245825904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "active_heap@android",
+            "value": 41877,
+            "unit": "B"
+          },
+          {
+            "name": "hide_retention@android",
+            "value": -59,
+            "unit": "B"
+          },
+          {
+            "name": "idle_resources@android",
+            "value": 0,
+            "unit": "instances"
+          },
+          {
+            "name": "idle_zero@android",
+            "value": 4,
+            "unit": "elements"
+          },
+          {
+            "name": "show_latency@android",
+            "value": 108,
+            "unit": "ms"
+          },
+          {
+            "name": "update_latency@android",
+            "value": 159,
             "unit": "ms"
           },
           {
