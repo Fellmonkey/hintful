@@ -201,7 +201,8 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
 /// through `tooltipBuilder` — the engine places whatever the builder
 /// returns (positioning, tail side, safe area all still apply), the builder
 /// owns how it enters, down to its own action button. Honors reduce-motion
-/// by rendering instantly.
+/// through the exported `hintTransitionDuration` — the same contract the
+/// built-in presets use.
 HintTour fadeSlideTour() => HintTour(
       id: 'feat-fade-slide',
       steps: [
@@ -211,8 +212,10 @@ HintTour fadeSlideTour() => HintTour(
           description: 'Custom entry, custom button.',
           tooltipBuilder: (context, step, ctx) {
             final theme = Theme.of(context).hintTheme;
-            final reduceMotion =
-                MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+            final duration = hintTransitionDuration(
+              MediaQuery.of(context),
+              const Duration(milliseconds: 400),
+            );
             final card = Semantics(
               container: true,
               label: step.title,
@@ -245,10 +248,10 @@ HintTour fadeSlideTour() => HintTour(
                 ),
               ),
             );
-            if (reduceMotion) return card;
+            if (duration == Duration.zero) return card;
             return TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 400),
+              duration: duration,
               curve: Curves.easeOut,
               builder: (context, t, child) => Opacity(
                 opacity: t,

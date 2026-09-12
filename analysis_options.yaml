@@ -23,7 +23,6 @@ analyzer:
     - macos/**
     - linux/**
     - example/**
-    - hintful_bloc/**
     - benchmark/**
 
 linter:

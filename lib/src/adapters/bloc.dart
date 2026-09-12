@@ -1,7 +1,7 @@
-// bloc adapter — thin Cubit over HintController, ~15 lines.
-// Core stays `dart:ui+widgets` only; `bloc` lives in separate `hintful_bloc/` package.
-// See `hintful_bloc/` for the publishable package (like `talker_bloc_logger`).
-// Example (from that package):
+// bloc adapter — a thin Cubit over HintController, ~15 lines.
+// Core stays `dart:ui+widgets`: `bloc` never enters hintful's dependencies,
+// so the adapter lives in your app (or your own package next to it).
+// Example:
 // ```dart
 // class HintCubit extends Cubit<HintState> {
 //   HintCubit(this.controller) : super(controller.state.value) {

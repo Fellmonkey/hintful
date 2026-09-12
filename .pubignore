@@ -3,10 +3,6 @@ build/
 web/
 android/
 
-# The sibling adapter package ships on its own — its sources are not part
-# of the hintful archive.
-hintful_bloc/
-
 # The benchmark package is repo-level engineering artifact — not part of the
 # published archive either.
 benchmark/

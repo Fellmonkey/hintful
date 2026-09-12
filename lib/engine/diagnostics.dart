@@ -6,7 +6,11 @@ import 'package:flutter/foundation.dart';
 /// an event bus can reuse the same reason values without changing the
 /// contract.
 enum HintSkipReason {
-  /// The target was not registered by the time the step was reached.
+  /// The render host could not be mounted: no `OverlayState` was reachable
+  /// and no mounted target was available to capture the root overlay from.
+  /// Matters for fully-deferred scenarios — pass `overlay:` to
+  /// `defaultOverlayHost`. The name predates the check: it is about the
+  /// overlay, not about a particular target.
   targetNotRendered,
 
   /// Wait-for-target: the target did not appear within the configured timeout.
@@ -16,9 +20,6 @@ enum HintSkipReason {
   /// (likely a typo).
   unknownTarget,
 
-  /// The target was mounted but vanished during an active step.
-  targetUnmountedDuringStep,
-
   /// The user skipped the tour.
   userSkipped;
 
@@ -27,8 +28,6 @@ enum HintSkipReason {
         HintSkipReason.targetNotRendered => 'target-not-rendered',
         HintSkipReason.timeout => 'timeout',
         HintSkipReason.unknownTarget => 'unknown-target',
-        HintSkipReason.targetUnmountedDuringStep =>
-          'target-unmounted-during-step',
         HintSkipReason.userSkipped => 'user-skipped',
       };
 }
@@ -128,14 +127,4 @@ List<String> closestTargetIds(
     return byDistance != 0 ? byDistance : x.$2.compareTo(y.$2);
   });
   return scored.take(limit).map((e) => e.$2).toList();
-}
-
-/// Closest candidate for [typo] among [known], or null if none are close.
-String? findClosestTargetId(
-  String typo,
-  Set<String> known, {
-  int maxDistance = 2,
-}) {
-  final candidates = closestTargetIds(typo, known, maxDistance: maxDistance);
-  return candidates.isEmpty ? null : candidates.first;
 }

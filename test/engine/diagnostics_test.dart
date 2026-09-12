@@ -38,17 +38,17 @@ void main() {
     const known = {'statsPeriodSelector', 'exerciseSelector', 'addSet'};
 
     test('exact match — distance 0', () {
-      expect(findClosestTargetId('addSet', known), 'addSet');
+      expect(closestTargetIds('addSet', known).first, 'addSet');
     });
 
     test('typo within 2 — a candidate is found', () {
-      expect(findClosestTargetId('addSetX', known), 'addSet');
-      expect(findClosestTargetId('statsPeriodSelectr', known),
+      expect(closestTargetIds('addSetX', known).first, 'addSet');
+      expect(closestTargetIds('statsPeriodSelectr', known).first,
           'statsPeriodSelector'); // final 'o' lost → distance 1
     });
 
-    test('nothing similar — null', () {
-      expect(findClosestTargetId('totallyUnknown', known), isNull);
+    test('nothing similar — no candidates', () {
+      expect(closestTargetIds('totallyUnknown', known), isEmpty);
     });
 
     test('top-N sorted by distance, then alphabetically', () {

@@ -9,13 +9,17 @@
 ///   "no GlobalKey" model;
 /// - observable machine state ([HintState] + subtypes) — the public
 ///   observable; events/effects/the machine itself are NOT exported;
+/// - motion ([hintTransitionDuration]) — the reduce-motion helper the entry
+///   presets and custom tooltips share;
 /// - controller ([HintController]) and the render-mechanics contract
 ///   ([HintOverlayHost]) — the single control point;
 /// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
-///   [DebugPrintDiagnostics], typo candidates);
+///   [DebugPrintDiagnostics]) and the typo search ([closestTargetIds]);
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget], [DefaultTooltip], the
 ///   "Want a tour?" pre-dialog [showHintTourOffer]);
-/// - position resolver ([HintPositionResolver]) — for custom hosts;
+/// - position value types ([HintPosition], [PositionedHint],
+///   [UnpositionedHint]) and the [HintPositionResolver] contract — for custom
+///   hosts;
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
 ///   [compareVersions]) — the "show once per app version" service.
 ///
@@ -24,14 +28,28 @@
 /// breaking changes. Exception — [defaultOverlayHost]: the single public
 /// entry into render mechanics, a stable factory for wiring the host (the
 /// controller's `overlayHostBuilder`).
+///
+/// Also outside the contract, for the same reason: the diagnostics helpers
+/// `formatHintSkipped` (the exact log line is not an API) and `editDistance`
+/// (a generic string metric), and the concrete resolvers
+/// `CompositorHintResolver` / `UnpositionedHintResolver` (they touch
+/// Flutter's layer internals). They stay public inside `lib/engine/` for the
+/// package's own tests.
 library;
 
 export 'engine/controller.dart' show HintController, HintOverlayHost;
-export 'engine/diagnostics.dart';
+export 'engine/diagnostics.dart'
+    show
+        DebugPrintDiagnostics,
+        HintDiagnosticsHandler,
+        HintSkipReason,
+        closestTargetIds;
 export 'engine/labels.dart';
 export 'engine/overlay/overlay_engine.dart' show defaultOverlayHost;
 export 'engine/machine.dart' show HintActive, HintIdle, HintState, HintWaiting;
-export 'engine/position_resolver.dart';
+export 'engine/motion.dart' show hintTransitionDuration;
+export 'engine/position_resolver.dart'
+    show HintPosition, HintPositionResolver, PositionedHint, UnpositionedHint;
 export 'engine/registry.dart';
 export 'engine/specs.dart';
 export 'engine/store.dart';
