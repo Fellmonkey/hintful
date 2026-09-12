@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/widgets.dart';
 
 /// Preferred side of the tooltip relative to its target.
@@ -10,17 +11,21 @@ enum TooltipPosition { auto, top, bottom, left, right }
 
 enum FocusShape { rectangle, circle, roundedRect }
 
-/// Tooltip entry animation — the animation ladder, rung 2.
+/// Tooltip entry animation — the preset ladder, rung 2 of the animation
+/// ladder.
 ///
-/// - null / [HintCurve.easeOut] — no entry animation: the tooltip simply
-///   appears (`easeOut` is reserved for a future gentle preset);
-/// - [HintCurve.sprung] — the zero-config bounce (scale 0.8 → 1.0 +
-///   fade, `elasticOut`), timed by [HintStep.transitionDuration].
+/// - null — no entry animation: the tooltip simply appears (the default);
+/// - [HintCurve.easeOut] — the quiet preset: fade + a whisper of scale
+///   (0.96 → 1) on `Curves.easeOut`, 200 ms;
+/// - [HintCurve.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
+///   (the overshoot is the bounce), 800 ms.
 ///
-/// Anything beyond a bounce (slide, fade-then-rise, staggered content) is
-/// rung 3: a custom `tooltipBuilder` with its own animation widgets — the
-/// engine places the built tooltip, the builder owns how it enters. All
-/// entry animation is skipped under the system reduce-motion setting.
+/// Each preset's length is overridable per step with
+/// [HintStep.transitionDuration], and every preset is skipped under the system
+/// reduce-motion setting. Anything beyond a preset (slide, staggered content,
+/// a custom button) is rung 3: a `tooltipBuilder` with its own animation
+/// widgets — the engine places the built tooltip, the builder owns how it
+/// enters.
 enum HintCurve { easeOut, sprung }
 
 /// Actions available to a step's content (custom tooltips).
@@ -211,8 +216,9 @@ class HintStep {
   String? effectiveDescription(BuildContext context) =>
       descriptionBuilder?.call(context) ?? description;
 
-  /// Entry-animation length for [transitionCurve]; null — the curve default
-  /// (800 ms for [HintCurve.sprung]). Ignored without a curve.
+  /// Entry-animation length for [transitionCurve]; null — the preset's own
+  /// default (200 ms for [HintCurve.easeOut], 800 ms for [HintCurve.sprung]).
+  /// Ignored without a curve.
   final Duration? transitionDuration;
 
   /// Entry-animation preset, see [HintCurve] (rung 2 of the animation
@@ -260,29 +266,39 @@ class HintStep {
           'targetRect': {'left': targetRect!.left, 'top': targetRect!.top, 'width': targetRect!.width, 'height': targetRect!.height},
       };
 
-  factory HintStep.fromJson(Map<String, dynamic> json) => HintStep(
+  factory HintStep.fromJson(
+    Map<String, dynamic> json, {
+    void Function(String warning)? onWarning,
+  }) =>
+      HintStep(
         targetId: json['targetId'] as String,
         moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
         moreTooltips: (json['moreTooltips'] as List?)
-                ?.map((e) => HintTooltip.fromJson(e as Map<String, dynamic>))
+                ?.map((e) => HintTooltip.fromJson(
+                      e as Map<String, dynamic>,
+                      onWarning: onWarning,
+                    ))
                 .toList() ??
             const [],
         title: json['title'] as String?,
         description: json['description'] as String?,
-        position: json['position'] == null ? TooltipPosition.auto : TooltipPosition.values.byName(json['position'] as String),
+        position: _enumOrDefault(TooltipPosition.values, json['position'],
+            TooltipPosition.auto, field: 'position', onWarning: onWarning),
         waitTimeout: json['waitTimeoutMs'] == null ? null : Duration(milliseconds: json['waitTimeoutMs'] as int),
         showSkip: json['showSkip'] as bool? ?? true,
-        missingTargetPolicy: json['missingTargetPolicy'] == null
-            ? null
-            : HintMissingTargetPolicy.values
-                .byName(json['missingTargetPolicy'] as String),
+        missingTargetPolicy: _enumOrNull(HintMissingTargetPolicy.values,
+            json['missingTargetPolicy'],
+            field: 'missingTargetPolicy',
+            onWarning: onWarning),
         tapOnTarget: json['tapOnTarget'] as bool? ?? true,
         tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
-        focusShape: json['focusShape'] == null ? null : FocusShape.values.byName(json['focusShape'] as String),
+        focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
+            field: 'focusShape', onWarning: onWarning),
         focusPadding: (json['focusPadding'] as num?)?.toDouble(),
         autoScroll: json['autoScroll'] as bool?,
         transitionDuration: json['transitionDurationMs'] == null ? null : Duration(milliseconds: json['transitionDurationMs'] as int),
-        transitionCurve: json['transitionCurve'] == null ? null : HintCurve.values.byName(json['transitionCurve'] as String),
+        transitionCurve: _enumOrNull(HintCurve.values, json['transitionCurve'],
+            field: 'transitionCurve', onWarning: onWarning),
         targetRect: json['targetRect'] == null
             ? null
             : Rect.fromLTWH((json['targetRect']['left'] as num).toDouble(), (json['targetRect']['top'] as num).toDouble(), (json['targetRect']['width'] as num).toDouble(), (json['targetRect']['height'] as num).toDouble()),
@@ -344,8 +360,13 @@ class HintTooltip {
         if (description != null) 'description': description,
       };
 
-  factory HintTooltip.fromJson(Map<String, dynamic> json) => HintTooltip(
-        position: TooltipPosition.values.byName(json['position'] as String),
+  factory HintTooltip.fromJson(
+    Map<String, dynamic> json, {
+    void Function(String warning)? onWarning,
+  }) =>
+      HintTooltip(
+        position: _enumOrDefault(TooltipPosition.values, json['position'],
+            TooltipPosition.auto, field: 'position', onWarning: onWarning),
         title: json['title'] as String?,
         description: json['description'] as String?,
       );
@@ -446,19 +467,60 @@ class HintTour {
         if (autoScroll) 'autoScroll': true,
       };
 
-  factory HintTour.fromJson(Map<String, dynamic> json) => HintTour(
+  factory HintTour.fromJson(
+    Map<String, dynamic> json, {
+    void Function(String warning)? onWarning,
+  }) =>
+      HintTour(
         id: json['id'] as String,
         steps: (json['steps'] as List)
-            .map((e) => HintStep.fromJson(e as Map<String, dynamic>))
+            .map((step) => HintStep.fromJson(
+                  step as Map<String, dynamic>,
+                  onWarning: onWarning,
+                ))
             .toList(),
         stepTimeout: json['stepTimeoutMs'] == null
             ? const Duration(seconds: 3)
             : Duration(milliseconds: json['stepTimeoutMs'] as int),
         disableBackButton: json['disableBackButton'] as bool? ?? false,
         autoScroll: json['autoScroll'] as bool? ?? false,
-        missingTargetPolicy: json['missingTargetPolicy'] == null
-            ? HintMissingTargetPolicy.abortTour
-            : HintMissingTargetPolicy.values
-                .byName(json['missingTargetPolicy'] as String),
+        missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
+            json['missingTargetPolicy'], HintMissingTargetPolicy.abortTour,
+            field: 'missingTargetPolicy', onWarning: onWarning),
       );
 }
+
+/// Enum value from a JSON [name]: null when the field is absent, null + a
+/// warning when the name is unknown.
+///
+/// A payload is untrusted input — a stale or hand-edited tour must not crash
+/// the app — so an unknown value falls back to the field's default and the
+/// problem is reported: `debugPrint` in debug builds, plus the optional
+/// `onWarning` callback the `fromJson` entry points thread down.
+T? _enumOrNull<T extends Enum>(
+  List<T> values,
+  Object? name, {
+  required String field,
+  void Function(String warning)? onWarning,
+}) {
+  if (name == null) return null;
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  final warning = "hintful: unknown $field '$name' — using the default";
+  if (kDebugMode) debugPrint(warning);
+  onWarning?.call(warning);
+  return null;
+}
+
+/// [_enumOrNull] for a non-nullable field: same warning, the field's
+/// [fallback] instead of null.
+T _enumOrDefault<T extends Enum>(
+  List<T> values,
+  Object? name,
+  T fallback, {
+  required String field,
+  void Function(String warning)? onWarning,
+}) =>
+    _enumOrNull<T>(values, name, field: field, onWarning: onWarning) ??
+    fallback;

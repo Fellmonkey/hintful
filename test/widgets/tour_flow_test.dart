@@ -458,6 +458,47 @@ void main() {
       h.expectIdleClean();
     });
 
+    testWidgets(
+        'easeOut is a real preset: it animates, and is instant under '
+        'reduce-motion', (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'ease-rm',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            title: 'Statistics',
+            transitionCurve: HintCurve.easeOut,
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      // Rung 2: the quiet preset really animates (a null curve would not).
+      expect(find.text('Statistics'), findsOneWidget);
+      expect(find.byType(TweenAnimationBuilder<double>), findsWidgets,
+          reason: 'easeOut is a preset: the tooltip fades in');
+
+      h.controller.finish();
+      await tester.pump();
+      h.expectIdleClean();
+
+      // Same preset, reduce-motion on → mounted instantly.
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+      await h.start(tester, tour);
+      expect(find.text('Statistics'), findsOneWidget);
+      expect(find.byType(TweenAnimationBuilder<double>), findsNothing,
+          reason: 'reduce-motion: the easeOut entry mounts instantly');
+      h.controller.finish();
+      await tester.pump();
+      h.expectIdleClean();
+    });
+
     testWidgets('text scale 2.0: the tooltip still fits on screen',
         (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 2.0;

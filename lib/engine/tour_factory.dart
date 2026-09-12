@@ -26,16 +26,25 @@ class InMemoryHintTourFactory implements HintTourFactory {
 
 /// Network factory — you provide `fetcher` (e.g. `(uri) => http.get(uri).then((r)=>r.body)`).
 class FetcherHintTourFactory implements HintTourFactory {
-  FetcherHintTourFactory({required this.baseUrl, required this.fetcher});
+  FetcherHintTourFactory({
+    required this.baseUrl,
+    required this.fetcher,
+    this.onWarning,
+  });
 
   final String baseUrl;
   final Future<String> Function(Uri uri) fetcher;
+
+  /// Called for every payload value that was unknown and fell back to its
+  /// default (also printed in debug builds). Wire it to crash reporting when
+  /// a bad tour means a bad release of your tour content.
+  final void Function(String warning)? onWarning;
 
   @override
   Future<HintTour> fetch(String id) async {
     final uri = Uri.parse('$baseUrl/$id.json');
     final body = await fetcher(uri);
     final json = jsonDecode(body) as Map<String, dynamic>;
-    return HintTour.fromJson(json);
+    return HintTour.fromJson(json, onWarning: onWarning);
   }
 }

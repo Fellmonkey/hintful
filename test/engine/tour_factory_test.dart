@@ -51,6 +51,81 @@ void main() {
     });
   });
 
+  group('unknown payload values fall back instead of throwing', () {
+    test('every enum field falls back to its default and warns', () {
+      final warnings = <String>[];
+      final tour = HintTour.fromJson(
+        {
+          'id': 'server',
+          'missingTargetPolicy': 'explode',
+          'steps': [
+            {
+              'targetId': 'a',
+              'title': 'Hello',
+              'position': 'middle',
+              'focusShape': 'hexagon',
+              'transitionCurve': 'wobble',
+              'missingTargetPolicy': 'explode-too',
+              'moreTooltips': [
+                {'position': 'sideways', 'title': 'Extra'},
+              ],
+            },
+          ],
+        },
+        onWarning: warnings.add,
+      );
+
+      final step = tour.steps.single;
+      expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
+      expect(step.position, TooltipPosition.auto);
+      expect(step.focusShape, isNull); // unknown → inherit the target's
+      expect(step.transitionCurve, isNull); // unknown → no entry animation
+      expect(step.missingTargetPolicy, isNull); // unknown → inherit the tour's
+      expect(step.moreTooltips.single.position, TooltipPosition.auto);
+      expect(step.moreTooltips.single.title, 'Extra'); // the rest survives
+      expect(warnings, hasLength(6));
+      expect(warnings.every((w) => w.startsWith('hintful: unknown ')), isTrue);
+      // The order follows argument evaluation — assert membership, not order.
+      expect(warnings.any((w) => w.contains("missingTargetPolicy 'explode'")),
+          isTrue);
+      expect(warnings.any((w) => w.contains("transitionCurve 'wobble'")), isTrue);
+    });
+
+    test('an absent field is not a warning', () {
+      final warnings = <String>[];
+      final tour = HintTour.fromJson(
+        {
+          'id': 'minimal',
+          'steps': [
+            {'targetId': 'a', 'title': 'A'},
+          ],
+        },
+        onWarning: warnings.add,
+      );
+      expect(tour.steps.single.position, TooltipPosition.auto);
+      expect(tour.steps.single.transitionCurve, isNull);
+      expect(warnings, isEmpty);
+    });
+
+    test('FetcherHintTourFactory threads onWarning to the parser', () async {
+      final warnings = <String>[];
+      final f = FetcherHintTourFactory(
+        baseUrl: 'https://cdn.example.com/tours',
+        fetcher: (_) async => jsonEncode({
+          'id': 'remote',
+          'steps': [
+            {'targetId': 'a', 'title': 'A', 'position': 'middle'},
+          ],
+        }),
+        onWarning: warnings.add,
+      );
+
+      final tour = await f.fetch('remote');
+      expect(tour.steps.single.position, TooltipPosition.auto);
+      expect(warnings.single, contains("position 'middle'"));
+    });
+  });
+
   group('HintTourFactory', () {
     test('InMemory fetch', () async {
       final tour = HintTour(id: 'a', steps: [HintStep(targetId: 'x', title: 'X')]);
