@@ -14,7 +14,7 @@ hand-written overlay, scroll math or duplicated per-screen styling.
 
 ## See it in action
 
-![A hintful tour running over the example app — the spotlight moves between targets while the tooltip follows it and the page scrolls](doc/demo.gif)
+[A hintful tour running over the example app](https://github.com/user-attachments/assets/3a92f95d-2265-4577-954a-63b32b208769)
 
 _Recorded on the `example/` app. Try it live:
 [fellmonkey.github.io/hintful](https://fellmonkey.github.io/hintful/)._
