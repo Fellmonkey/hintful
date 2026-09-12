@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/widgets.dart';
 
 import 'specs.dart';
@@ -51,8 +52,11 @@ class HintTargetRegistry {
   /// Tests and apps with their own registries create separate instances.
   static final HintTargetRegistry defaultInstance = HintTargetRegistry();
 
-  /// Developer warnings (duplicate id etc.); in debug builds the controller
-  /// wires up printing.
+  /// Developer warnings (duplicate id etc.).
+  ///
+  /// Debug builds print them via [debugPrint] on their own — the check is
+  /// debug-only, so release pays nothing. Set a callback to capture them
+  /// instead (tests, a dev panel); it fires in addition to the print.
   void Function(String warning)? onWarning;
 
   final Set<VoidCallback> _listeners = {};
@@ -78,10 +82,10 @@ class HintTargetRegistry {
   void register(HintTargetRegistration registration) {
     final existing = _byId[registration.id];
     if (existing != null && !identical(existing, registration)) {
-      onWarning?.call(
-        "hintful: duplicate target id '${registration.id}'"
-        ' — newest registration wins',
-      );
+      final warning = "hintful: duplicate target id '${registration.id}'"
+          ' — newest registration wins';
+      if (kDebugMode) debugPrint(warning);
+      onWarning?.call(warning);
     }
     _byId[registration.id] = registration;
     _notifyChanged();
