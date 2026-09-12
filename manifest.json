@@ -1,11 +1,11 @@
 {
-    "name": "hintful_example",
-    "short_name": "hintful_example",
+    "name": "hintful demo — onboarding tours for Flutter",
+    "short_name": "hintful",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Live demo of hintful — spotlight targets, tooltips, coach marks and guided tours for Flutter, running the package's example app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
