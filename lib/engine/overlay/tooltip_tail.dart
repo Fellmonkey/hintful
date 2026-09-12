@@ -159,12 +159,14 @@ class TooltipTailPainter extends CustomPainter {
       oldDelegate.tailWidth != tailWidth;
 }
 
-/// The tail (arrow toward the target) rendered behind the default tooltip.
+/// The tail (arrow toward the target) rendered behind a tooltip slot.
 ///
-/// Engine-internal: wraps [DefaultTooltip] in overlay_engine.dart — the
+/// Engine-internal: overlay_engine.dart wraps it around every slot — the
+/// default tooltip, a custom `tooltipBuilder` and multi-content slots — so the
 /// public tooltip widget stays hole-agnostic (it does not know where the
-/// target is). Custom tooltips (`tooltipBuilder`) own their look entirely —
-/// no tail is added to them.
+/// target is). The tail always points at the primary target's hole; disable
+/// it per theme (`HintTheme.showTail`) when a custom tooltip draws its own
+/// pointer.
 class TooltipTail extends StatefulWidget {
   const TooltipTail({
     super.key,

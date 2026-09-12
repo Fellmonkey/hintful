@@ -236,10 +236,11 @@ class ClearTimeoutEffect extends HintEffect {
   String toString() => 'ClearTimeoutEffect()';
 }
 
-/// Abort the tour with a reason (timeout, skip, target vanished,
-/// unknown-target). [detail] carries reason context (timeout duration,
-/// targetId) — the controller enriches it with entity data before
-/// diagnostics.
+/// Abort the tour with a reason — `timeout` (under
+/// `HintMissingTargetPolicy.abortTour`) or `userSkipped`. A spotlighted target
+/// that vanishes does NOT abort: the machine returns to waiting and re-arms
+/// the timeout. [detail] carries reason context (timeout duration, targetId) —
+/// the controller enriches it with entity data before diagnostics.
 @immutable
 class AbortEffect extends HintEffect {
   const AbortEffect({required this.reason, required this.detail});

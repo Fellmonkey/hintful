@@ -51,8 +51,12 @@ class HintTheme extends ThemeExtension<HintTheme> {
 
   /// The tail (arrow from the tooltip toward the target). On by default —
   /// it is what visually ties the tooltip to the hole; set false for a
-  /// floating-callout look. Applies to the default tooltip only: a custom
-  /// `tooltipBuilder` owns its look entirely.
+  /// floating-callout look.
+  ///
+  /// The engine wraps it around every tooltip slot — the default tooltip, a
+  /// custom `tooltipBuilder` and multi-content slots (`moreTooltips`) — and
+  /// it always points at the primary target's hole. A custom tooltip that
+  /// draws its own pointer should turn it off.
   final bool showTail;
 
   /// Optional background blur behind the scrim (`ImageFilter.blur(...)`),
