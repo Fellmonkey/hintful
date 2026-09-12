@@ -1,6 +1,14 @@
 name: example-web
 
 on:
+  # The single definition of "the example builds for web": PRs validate the
+  # build, only main pushes deploy (see the `if` on the deploy step). ci.yml used
+  # to run a second, deploy-less copy of this build.
+  pull_request:
+    paths:
+      - 'example/**'
+      - 'lib/**'
+      - '.github/workflows/example-web.yml'
   push:
     branches: [main]
     paths:
@@ -28,6 +36,7 @@ jobs:
         run: flutter build web --base-href /hintful/ --release
 
       - name: Deploy to gh-pages (keep bench charts)
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

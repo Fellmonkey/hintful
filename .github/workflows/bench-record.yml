@@ -1,14 +1,21 @@
 name: bench-record
 
-# The contract run in one dispatch. The rival drivers (benchmark/compare)
-# are OPT-IN (`compare` input): rival libraries rarely change, so a normal
-# record re-runs only hintful and keeps the recorded rival goldens; run
-# with `compare` after bumping a rival (or on a fresh setup). When enabled,
-# compare runs FIRST into the shared store, then hintful's record re-renders
-# and commits the README "Performance" section + metrics card. One job =
-# one runner, one image pull, one checkout. With `record` off the same job
-# gates the selected consumers against their goldens. The runner image
-# (digest-pinned via the action) holds all emulator setup.
+# The contract run in one dispatch. One job = one runner, one image pull, one
+# checkout, one commit (the runner image, digest-pinned via the action, holds
+# all emulator setup).
+#
+# Step order is load-bearing:
+#   1. Web size leg — host-only, no emulator (`bundle_delta`, ref `any`).
+#   2. Rival drivers — OPT-IN via `compare`: rivals rarely change, so a normal
+#      record reruns only hintful and keeps their goldens; enable after bumping
+#      a rival or on a fresh setup.
+#   3. hintful's record — device legs, then re-render + commit of the README
+#      "Performance" section and the metrics card.
+# The web leg writes the shared store before step 3, so that one commit already
+# carries the new web number.
+#
+# `record` off runs the same job as a gate against the goldens, device legs
+# only — the web golden is gated on every PR by the `bundle` job in ci.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -21,7 +28,7 @@ on:
         type: boolean
         default: false
       flutter-version:
-        description: 'Runner image tag = Flutter version of the goldens (e.g. 3.47)'
+        description: 'Flutter version of the goldens (e.g. 3.47; the host web leg pins it exactly as 3.47.0)'
         default: '3.47'
 
 permissions:
@@ -32,8 +39,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Rivals first: per-library goldens (android-scv / android-tcm) land in
-      # the parent store before the hintful record re-renders the table/card.
+      # Flutter for the host-only web size leg below, pinned to the exact SDK of
+      # the golden (the version the `bundle` job in ci.yml checks with) —
+      # bundle_delta is deterministic per SDK, so any other version records a
+      # wrong number. Record-only, so a check-mode dispatch skips the install.
+      - uses: subosito/flutter-action@v2
+        if: ${{ inputs.record }}
+        with:
+          flutter-version: ${{ format('{0}.0', inputs.flutter-version) }}
+          cache: true
+      # Same command as the `bundle` gate in ci.yml (ref `any` comes from the
+      # manifest), only recording — checking the web golden is that job's job,
+      # on every PR. It runs before the core step so the card/README render that
+      # follows already sees the new web number: one commit carries both legs.
+      - name: Web size golden (ref any)
+        if: ${{ inputs.record }}
+        working-directory: benchmark
+        run: |
+          flutter pub get
+          dart run flutter_bench_contract:contract run --scenarios size --legs web --mode record
+      # Rivals before the core step: their per-library goldens (android-scv /
+      # android-tcm) land in the parent store, so the hintful record below
+      # re-renders the table/card with all columns already in place.
       - name: Compare (rivals → shared store)
         if: ${{ inputs.compare }}
         uses: Fellmonkey/flutter_bench_contract/action@v1
@@ -55,7 +82,7 @@ jobs:
           dir: benchmark
           flutter: ${{ inputs.flutter-version }}
           commit: ${{ inputs.record }}
-          commit-patterns: README.md docs/hint_metrics.png benchmark/benchmarks.json
+          commit-patterns: README.md doc/hint_metrics.png benchmark/benchmarks.json
           charts: ${{ inputs.record }}
           comment: 'false'
       - name: Upload reports (on failure)

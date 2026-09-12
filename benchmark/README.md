@@ -26,19 +26,18 @@ leak into the numbers and needs plugins that VM runs don't have.
   registered in the manifest under `customScenarios:`: its own metric and
   golden ref, outside S1–S7, excluded from the head-to-head comparison and
   the public tables;
-- `bench_contract.yaml` — the consumer manifest (library, scenarios,
-  driver, S7 `size:` section);
+- `bench_contract.yaml` — the consumer manifest (library, scenarios, driver,
+  S7 `size:` section, plus the `card:`/`readme:` copy published with the
+  results); the machinery behind that copy (card widget, table renderer, fonts,
+  formatting) lives in the contract package (`contract card` /
+  `contract readme`);
 - `lib/main.dart` / `lib/main_baseline.dart` — entry points with/without
   hintful, the S7 size targets;
 - no runner script — the `bench-record` dispatch (`.github/workflows/
-  bench-record.yml`) runs hintful (device scenarios + the native size leg
-  + the metrics card); the compare consumer (rivals) is opt-in via the
+  bench-record.yml`) runs hintful (device scenarios + the native and web size
+  legs + the metrics card); the compare consumer (rivals) is opt-in via the
   dispatch's `compare` input — rival libraries rarely change, so routine
   records keep the recorded rival goldens;
-- `bench_contract.yaml` `card:`/`readme:` sections — hintful's marketing
-  copy for the published results; the MACHINERY (card widget, table
-  renderer, fonts, formatting) lives in the contract package (`contract
-  card` / `contract readme`);
 - `compare/` — a second consumer (bench_compare): the same contract
   scenarios driven through showcaseview / tutorial_coach_mark, recording
   into the same store under refs `android-scv` / `android-tcm`.
@@ -52,6 +51,7 @@ Device metrics (profile emulator, ref `android` for hintful):
 | Scenario | Metric | What it answers |
 |---|---|---|
 | S1 idle_zero | tree-diff with vs without the library, nothing shown | no idle tax per screen |
+| S1r idle_resources | live control-plane instances while idle, declared via `idleClasses` | nothing stays alive when nothing is shown |
 | S2 show_latency | wall-ms from `show()` to a stable, visible tooltip | cost of showing |
 | S3 update_latency | wall-ms of a step/content change on an active tour | cost of updating |
 | S4 scroll_coupled | two-sided assert: content follows the anchor under scroll | correctness + perf |
@@ -59,17 +59,20 @@ Device metrics (profile emulator, ref `android` for hintful):
 | S6 hide_retention | heap drift per show/hide cycle + tree back to idle | leaks after hide |
 | S7 size | host builds: native AOT + web bundle delta | bundle footprint |
 
-S4 and S1r are in-scenario asserts / diagnostics — they record no number
-(see the footnote under the root README table). Frames collected during
-S2/S3/S4 are diagnostics, not gated: the contract's primary metrics are
-wall-latency and heap, because software-rendered emulator frame numbers
-are noise.
+S4 is a two-sided in-scenario assert — it records no number (see the footnote
+under the root README table). S1r is declared on-device through `idleClasses`
+rather than measured: it counts the live control-plane instances a solution holds
+while idle, so `0` is a fact about the design rather than a time or a size.
+Frames collected during S2/S3/S4 are diagnostics, not gated: the contract's
+primary metrics are wall-latency and heap, because software-rendered emulator
+frame numbers are noise.
 
 Reference values (Flutter 3.47.0, API 36 x86_64 emulator, recorded
-2026-09-03): `idle_zero=4`, `show_latency=72 ms`, `update_latency=66 ms`,
-`active_heap=41632 B`, `hide_retention=539 B`. Re-record with the
-`bench-record` workflow's `record` input — the reference for check runs
-is the same API 36 image.
+2026-09-11, refs `android` / `android-scv` / `android-tcm`) live in
+`benchmarks.json`, and the root README table is rendered from them — the numbers
+are deliberately not copied here, so they cannot drift. Re-record with the
+`bench-record` workflow's `record` input; the reference for check runs is the
+same API 36 image.
 
 ## Running
 
@@ -89,23 +92,20 @@ Device (profile emulator — the whole manifest, size legs included):
 ```bash
 dart run flutter_bench_contract:contract run --device <id> --mode check    # gate
 dart run flutter_bench_contract:contract run --device <id> --mode record   # record
-# full publish flow (device scenarios + the native size leg + the card):
+# the device runner's part of the publish flow (web records on a host — see Size (S7)):
 cd benchmark && dart run flutter_bench_contract:contract run --device emulator-5554 --mode record --ref android --legs native
 cd benchmark && dart run flutter_bench_contract:contract card
 ```
 
-The `bench-record` job runs exactly these two commands inside the
-emulator step (record or check); with the `compare` input on, the compare
-consumer runs first (its own two-command run, recording the rival refs
-   into the shared store): `contract run` drives the device contract
-  scenarios via `flutter drive --profile --no-dds` and the S7 native size leg
-  (`--legs native`; the web leg stays in the plain-CI bundle job) in the same
-  invocation, then `contract card` renders the metrics-card PNG on the host
-  from the recorded goldens (the PNG lands at `../doc/hint_metrics.png`),
-checking/recording against `benchmarks.json`. A record dispatch also
-re-renders the root README "Performance" section (`contract readme`: one
-table from the store + the card PNG, between the bench markers) and commits
-it.
+The `bench-record` job runs exactly these two commands inside the emulator
+step (record or check). With the `compare` input on, the compare consumer runs
+before the hintful record — its own two-command run, recording the rival refs
+into the shared store. The device run goes through `flutter drive --profile --no-dds`; the web
+size leg is recorded by a host step of the same job and checked on every PR by
+the `bundle` job in `ci.yml`. The card lands at
+`../doc/hint_metrics.png`, and a record dispatch also re-renders the root README
+"Performance" section (`contract readme`: one table from the store plus the
+card PNG, between the bench markers) and commits it.
 
 Regenerate the scenario files after a template bump:
 
@@ -119,7 +119,9 @@ S7 is a scenario like the rest — one `contract run` invocation runs the
 manifest's declared scenarios plus the host release size builds (no
 device). The manifest's `size:` section declares the legs; `--legs` picks
 which to run (`both` by default). The `bench-record` dispatch drives
-native; the bundle CI job drives web:
+native on the emulator and records the web leg as a host step of the same job
+(before the native record, so both legs ride one commit); the `bundle` job in
+`ci.yml` re-checks web on every PR:
 
 - **native** (`native_size` golden): `flutter build apk --release
   --analyze-size` (the per-package analysis the DevTools **Size** page
@@ -132,7 +134,8 @@ native; the bundle CI job drives web:
 ```bash
 # native only (bench-record dispatch): ref android
 dart run flutter_bench_contract:contract run --scenarios size --mode check --ref android --legs native
-# web only (bundle CI job): bundle_delta is checked under its own ref `any`
+# web only (the dispatch records it as a host step, `bundle` checks it per PR):
+# bundle_delta lives under its own ref `any`
 dart run flutter_bench_contract:contract run --scenarios size --mode check --legs web
 ```
 

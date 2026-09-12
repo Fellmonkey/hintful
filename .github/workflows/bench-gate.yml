@@ -2,6 +2,11 @@ name: bench-gate
 
 # Long device gate (~20 min) — not on every PR. Add `bench` label to run.
 # On regression → PR comment, on success → check passes. Charts not pushed.
+#
+# This is the same device check as bench-record.yml in check mode, from a PR
+# instead of a dispatch. The split is deliberate: that dispatch needs write
+# access to commit recorded goldens, a PR-triggered run must not have it — so it
+# keeps `contents: read` and only comments.
 on:
   pull_request:
     types: [labeled]

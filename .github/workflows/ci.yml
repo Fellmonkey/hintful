@@ -6,6 +6,10 @@ on:
     branches: [main]
     tags: ['*']
 
+# Read-only: every job here builds and tests, none of them writes to the repo.
+permissions:
+  contents: read
+
 jobs:
   test:
     # Analyze + unit tests for every package; the other jobs depend on this
@@ -28,19 +32,6 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-
-  web:
-    needs: [test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - name: Build web (example)
-        working-directory: example
-        run: flutter build web
 
   bundle:
     # Startup-bundle delta (two release web builds, ~2 min): runs on every
@@ -67,6 +58,8 @@ jobs:
     # Contract + custom-scenario VM sanity (scenarios degrade on VM where the
     # VM service is unavailable): cheap, so it also runs on PRs alongside the
     # package tests. Device runs are the bench-record dispatch (bench-record.yml).
+    # Stays separate from `bundle` on purpose: that golden is pinned to exactly
+    # 3.47.0, while these tests track `stable` to catch breakage early.
     needs: [test]
     runs-on: ubuntu-latest
     steps:
