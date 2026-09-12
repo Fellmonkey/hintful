@@ -330,6 +330,7 @@ HintTour l10nTour(BuildContext context) => HintTour(
           targetId: 'entry-5',
           titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
           description: 'Localized via titleBuilder (no context in AppTours).',
+          autoScroll: true,
         ),
         HintStep(
           targetId: 'fab',

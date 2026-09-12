@@ -115,10 +115,19 @@ double _centerY(double tooltipHeight, Rect hole, Rect safe) {
   return _clamp(y, safe.top, safe.bottom - tooltipHeight);
 }
 
-/// clamp guarded against \"upper bound below lower bound\" (tooltip wider than
+/// clamp guarded against "upper bound below lower bound" (tooltip wider than
 /// the screen): in that case snap to the left/top edge instead of crashing.
 double _clamp(double value, double min, double max) =>
     max < min ? min : value.clamp(min, max);
+
+/// [offset] pulled inside the safe rect: the tooltip always stays fully
+/// visible, and the clamp is the identity once the ideal placement is already
+/// there — so a clamped placement turns into the ideal one continuously as the
+/// target moves (no jump when autoScroll brings it in).
+Offset _clampIntoSafe(Offset offset, Size size, Rect safe) => Offset(
+      _clamp(offset.dx, safe.left, safe.right - size.width),
+      _clamp(offset.dy, safe.top, safe.bottom - size.height),
+    );
 
 /// Tooltip fully inside the safe rect (edge epsilon) and not overlapping any
 /// rect in [avoid] (the holes + already-placed tooltips).
@@ -142,6 +151,13 @@ bool _fits(Offset offset, Size childSize, Rect safe, List<Rect> avoid) {
 /// space) and vetoing placements that overlap [avoid] or leave the safe
 /// rect.
 ///
+/// Anchor off the safe rect (the target is off screen — autoScroll is still
+/// scrolling it in, or the page was scrolled away): no side can fit, so the
+/// preferred side's offset is clamped into the safe rect instead — the
+/// tooltip stays anchored to the direction the target comes from (never a
+/// screen corner that has nothing to do with it) and joins the side placement
+/// continuously as the target arrives.
+///
 /// [avoid] must include the tooltip's own anchor [hole] — a tooltip never
 /// covers a spotlighted target. For multi-content slots the callers add
 /// the already-placed tooltip rects, so slots never overlap each other.
@@ -159,12 +175,30 @@ Offset placeTooltip({
     final offset = _offsetFor(side, size, hole, safe, gap);
     if (_fits(offset, size, safe, avoid)) return offset;
   }
-  // No side fit (tooltip/hole larger than the safe rect, or every side is
-  // blocked) — try the safe-rect corners with a margin (a multi slot does
-  // not land on an already-placed tooltip when a corner is free); the last
-  // resort is the top-left corner (may still overflow the safe rect
-  // bottom/right — nothing fits; the margin keeps it as close as the
-  // degenerate case allows).
+  // No side fit and the anchor itself is off the safe rect — autoScroll is
+  // still bringing the target in, or the page was scrolled away from it. The
+  // corner chain below would park the tooltip in a screen corner that has no
+  // relation to the target (the "top-left flash" with a per-step
+  // `autoScroll`). Stay on the target's preferred side instead, clamped into
+  // the safe rect: the tooltip waits at the screen edge the target is coming
+  // from and slides onto it, and the clamp joins the side placement above
+  // continuously on the way in.
+  if (!hole.overlaps(safe)) {
+    for (final side in _sideOrder(position, safe, hole)) {
+      final clamped =
+          _clampIntoSafe(_offsetFor(side, size, hole, safe, gap), size, safe);
+      // `avoid` still wins: a multi slot gives up its preferred side rather
+      // than overlapping an already-placed tooltip.
+      if (_fits(clamped, size, safe, avoid)) return clamped;
+    }
+  }
+
+  // No side fit while the anchor IS on screen (tooltip/hole larger than the
+  // safe rect, or every side is blocked) — try the safe-rect corners with a
+  // margin (a multi slot does not land on an already-placed tooltip when a
+  // corner is free); the last resort is the top-left corner (may still
+  // overflow the safe rect bottom/right — nothing fits; the margin keeps it
+  // as close as the degenerate case allows).
   final corners = [
     Offset(safe.left + _fallbackPadding, safe.top + _fallbackPadding),
     Offset(
@@ -201,16 +235,17 @@ Offset placeTooltip({
 ///
 /// Why `CustomSingleChildLayout`: the tooltip size is unknown before layout
 /// (text), and the delegate receives it from the framework in
-/// [getPositionForChild] (`childSize`) — no manual text measuring (\"no
-/// dry-layout\"). The box itself is sized to the screen (default [getSize] =
+/// [getPositionForChild] (`childSize`) — no manual text measuring ("no
+/// dry-layout"). The box itself is sized to the screen (default [getSize] =
 /// `constraints.biggest`), so the tooltip buttons are hit-testable anywhere
 /// on screen, and taps past the tooltip fall through (`hitTestSelf` = false)
 /// onto the scrim.
 ///
 /// Side selection: try the preferred side; if it does not fit the safe rect —
 /// mirror (bottom↔top, left↔right); still not fitting — the other sides;
-/// last resort (tooltip or hole larger than the screen) — a safe-rect corner
-/// with a margin.
+/// hole off the safe rect — the preferred side clamped to the screen edge;
+/// last resort (an on-screen anchor with no room: tooltip or hole larger than
+/// the screen, every side blocked) — a safe-rect corner with a margin.
 class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
   TooltipPlacementDelegate({
     required this.screenLocal,

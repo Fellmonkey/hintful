@@ -464,9 +464,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// The primary target's position (global coordinates). null — the tooltip
   /// is not mounted: on the mount frame the transform is not known yet, and
   /// placement at a zero position would slide off-screen. After the first
-  /// successful snapshot the tooltip appears at the right place; this also
-  /// handles "target off-screen" — until the target is mounted/visible,
-  /// there is no tooltip.
+  /// successful snapshot the tooltip appears at the right place.
+  ///
+  /// A target that is mounted but outside the visible region (a ListView
+  /// cache-band child, the autoScroll case) does have a position: the
+  /// compositor cannot resolve it (never painted), but the placement keeps the
+  /// tooltip on the side the target is coming from and clamped to the screen
+  /// edge, so it is already there and rides the target into view.
   Offset? _translation;
   bool _pollScheduled = false;
   TapDownDetails? _lastTap;
@@ -926,7 +930,19 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (_scrollPos == null) _attachScrollListeners();
       final primary = _resolvers[widget.registrations.first.id];
       if (primary != null) {
-        final position = primary.resolve();
+        var position = primary.resolve();
+        if (position is! PositionedHint) {
+          // The compositor has no transform for the target: it is outside the
+          // visible region (a ListView cache-band child is built and laid out
+          // but never painted), or the follower has not been composited yet.
+          // Its own render object still knows exactly where it is — use that
+          // rather than retracting, so the spotlight and the tooltip stay
+          // anchored to the target while autoScroll scrolls it in: the
+          // tooltip is up before the target arrives, pinned to the edge it is
+          // coming from (see placeTooltip).
+          final measured = _measureSync(widget.registrations.first);
+          if (measured != null) position = measured;
+        }
         if (position is PositionedHint &&
             _translation != position.translation) {
           if (_translation == null) {
@@ -945,12 +961,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
           (renderObject as RenderCustomPaint?)?.markNeedsPaint();
           _holeNotifier.value = _translation;
         } else if (position is! PositionedHint && _translation != null) {
-          // The follower unlinked (its leader stopped painting — scrolled
-          // out / culled) while a position was known: retract the spotlight
-          // instead of freezing it on the background. The scrim itself goes
-          // quiet through the unlinked follower (`showWhenUnlinked: false`);
-          // the tooltip unmounts via its listener. The next snapshot
-          // re-mounts everything through the first-snapshot path above.
+          // The target cannot be measured at all any more (its render object
+          // is gone or not laid out — it left the tree/cache) while a position
+          // was known: retract the spotlight instead of freezing it on the
+          // background. The scrim itself goes quiet through the unlinked
+          // follower (`showWhenUnlinked: false`); the tooltip unmounts via its
+          // listener. The next snapshot re-mounts everything through the
+          // first-snapshot path above.
           _translation = null;
           _holeNotifier.value = null;
         }
@@ -1032,9 +1049,17 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   }
 
   void _onScroll() {
-    if (!mounted || _translation == null || _scrollPos == null) return;
+    if (!mounted || _scrollPos == null) return;
     final cur = _scrollPos!.pixels;
     if (cur == _scrollLastPixels) return;
+    // No track to shift (retracted, or not seeded yet): keep the baseline
+    // fresh anyway. The position is re-seeded from the compositor, so a stale
+    // baseline would make the next tick add the whole distance scrolled while
+    // there was no track — a bogus one-tick jump of the hole and the tooltip.
+    if (_translation == null) {
+      _scrollLastPixels = cur;
+      return;
+    }
     final d = cur - _scrollLastPixels;
     _scrollLastPixels = cur;
     final delta = _scrollAxis == Axis.vertical ? Offset(0, -d) : Offset(-d, 0);

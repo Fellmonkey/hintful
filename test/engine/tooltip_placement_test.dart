@@ -184,6 +184,53 @@ void main() {
     });
   });
 
+  // A step with `autoScroll` activates while its target is still below the
+  // fold (a ListView cache-band child: built, laid out, registered — never
+  // painted, so the compositor has no transform either). No side can fit a
+  // hole that is off screen, and the tooltip must NOT end up in a screen
+  // corner that has nothing to do with the target: it waits at the edge the
+  // target is coming from and slides onto it.
+  group('anchor off the safe rect (autoScroll in flight)', () {
+    const tooltip = Size(320, 150);
+
+    Offset place(Rect hole) => TooltipPlacementDelegate(
+          screenLocal: screen,
+          holeLocal: hole,
+          position: TooltipPosition.auto,
+        ).getPositionForChild(screen.size, tooltip);
+
+    test('full-width hole below the fold: pinned to the bottom edge', () {
+      const hole = Rect.fromLTWH(0, 700, 800, 60);
+      final offset = place(hole);
+      // Centered on the hole, held at the screen bottom — not (8, 8).
+      expect(offset, const Offset(240, 450));
+      expect((offset & tooltip).bottom, screen.bottom);
+    });
+
+    test('full-width hole above the top: pinned to the top edge', () {
+      expect(place(const Rect.fromLTWH(0, -300, 800, 60)),
+          const Offset(240, 0));
+    });
+
+    test('narrow hole below the fold: the real side placement still wins', () {
+      // Room beside it, so the ideal side is used: x = hole.right + gap = 212
+      // (the clamped preferred side would center the tooltip at x = 240),
+      // y = centerY clamped to 600 - 150.
+      expect(place(const Rect.fromLTWH(100, 620, 100, 60)),
+          const Offset(212, 450));
+    });
+
+    test('continuous across the join: the clamped edge is the side placement '
+        'that takes over', () {
+      // 17 px above the fold: the mirrored side fits (595-162 = 433).
+      expect(place(const Rect.fromLTWH(0, 595, 800, 60)).dy, 433);
+      // At the edge the two agree (612-162 = 450 = 600-150).
+      expect(place(const Rect.fromLTWH(0, 612, 800, 60)).dy, 450);
+      // Further out the clamp holds it at the edge — no jump on the way in.
+      expect(place(const Rect.fromLTWH(0, 900, 800, 60)).dy, 450);
+    });
+  });
+
   group('safe area (keep-in-safe-area)', () {
     test('bottom blocked by the home indicator → mirrored to top', () {
       // hole bottom = 440; tooltip 100 tall: bottom = 440+12+100 = 552,

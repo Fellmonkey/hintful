@@ -20,11 +20,11 @@ The AppBar has **Show tour** (the versioned intro), **Show hint** and
 | Tap regions (target vs overlay, tap position) | **Tap regions** — tap the button / the dark area, watch the snackbar |
 | Enum-typed steps + "Want a tour?" pre-dialog | **Offer tour** — the tour comes from `HintTour.fromEnum`; the dialog offers it once and declines persist ("Apply to all pages") |
 | Server-driven shape (`HintTour.fromJson`) | **JSON** — steps parsed from a map run like declared ones |
-| l10n, target-level shape, `withHint` | **L10n** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target |
+| l10n, target-level shape, `withHint` | **L10n** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target; its first step sets `autoScroll: true` to bring that row in |
 | Spotlight shapes | **Circle / Rounded / Neg pad / Rect** — `focusShape`, negative `focusPadding`, and a `targetRect` step with no widget at all |
 | Entry-animation rungs | **Sprung** (the preset bounce) and **Custom** (a `tooltipBuilder` with its own `TweenAnimationBuilder`) |
 | Step lifecycle hooks | **Hooks** — `onBeforeAction`/`onAfterAction` fire around the step |
-| Per-step scroll | **Step scroll** — only the offscreen `entry-5` step sets `autoScroll: true` |
+| Per-step scroll | **Step scroll** — the offscreen `entry-5` step sets `autoScroll: true`, the first step of that tour does not |
 
 ## Layout
 
