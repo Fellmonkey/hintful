@@ -5,6 +5,10 @@ import '../engine/specs.dart';
 import '../engine/store.dart';
 
 /// What happened with the "Want a tour?" pre-dialog.
+///
+/// Closed in 1.x: no new values will be added before 2.0. Exhaustive
+/// `switch`es over this enum in app code are safe; genuinely new outcomes
+/// arrive as new API, not a new value.
 enum HintTourOfferResult {
   /// The user accepted — the tour was started.
   started,
@@ -52,25 +56,29 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// — it already ran for this version), or the user declined before (for
 /// [pageId], or for all pages when they checked the checkbox).
 ///
+/// [pageId] identifies the screen this offer belongs to (per-page decline
+/// key); omitted — defaults to `tour.id` (single entry point per tour).
+///
 /// A decline is remembered in [store] under a key separate from the tour's
 /// own shown-state key, so the tour remains reachable through other entry
 /// points (e.g. a settings screen). Dismissing the dialog (barrier tap)
 /// counts as a decline — "not now" should not nag again. On accept the tour
-/// is started; marking its shown-state on exit stays with the app (the same
-/// pattern as the versioned gate).
+/// is started; recording the shown-state on **finish** is
+/// [HintController.startOnce] (or your own listener — see best practices §6).
 Future<HintTourOfferResult> showHintTourOffer({
   required BuildContext context,
   required HintController controller,
   required HintTour tour,
   required HintStore store,
-  required String pageId,
+  String? pageId,
   String? minVersion,
   HintTourOfferLabels labels = const HintTourOfferLabels(),
 }) async {
+  final page = pageId ?? tour.id;
   if (!store.shouldShow(tour.id, minVersion: minVersion)) {
     return HintTourOfferResult.declined; // already ran for this version
   }
-  if (!store.shouldShow(_pageDeclineKey(tour.id, pageId)) ||
+  if (!store.shouldShow(_pageDeclineKey(tour.id, page)) ||
       !store.shouldShow(_globalDeclineKey(tour.id))) {
     return HintTourOfferResult.declined; // declined before
   }
@@ -119,7 +127,7 @@ Future<HintTourOfferResult> showHintTourOffer({
   // Declined: remember it — per page, or for all pages when the checkbox
   // was on. The version string is arbitrary here: `shouldShow` without a
   // minVersion only asks "was it ever marked".
-  store.markShown(_pageDeclineKey(tour.id, pageId), 'true');
+  store.markShown(_pageDeclineKey(tour.id, page), 'true');
   if (applyToAllPages) {
     store.markShown(_globalDeclineKey(tour.id), 'true');
   }

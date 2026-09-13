@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/diagnostics.dart';
+import 'package:hintful/src/engine/diagnostics.dart';
 
 void main() {
   group('editDistance', () {
@@ -63,18 +63,25 @@ void main() {
 
   group('formatHintSkipped', () {
     test('a single line, reason as a kebab-case name', () {
-      final message = formatHintSkipped(
-        'statsIntro',
-        1,
-        'statsPeriodSelector',
-        HintSkipReason.targetNotRendered,
-        'target not mounted',
-      );
+      final message = formatHintSkipped(const HintSkipEvent(
+        tourId: 'statsIntro',
+        stepIndex: 1,
+        targetId: 'statsPeriodSelector',
+        reason: HintSkipReason.overlayUnavailable,
+        detail: 'target not mounted',
+      ));
       expect(
         message,
-        '[hintful] statsIntro step 2 not shown: target-not-rendered'
+        '[hintful] statsIntro step 2 not shown: overlay-unavailable'
         " (target 'statsPeriodSelector') — target not mounted",
       );
+    });
+
+    test('every reason has a kebab-case label', () {
+      expect(HintSkipReason.overlayUnavailable.label, 'overlay-unavailable');
+      expect(HintSkipReason.timeout.label, 'timeout');
+      expect(HintSkipReason.unknownTarget.label, 'unknown-target');
+      expect(HintSkipReason.userSkipped.label, 'user-skipped');
     });
   });
 
@@ -85,13 +92,13 @@ void main() {
       debugPrint =
           (String? message, {int? wrapWidth}) => logs.add(message ?? '');
       try {
-        const DebugPrintDiagnostics().onHintSkipped(
-          't',
-          0,
-          'x',
-          HintSkipReason.timeout,
-          'did not appear',
-        );
+        const DebugPrintDiagnostics().onHintSkipped(const HintSkipEvent(
+          tourId: 't',
+          stepIndex: 0,
+          targetId: 'x',
+          reason: HintSkipReason.timeout,
+          detail: 'did not appear',
+        ));
       } finally {
         debugPrint = original;
       }

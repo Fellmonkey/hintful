@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/scrim_painter.dart';
+import 'package:hintful/src/engine/overlay/scrim_painter.dart';
 import 'package:hintful/hintful.dart';
 
 /// A harness-scene target: id + position. The container is labelled with the
@@ -21,42 +21,19 @@ class HarnessTarget {
   final double height;
 }
 
-/// A diagnostics record: the skip/abort reason with the step context.
-typedef HintSkipRecord = ({
-  String tourId,
-  int stepIndex,
-  String targetId,
-  HintSkipReason reason,
-  String detail,
-});
-
 /// Diagnostics collector — shared by the flow tests (timeout, skip, typo).
 class DiagnosticsRecorder implements HintDiagnosticsHandler {
-  final List<HintSkipRecord> events = [];
+  final List<HintSkipEvent> events = [];
 
   @override
-  void onHintSkipped(
-    String tourId,
-    int stepIndex,
-    String targetId,
-    HintSkipReason reason,
-    String detail,
-  ) {
-    events.add((
-      tourId: tourId,
-      stepIndex: stepIndex,
-      targetId: targetId,
-      reason: reason,
-      detail: detail,
-    ));
-  }
+  void onHintSkipped(HintSkipEvent event) => events.add(event);
 }
 
 /// Widget-test harness for tours.
 ///
 /// One call — a scene like in an app: MaterialApp + Scaffold + targets (real
-/// `HintTarget`s) + the MaterialApp root Overlay + a controller with a
-/// real `HintOverlayEngine` (`defaultOverlayHost`). A new widget test is a
+/// `HintTarget`s) + the MaterialApp root Overlay + a controller with the
+/// default engine wiring. A new widget test is a
 /// few lines instead of ~40 lines of manual wiring.
 ///
 /// ```dart
@@ -119,7 +96,6 @@ class TourHarness {
       controller = HintController(
         registry: registry,
         diagnostics: diagnostics,
-        overlayHostBuilder: defaultOverlayHost(registry: registry),
       );
       addTearDown(_disposeOnce);
     }
@@ -177,12 +153,12 @@ class TourHarness {
         reason: 'idle: no follower (it lives inside the entry)');
   }
 
-  /// The scrim layer — a `CustomPaint` with `ScrimHolePainter` (the shared
+  /// The scrim layer — a `CustomPaint` with `RectScrimPainter` (the shared
   /// test predicate).
   static final Finder scrimFinder = _scrimFinder;
 
   static final Finder _scrimFinder = find.byWidgetPredicate(
-    (w) => w is CustomPaint && w.painter is ScrimHolePainter,
+    (w) => w is CustomPaint && w.painter is RectScrimPainter,
   );
 
   Widget _scene() {

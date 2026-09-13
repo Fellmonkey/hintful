@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/store.dart';
+import 'package:hintful/src/engine/store.dart';
 
 void main() {
   group('compareVersions', () {

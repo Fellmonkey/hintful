@@ -14,7 +14,7 @@ Check the debug log:
 - **`timeout`** — the target never appeared within `stepTimeout` (default 3s). Check the `targetId` and that the widget is mounted. For conditional widgets, use `waitTimeout: Duration.zero` + `skipStep`.
 - **`unknown-target`** — typo. The log shows the closest `targetId`s.
 - **`user-skipped`** — the user tapped Skip or pressed Esc.
-- **`target-not-rendered`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens on zero-target tours (`targetRect` only) — pass `overlay:` to `defaultOverlayHost`.
+- **`overlay-unavailable`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens on zero-target tours (`targetRect` only) — pass `overlay:` to `HintController`.
 
 A spotlighted target that **vanishes** mid-step is deliberately not reported: the
 step returns to the waiting phase and re-arms its timeout, so a permanent loss
@@ -61,7 +61,7 @@ final key = GlobalKey<OverlayState>();
 MaterialApp(home: Overlay(key: key, initialEntries: [...]));
 
 // rect-based tour
-HintController(overlayHostBuilder: defaultOverlayHost(overlay: () => key.currentState))
+HintController(overlay: () => key.currentState)
 ```
 
 Otherwise you don't need `overlay` — the engine finds the root overlay from the first target.
@@ -86,10 +86,10 @@ Hand the action to the tour:
 ```dart
 HintStep(
   targetId: 'addSet',
-  onTapTarget: (ctx, details) {
+  targetTap: HintTapBehavior.custom((ctx, details) {
     logSet();            // the real action
     ctx.actions.next();  // then move on
-  },
+  }),
 )
 ```
 
@@ -132,15 +132,14 @@ handler:
 class Recorder implements HintDiagnosticsHandler {
   final reasons = <HintSkipReason>[];
   @override
-  void onHintSkipped(String tourId, int stepIndex, String targetId,
-      HintSkipReason reason, String detail) => reasons.add(reason);
+  void onHintSkipped(HintSkipEvent event) => reasons.add(event.reason);
 }
 
 final recorder = Recorder();
 final controller = HintController(
   registry: HintTargetRegistry(), // your own, not the app singleton
   diagnostics: recorder,
-  // no overlayHostBuilder → headless
+  headless: true, // no render mechanics — machine only
 );
 
 await controller.start(tour);
@@ -173,8 +172,8 @@ final tour = await factory.fetch('onboarding');
 
 The payload can reword, reorder, retime and restyle a tour. It **cannot** carry
 builders or callbacks (`titleBuilder`, `descriptionBuilder`, `tooltipBuilder`,
-`onTapTarget`, the hooks) and it cannot invent targets: every `targetId` must
-exist in the build the user is running.
+`HintTapBehavior.custom`, the hooks) and it cannot invent targets: every
+`targetId` must exist in the build the user is running.
 
 So treat it as untrusted: an unknown enum value (`position: "middle"`) falls back
 to the field's default and is reported through `onWarning` (and a debug print),
@@ -203,8 +202,9 @@ await showHintTourOffer(
 It skips the dialog when the tour already ran for `minVersion`, remembers a
 decline per page (or globally with the "Apply to all pages" checkbox), and
 counts a barrier dismissal as a decline. Accepting starts the tour; recording the
-shown-state stays yours, **on exit** —
-[best practices §6](best_practices.md#6-once-per-version--hintstore).
+shown-state stays yours — on finish via
+[HintController.startOnce](best_practices.md#6-once-per-version--hintstore), or
+with your own listener.
 
 Offer from one entry point per page, and keep the tour reachable after a decline
 (settings, help menu): that is why the decline keys are namespaced apart from the

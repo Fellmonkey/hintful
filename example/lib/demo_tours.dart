@@ -104,21 +104,22 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
           description: 'Tap the button (target) or the dark area '
               '(overlay) — each fires its own callback with the tap '
               'position. Use Next to advance.',
-          onTapTarget: (ctx, details) => notify(
-            'Target tap at '
-            '${details.localPosition.dx.round()},'
-            '${details.localPosition.dy.round()}',
+          targetTap: HintTapBehavior.custom((ctx, details) => notify(
+                'Target tap at '
+                '${details.localPosition.dx.round()},'
+                '${details.localPosition.dy.round()}',
+              )),
+          overlayTap: HintTapBehavior.custom(
+            (ctx, details) => notify('Overlay tap — advance with Next'),
           ),
-          onTapOverlay: (ctx, details) =>
-              notify('Overlay tap — advance with Next'),
         ),
         HintStep(
           targetId: 'entry-0',
           title: 'Overlay taps off',
           description: 'This step ignores overlay taps '
-              '(tapOnOverlay: false) — only a target tap or the button '
-              'advances.',
-          tapOnOverlay: false,
+              '(overlayTap: HintTapBehavior.ignore()) — only a target tap '
+              'or the button advances.',
+          overlayTap: const HintTapBehavior.ignore(),
         ),
       ],
     );
@@ -190,9 +191,9 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
         HintStep(
           targetId: 'fab',
           title: 'Hooks',
-          description: 'onBefore/onAfter - prepare scene',
-          onBeforeAction: () async => notify('before hook'),
-          onAfterAction: () async => notify('after hook'),
+          description: 'onStepEnter/onStepExit - prepare scene',
+          onStepEnter: () async => notify('before hook'),
+          onStepExit: () async => notify('after hook'),
         ),
       ],
     );

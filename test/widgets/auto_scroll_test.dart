@@ -29,7 +29,8 @@ void main() {
     return rects;
   }
 
-  testWidgets('off-screen target: the tooltip waits at the edge and rides '
+  testWidgets(
+      'off-screen target: the tooltip waits at the edge and rides '
       'the page into place', (tester) async {
     final h = TourHarness(
       scrollable: true,

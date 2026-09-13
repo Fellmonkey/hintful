@@ -3,8 +3,8 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/labels.dart';
-import 'package:hintful/engine/theme/hint_theme.dart';
+import 'package:hintful/src/engine/labels.dart';
+import 'package:hintful/src/engine/theme/hint_theme.dart';
 
 void main() {
   group('HintTheme.minimal', () {

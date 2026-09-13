@@ -13,7 +13,7 @@ import 'package:hintful/hintful.dart';
 /// default target (this file) and reads the `package:hintful` subtree.
 void main() {
   runApp(
-    _EngineApp(controller: HintController(overlayHostBuilder: defaultOverlayHost())),
+    _EngineApp(controller: HintController()),
   );
 }
 

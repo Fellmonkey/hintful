@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
 
 // Internal painter — same package, importable in tests.
-import 'package:hintful/engine/overlay/scrim_painter.dart';
+import 'package:hintful/src/engine/overlay/scrim_painter.dart';
 
 /// Regression: the first shown step rendered "tooltip without dim".
 ///
@@ -28,7 +28,7 @@ class _SyncScreenState extends State<_SyncScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = HintController(overlayHostBuilder: defaultOverlayHost());
+    _controller = HintController();
   }
 
   @override
@@ -167,9 +167,7 @@ void main() {
 
   testWidgets('late target (Waiting -> Active): scrim painter holds resolvers',
       (tester) async {
-    final controller = HintController(
-      overlayHostBuilder: defaultOverlayHost(),
-    );
+    final controller = HintController();
     addTearDown(controller.dispose);
     var showTarget = false;
 

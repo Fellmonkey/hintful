@@ -22,7 +22,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('start() → first tooltip frame', (tester) async {
-    final controller = HintController(overlayHostBuilder: defaultOverlayHost());
+    final controller = HintController();
     addTearDown(controller.dispose);
     await tester.pumpWidget(_StartupScene(controller: controller));
     await tester.pump();

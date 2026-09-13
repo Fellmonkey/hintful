@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/specs.dart';
-import 'package:hintful/engine/tour_factory.dart';
+import 'package:hintful/src/engine/specs.dart';
+import 'package:hintful/src/engine/tour_factory.dart';
 
 void main() {
   group('HintTour JSON round-trip', () {
@@ -10,12 +10,18 @@ void main() {
       final tour = HintTour(
         id: 'server',
         steps: [
-          HintStep(targetId: 'a', title: 'Hello', description: 'World', position: TooltipPosition.bottom),
+          HintStep(
+              targetId: 'a',
+              title: 'Hello',
+              description: 'World',
+              position: TooltipPosition.bottom),
           HintStep(
             targetId: 'b',
             title: 'Second',
             moreTargets: ['c'],
-            moreTooltips: [HintTooltip(position: TooltipPosition.top, title: 'Extra')],
+            moreTooltips: [
+              HintTooltip(position: TooltipPosition.top, title: 'Extra')
+            ],
             position: TooltipPosition.top,
             waitTimeout: const Duration(milliseconds: 500),
             showSkip: false,
@@ -44,7 +50,8 @@ void main() {
     });
 
     test('HintTooltip toJson/fromJson', () {
-      final t = HintTooltip(position: TooltipPosition.left, title: 'T', description: 'D');
+      final t = HintTooltip(
+          position: TooltipPosition.left, title: 'T', description: 'D');
       final back = HintTooltip.fromJson(t.toJson());
       expect(back.position, TooltipPosition.left);
       expect(back.title, 'T');
@@ -88,7 +95,8 @@ void main() {
       // The order follows argument evaluation — assert membership, not order.
       expect(warnings.any((w) => w.contains("missingTargetPolicy 'explode'")),
           isTrue);
-      expect(warnings.any((w) => w.contains("transitionCurve 'wobble'")), isTrue);
+      expect(
+          warnings.any((w) => w.contains("transitionCurve 'wobble'")), isTrue);
     });
 
     test('an absent field is not a warning', () {
@@ -128,14 +136,16 @@ void main() {
 
   group('HintTourFactory', () {
     test('InMemory fetch', () async {
-      final tour = HintTour(id: 'a', steps: [HintStep(targetId: 'x', title: 'X')]);
+      final tour =
+          HintTour(id: 'a', steps: [HintStep(targetId: 'x', title: 'X')]);
       final f = InMemoryHintTourFactory({'a': tour});
       expect((await f.fetch('a')).id, 'a');
       expect(() => f.fetch('missing'), throwsA(isA<StateError>()));
     });
 
     test('Fetcher fetch via mock fetcher', () async {
-      final tour = HintTour(id: 'remote', steps: [HintStep(targetId: 'y', title: 'Y')]);
+      final tour =
+          HintTour(id: 'remote', steps: [HintStep(targetId: 'y', title: 'Y')]);
       final f = FetcherHintTourFactory(
         baseUrl: 'https://cdn.example.com/tours',
         fetcher: (uri) async {
@@ -148,7 +158,8 @@ void main() {
       expect(back.steps.first.targetId, 'y');
     });
 
-    test('Fetcher throws on non-200 body (simulated by fetcher throw)', () async {
+    test('Fetcher throws on non-200 body (simulated by fetcher throw)',
+        () async {
       final f = FetcherHintTourFactory(
         baseUrl: 'https://cdn.example.com/tours',
         fetcher: (_) async => throw StateError('404'),

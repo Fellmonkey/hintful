@@ -17,40 +17,51 @@ import 'scrim_painter.dart';
 import 'tooltip_placement.dart';
 import 'tooltip_tail.dart';
 
-/// Standard render-mechanics wiring: the engine over [registry] (defaults to
-/// the registry singleton — zero-config).
+/// Single focus-geometry chain: step override → target default → package
+/// default ([FocusShape.rectangle] / [kHintFocusPadding]). Shared by the
+/// active, waiting and rect render paths — one place for the fallback order.
+FocusShape resolveFocusShape(HintStep step, [HintTargetRegistration? reg]) =>
+    step.focusShape ?? reg?.focusShape ?? FocusShape.rectangle;
+
+double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
+    step.focusPadding ?? reg?.focusPadding ?? kHintFocusPadding;
+
+/// Standard render-mechanics wiring: the engine over the controller's own
+/// registry (`HintController(registry: ...)` — one source of truth, the wait
+/// logic and the rendering cannot desync).
 ///
-/// The only public entry into render mechanics, for `HintController`:
+/// Internal factory: `HintController()` wires it out of the box; the
+/// controller passes the constructor's `overlay:` provider through here. Not
+/// part of the public barrel contract — custom hosts are a test seam
+/// (`HintController.withHost`), not a supported extension point.
 ///
 /// ```dart
-/// final controller = HintController(overlayHostBuilder: defaultOverlayHost());
+/// final controller = HintController(); // renders through this host
 /// ```
 ///
-/// Pass [overlay] explicitly for targetRect-only tours with zero mounted
-/// targets (nothing to capture the root overlay from — see `targetRect`).
-/// It is a provider, not a value: it is called when the host is built
-/// lazily on the first non-idle state, so a `GlobalKey<OverlayState>` from
-/// the widget tree is already usable there:
+/// Pass `overlay:` on the controller for targetRect-only tours with zero
+/// mounted targets (nothing to capture the root overlay from — see
+/// `targetRect`):
 ///
 /// ```dart
 /// final overlayKey = GlobalKey<OverlayState>();
-/// HintController(
-///   overlayHostBuilder: defaultOverlayHost(
-///     overlay: () => overlayKey.currentState,
-///   ),
-/// );
+/// HintController(overlay: () => overlayKey.currentState);
 /// ```
+///
+/// The factory also hands the engine the controller's diagnostics handler
+/// (`controller.diagnostics`) — overlay failures (`overlayUnavailable`) are
+/// reported through the same channel as wait/typo skips.
 ///
 /// The engine itself and its internals (scrim, placement delegate) stay
 /// hidden: they can change without breaking, while this contract is stable.
 HintOverlayHost Function(HintController) defaultOverlayHost({
-  HintTargetRegistry? registry,
   OverlayState? Function()? overlay,
 }) {
   return (controller) => HintOverlayEngine(
-        registry: registry ?? HintTargetRegistry.defaultInstance,
+        registry: controller.registry,
         input: controller,
         overlay: overlay?.call(),
+        diagnostics: controller.diagnostics,
       );
 }
 
@@ -144,14 +155,15 @@ class HintOverlayEngine implements HintOverlayHost {
       HintActive(:final targetId) => targetId,
       _ => '?',
     };
-    _diagnostics?.onHintSkipped(
-      state?.tour?.id ?? '?',
-      stepIndex,
-      targetId,
-      HintSkipReason.targetNotRendered,
-      'overlay unavailable: no OverlayState and no mounted target to capture'
-      ' from (pass overlay: explicitly for fully-deferred scenarios)',
-    );
+    _diagnostics?.onHintSkipped(HintSkipEvent(
+      tourId: state?.tour?.id ?? '?',
+      stepIndex: stepIndex,
+      targetId: targetId,
+      reason: HintSkipReason.overlayUnavailable,
+      detail: 'overlay unavailable: no OverlayState and no mounted target to'
+          ' capture from (pass overlay: explicitly for fully-deferred'
+          ' scenarios)',
+    ));
   }
 
   OverlayEntry _createEntry(OverlayState overlay) {
@@ -274,9 +286,10 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     final step = tour.steps[stepIndex];
     final hintTheme = Theme.of(context).hintTheme;
 
-    // Rect-anchored step: explicit coordinates win over the registry (a
-    // step whose point is `targetRect` spotlights exactly that rect — even
-    // when its `targetId` happens to be registered too).
+    // Waiting (machine Waiting / desync-guard below): full scrim without a
+    // hole + "preparing". The machine is the source of truth for
+    // waiting/active — the overlay does not re-derive it from the registry
+    // alone (a same-frame registry race is guarded inside _buildTargetMode).
     //
     // Waiting: the primary target does not exist yet — full scrim without a
     // hole + "preparing". No tap handling: the pointer passes through to the
@@ -290,7 +303,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
             actions: widget.input,
             theme: hintTheme,
           )
-        : widget.registry.lookup(step.targetId) == null
+        : widget.state is! HintActive
             ? _buildWaitingMode(hintTheme)
             : _buildTargetMode(
                 context,
@@ -309,8 +322,9 @@ class _HintOverlayViewState extends State<_HintOverlayView>
   }
 
   /// Waiting: full scrim without a hole + "preparing". With a blur filter
-  /// the scrim is a global `BackdropFilter`; without — the follower painter
-  /// (a full-screen scrim, no hole).
+  /// the scrim is a global `BackdropFilter`; without — a full-dim
+  /// `RectScrimPainter` with an empty hole list (the same painter as the
+  /// spotlight path — empty holes = no punch = full dim).
   Widget _buildWaitingMode(HintTheme theme) {
     final filter = theme.imageFilter;
     final Widget scrim = filter != null
@@ -321,13 +335,9 @@ class _HintOverlayViewState extends State<_HintOverlayView>
             ),
           )
         : CustomPaint(
-            painter: ScrimHolePainter(
-              resolvers: const [UnpositionedHintResolver()],
+            painter: RectScrimPainter(
+              holes: const [],
               color: theme.scrimColor,
-              // Waiting is a deliberate full-screen dim (no hole); the
-              // active mode paints nothing until positioned (see the
-              // painter's doc — the no-flash rule).
-              paintFullScrimWhenUnpositioned: true,
             ),
             child: const SizedBox.expand(),
           );
@@ -363,9 +373,9 @@ class _HintOverlayViewState extends State<_HintOverlayView>
         if (widget.registry.lookup(id) case final registration?)
           if (seen.add(id)) registration,
     ];
-    // The machine activates a step only when ALL of its targets are mounted;
-    // a target can unregister in the same frame the active state lands — be
-    // defensive and fall back to waiting.
+    // Desync-guard: the machine says Active, but a target can unregister
+    // in the same frame the active state lands — fall back to waiting
+    // (the machine is still the source of truth for the normal path).
     if (registrations.isEmpty) return _buildWaitingMode(theme);
     return _ActiveOverlayContent(
       step: step,
@@ -493,21 +503,11 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// with the fresh hole), only the content subtree is skipped.
   ({HintStep step, int index, List<Widget> slots})? _slotCache;
 
-  FocusShape _effectiveShape() {
-    final s = widget.step.focusShape;
-    if (s != null) return s;
-    final t = widget.registrations.first.focusShape;
-    if (t != null) return t;
-    return FocusShape.rectangle;
-  }
+  FocusShape _effectiveShape() =>
+      resolveFocusShape(widget.step, widget.registrations.first);
 
-  double _effectivePadding() {
-    final s = widget.step.focusPadding;
-    if (s != null) return s;
-    final t = widget.registrations.first.focusPadding;
-    if (t != null) return t;
-    return 4.0;
-  }
+  double _effectivePadding() =>
+      resolveFocusPadding(widget.step, widget.registrations.first);
 
   bool _effectiveAutoScroll() =>
       widget.step.autoScroll ?? widget.tourAutoScroll;
@@ -521,8 +521,11 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (box is! RenderBox || !box.hasSize) return;
       final rect = box.localToGlobal(Offset.zero) & box.size;
       final screen = Offset.zero & MediaQuery.sizeOf(ctx);
-      if (screen.contains(rect.topLeft) && screen.contains(rect.bottomRight)) return;
-      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+      if (screen.contains(rect.topLeft) && screen.contains(rect.bottomRight)) {
+        return;
+      }
+      Scrollable.ensureVisible(ctx,
+          duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
     } catch (_) {}
   }
 
@@ -581,8 +584,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     _seedStaticPositions();
     // Scroll listeners are bound to the primary target — re-bind on target
     // change (otherwise the old Scrollable would be observed).
-    if (oldWidget.registrations.first.link !=
-        widget.registrations.first.link) {
+    if (oldWidget.registrations.first.link != widget.registrations.first.link) {
       _detachScrollListeners();
       _attachScrollListeners();
       // Auto-scroll the new primary into view if the step opts in.
@@ -642,76 +644,76 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         // moves — the hole is punched at the live global rects).
         final Widget followerChild = const SizedBox.shrink();
 
-          return Stack(
-            children: [
+        return Stack(
+          children: [
+            CompositedTransformFollower(
+              key: _followerKeys[primary.id],
+              link: primary.link,
+              showWhenUnlinked: false,
+              child: followerChild,
+            ),
+            // Secondary targets: resolver-only followers (nothing visible).
+            for (final r in widget.registrations.skip(1))
               CompositedTransformFollower(
-                key: _followerKeys[primary.id],
-                link: primary.link,
+                key: _followerKeys[r.id],
+                link: r.link,
                 showWhenUnlinked: false,
-                child: followerChild,
+                child: const SizedBox.shrink(),
               ),
-              // Secondary targets: resolver-only followers (nothing visible).
-              for (final r in widget.registrations.skip(1))
-                CompositedTransformFollower(
-                  key: _followerKeys[r.id],
-                  link: r.link,
-                  showWhenUnlinked: false,
-                  child: const SizedBox.shrink(),
-                ),
-              // Global scrim: always full-screen, hole(s) at the live global
-              // rects — no follower offset, no bottom flicker on scroll.
-              // Plain: isolated dim + clear holes; Blur: even-odd clip.
-              // Rebuilt synchronously on scroll via _holeNotifier, so the
-              // dim and the tooltip move in the same frame as the content.
-              Positioned.fill(
-                child: ValueListenableBuilder<Offset?>(
-                  valueListenable: _holeNotifier,
-                  builder: (context, _, __) {
-                    final holes = _visualHoleRects();
-                    if (blur == null) {
-                      return IgnorePointer(
-                        child: CustomPaint(
-                          key: _scrimPaintKey,
-                          painter: RectScrimPainter(
-                            holes: holes,
-                            color: widget.theme.scrimColor,
-                            focusShape: _effectiveShape(),
-                          ),
-                          child: const SizedBox.expand(),
-                        ),
-                      );
-                    }
-                    return _buildBlurScrim(screen, holes);
-                  },
-                ),
-              ),
-              // Pulse ring: a global layer above the scrim (the ring must be
-              // visible over the blur too — inside the follower it would be
-              // painted under the global BackdropFilter). Paints the ring at
-              // the resolver's live translation, so it follows the target
-              // while the animation tick repaints.
-              if (widget.theme.showPulse) _buildPulseLayer(),
-              // Full-screen layout box (getSize = biggest): tooltip buttons
-              // are hit-testable anywhere on screen; taps past the tooltip
-              // fall through (hitTestSelf = false) onto the scrim → next.
-              // Listens to the hole notifier and rebuilds ONLY the tooltip
-              // placement (the cached content child stays identical across
-              // movement frames — no text re-layout).
-              ValueListenableBuilder<Offset?>(
+            // Global scrim: always full-screen, hole(s) at the live global
+            // rects — no follower offset, no bottom flicker on scroll.
+            // Plain: isolated dim + clear holes; Blur: even-odd clip.
+            // Rebuilt synchronously on scroll via _holeNotifier, so the
+            // dim and the tooltip move in the same frame as the content.
+            Positioned.fill(
+              child: ValueListenableBuilder<Offset?>(
                 valueListenable: _holeNotifier,
-                builder: (context, translation, _) {
-                  // No authoritative snapshot yet: the tooltip must not
-                  // mount at a zero position (it would slide off-screen).
-                  if (translation == null) return const SizedBox.shrink();
-                  final holeLocal =
-                      translation & (primary.link.leaderSize ?? Size.zero);
-                  return _buildTooltip(context, holeLocal, screen);
+                builder: (context, _, __) {
+                  final holes = _visualHoleRects();
+                  if (blur == null) {
+                    return IgnorePointer(
+                      child: CustomPaint(
+                        key: _scrimPaintKey,
+                        painter: RectScrimPainter(
+                          holes: holes,
+                          color: widget.theme.scrimColor,
+                          focusShape: _effectiveShape(),
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    );
+                  }
+                  return _buildBlurScrim(screen, holes);
                 },
               ),
-            ],
-          );
-        },
-      );
+            ),
+            // Pulse ring: a global layer above the scrim (the ring must be
+            // visible over the blur too — inside the follower it would be
+            // painted under the global BackdropFilter). Paints the ring at
+            // the resolver's live translation, so it follows the target
+            // while the animation tick repaints.
+            if (widget.theme.showPulse) _buildPulseLayer(),
+            // Full-screen layout box (getSize = biggest): tooltip buttons
+            // are hit-testable anywhere on screen; taps past the tooltip
+            // fall through (hitTestSelf = false) onto the scrim → next.
+            // Listens to the hole notifier and rebuilds ONLY the tooltip
+            // placement (the cached content child stays identical across
+            // movement frames — no text re-layout).
+            ValueListenableBuilder<Offset?>(
+              valueListenable: _holeNotifier,
+              builder: (context, translation, _) {
+                // No authoritative snapshot yet: the tooltip must not
+                // mount at a zero position (it would slide off-screen).
+                if (translation == null) return const SizedBox.shrink();
+                final holeLocal =
+                    translation & (primary.link.leaderSize ?? Size.zero);
+                return _buildTooltip(context, holeLocal, screen);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// The step's tooltips: the primary alone (single path) or the primary +
@@ -746,11 +748,15 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         primaryPosition: widget.step.position,
         extraPositions: [for (final extra in extras) extra.position],
         extraHoles: _extraHoleRects(),
-                safeArea: MediaQuery.paddingOf(context),
+        safeArea: MediaQuery.paddingOf(context),
       ),
       children: [
-        LayoutId(id: TooltipMultiPlacementDelegate.primaryId, child: slots.first),
-        for (var i = 0; i < extras.length; i++) LayoutId(id: TooltipMultiPlacementDelegate.extraId(i), child: slots[i + 1]),
+        LayoutId(
+            id: TooltipMultiPlacementDelegate.primaryId, child: slots.first),
+        for (var i = 0; i < extras.length; i++)
+          LayoutId(
+              id: TooltipMultiPlacementDelegate.extraId(i),
+              child: slots[i + 1]),
       ],
     );
     return _tooltipEntry(
@@ -810,8 +816,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       content = DefaultTooltip(
         step: widget.step,
         ctx: ctx,
-        title: extra.effectiveTitle(context),
-        description: extra.effectiveDescription(context),
+        content: extra.content,
         showActions: false,
       );
     }
@@ -1112,7 +1117,8 @@ class _TapShell extends StatelessWidget {
       onTapDown: (details) => onTapDown(details),
       onTap: onTap,
       child: LayoutBuilder(
-        builder: (context, constraints) => builder(context, constraints.biggest),
+        builder: (context, constraints) =>
+            builder(context, constraints.biggest),
       ),
     );
   }
@@ -1129,7 +1135,7 @@ Widget _blurScrim({
 }) {
   return ClipPath(
     clipper: _EvenOddClipper(
-      ScrimHolePainter.scrimClipPath(
+      RectScrimPainter.scrimClipPath(
         Offset.zero & screen,
         holes,
         focusShape,
@@ -1144,8 +1150,8 @@ Widget _blurScrim({
 
 /// Tap dispatch by hole region, shared by the follower-anchored content and
 /// the rect-anchored content: inside any hole — the target region, otherwise
-/// the overlay region. A per-step callback replaces the default "next" for
-/// its region; the `tapOn*` flags disable a region.
+/// the overlay region. Each region carries one [HintTapBehavior] (advance /
+/// ignore / custom); the machine still only sees `UserNext` from advance.
 void _dispatchStepTap({
   required HintStep step,
   required HintActions actions,
@@ -1160,16 +1166,14 @@ void _dispatchStepTap({
     totalSteps: totalSteps,
   );
   final onTarget = holes.any((h) => h.contains(details.globalPosition));
-  if (onTarget) {
-    if (step.onTapTarget != null) {
-      step.onTapTarget!(ctx, details);
-    } else if (step.tapOnTarget) {
+  final behavior = onTarget ? step.targetTap : step.overlayTap;
+  switch (behavior) {
+    case HintTapAdvance():
       actions.next();
-    }
-  } else if (step.onTapOverlay != null) {
-    step.onTapOverlay!(ctx, details);
-  } else if (step.tapOnOverlay) {
-    actions.next();
+    case HintTapIgnore():
+      break;
+    case HintTapCustom(:final onTap):
+      onTap(ctx, details);
   }
 }
 
@@ -1326,11 +1330,10 @@ class _RectTargetContent extends StatefulWidget {
 class _RectTargetContentState extends State<_RectTargetContent> {
   TapDownDetails? _lastTap;
 
-  FocusShape _effectiveShape() =>
-      widget.step.focusShape ?? FocusShape.rectangle;
+  FocusShape _effectiveShape() => resolveFocusShape(widget.step);
 
   Rect get _hole =>
-      widget.step.targetRect!.inflate(widget.step.focusPadding ?? 4.0);
+      widget.step.targetRect!.inflate(resolveFocusPadding(widget.step));
 
   @override
   Widget build(BuildContext context) {
@@ -1404,7 +1407,7 @@ class _RectTargetContentState extends State<_RectTargetContent> {
 }
 
 /// Clip to a prebuilt even-odd path (screen minus holes, see
-/// `ScrimHolePainter.scrimClipPath`): the blur `BackdropFilter` samples the
+/// `RectScrimPainter.scrimClipPath`): the blur `BackdropFilter` samples the
 /// full backdrop but stays visible only outside the holes. One clipper for
 /// every blur scrim — only the path differs.
 class _EvenOddClipper extends CustomClipper<Path> {
@@ -1418,8 +1421,3 @@ class _EvenOddClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _EvenOddClipper old) => old.path != path;
 }
-
-
-
-
-

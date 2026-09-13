@@ -6,10 +6,13 @@ import 'package:hintful/hintful.dart';
 /// symbol `hintful.dart` exports, so narrowing the barrel stops it from
 /// compiling — the symbol simply stops resolving here.
 ///
-/// What stays outside the barrel on purpose (the log formatter `formatHintSkipped`,
-/// the `editDistance` metric, the concrete `CompositorHintResolver` /
-/// `UnpositionedHintResolver`) is covered through its source path in the engine
-/// tests.
+/// What stays outside the barrel on purpose (the render contract
+/// `HintOverlayHost`/`defaultOverlayHost`/position types, the register-path
+/// `HintTargetRegistration`, the diagnostics helpers `formatHintSkipped`/
+/// `DebugPrintDiagnostics`/`closestTargetIds`, `kHintFocusPadding`,
+/// `hintTourWithSteps`, and the concrete `CompositorHintResolver` /
+/// `UnpositionedHintResolver`) is covered through its source path in the
+/// engine tests.
 void main() {
   test('barrel: the whole public contract is reachable from one import point',
       () async {
@@ -34,10 +37,29 @@ void main() {
     expect(FocusShape.values, contains(FocusShape.circle));
     expect(HintCurve.values, contains(HintCurve.sprung));
 
+    // Content slot type + tap behaviors (1.0 merge of overlapping knobs).
+    const content = HintStepContent(title: 'T', description: 'D');
+    const sugarStep = HintStep(
+      targetId: 'stats',
+      title: 'T',
+      description: 'D',
+    );
+    expect(content.title, 'T');
+    expect(sugarStep.title, 'T');
+    expect(sugarStep.description, 'D');
+    expect(sugarStep.content.title, 'T');
+    const targetTap = HintTapBehavior.ignore();
+    const overlayTap = HintTapBehavior.advance();
+    final customTap = HintTapBehavior.custom((ctx, details) {});
+    expect(targetTap, isA<HintTapIgnore>());
+    expect(overlayTap, isA<HintTapAdvance>());
+    expect(customTap, isA<HintTapCustom>());
+
     // Registry + controller (headless: no overlay host).
     final registry = HintTargetRegistry();
-    final controller = HintController(registry: registry);
+    final controller = HintController(registry: registry, headless: true);
     addTearDown(controller.dispose);
+    expect(controller.registry, same(registry));
     expect(registry.ids, isEmpty);
     expect(controller.currentState, isA<HintIdle>());
     expect(controller.isIdle, isTrue);
@@ -47,12 +69,20 @@ void main() {
     expect(HintWaiting(tour: tour, stepIndex: 0), isA<HintState>());
     expect(HintActive(tour: tour, stepIndex: 0), isA<HintState>());
 
-    // Diagnostics.
-    final handler = DebugPrintDiagnostics();
-    expect(handler, isA<HintDiagnosticsHandler>());
+    // Diagnostics — one event object, extensible in 1.x.
+    const event = HintSkipEvent(
+      tourId: 'intro',
+      stepIndex: 0,
+      targetId: 'stats',
+      reason: HintSkipReason.timeout,
+      detail: 'did not appear',
+    );
+    expect(event.reason, HintSkipReason.timeout);
     expect(HintSkipReason.timeout.label, isNotEmpty);
-    expect(closestTargetIds('statsPeriodSelectr', {'statsPeriodSelector'}),
-        ['statsPeriodSelector']);
+    expect(
+      _HandlerProbe(),
+      isA<HintDiagnosticsHandler>(),
+    );
 
     // Actions + tooltip context — what a custom tooltip is handed.
     expect(controller, isA<HintActions>());
@@ -82,30 +112,20 @@ void main() {
     expect(const HintTooltipLabels().next, 'Next');
     expect(ThemeData().hintTheme, isA<HintTheme>()); // HintThemeX
 
-    // Widgets, widget sugar and the custom-host contract.
+    // Widgets and widget sugar.
     expect(HintTarget, same(HintTarget));
     expect(DefaultTooltip, same(DefaultTooltip));
     expect(
         const SizedBox().withHint('sugar'), isA<HintTarget>()); // HintTargetX
-    HintTargetRegistration? registration; // needs a live context to build
-    expect(registration, isNull);
-    expect(HintOverlayHost, isNotNull);
-    expect(
-        defaultOverlayHost(), isA<HintOverlayHost Function(HintController)>());
 
-    // Position resolver — for custom hosts.
-    expect(const PositionedHint(translation: Offset.zero, size: Size.zero),
-        isA<HintPosition>());
-    expect(const UnpositionedHint(), isA<HintPosition>());
-    expect(HintPositionResolver, isNotNull);
-
-    // Versioned hints — the store service.
+    // Versioned hints — the store service + startOnce (method contract).
     final store = InMemoryHintStore();
     expect(store, isA<HintStore>());
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
     store.markShown('intro', '1.0.0');
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
     expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
+    expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
 
     // Server-driven tours — one interface, two implementations.
     final HintTourFactory inMemory = InMemoryHintTourFactory({'intro': tour});
@@ -121,4 +141,9 @@ void main() {
     expect(HintTourOfferResult.values, hasLength(2));
     expect(showHintTourOffer, isNotNull);
   });
+}
+
+class _HandlerProbe implements HintDiagnosticsHandler {
+  @override
+  void onHintSkipped(HintSkipEvent event) {}
 }

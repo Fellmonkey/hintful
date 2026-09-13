@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/specs.dart';
+import 'package:hintful/src/engine/specs.dart';
 
 enum _TourStep { drawer, settings, records }
 
@@ -136,6 +136,48 @@ void main() {
       expect(restored.steps.single.missingTargetPolicy, isNull);
     });
 
+    test('old tapOnTarget/tapOnOverlay bools map to HintTapBehavior', () {
+      // 0.x wire: tapOnTarget/tapOnOverlay were plain bools.
+      // true ⇔ advance, false ⇔ ignore.
+      final restored = HintTour.fromJson({
+        'id': 't',
+        'steps': [
+          {
+            'targetId': 'a',
+            'title': 'A',
+            'tapOnTarget': false,
+            'tapOnOverlay': true,
+          },
+          {'targetId': 'b', 'title': 'B'},
+        ],
+      });
+
+      expect(
+        restored.steps[0].targetTap,
+        isA<HintTapIgnore>(),
+      );
+      expect(
+        restored.steps[0].overlayTap,
+        isA<HintTapAdvance>(),
+      );
+      // Absent keys default to advance (the historical default).
+      expect(
+        restored.steps[1].targetTap,
+        isA<HintTapAdvance>(),
+      );
+      expect(
+        restored.steps[1].overlayTap,
+        isA<HintTapAdvance>(),
+      );
+
+      // Round-trip keeps the historical bool keys (same wire shape).
+      final json = restored.toJson();
+      expect(json['steps'][0]['tapOnTarget'], false);
+      expect(json['steps'][0]['tapOnOverlay'], true);
+      expect(json['steps'][1]['tapOnTarget'], true);
+      expect(json['steps'][1]['tapOnOverlay'], true);
+    });
+
     test('resolveMissingPolicy: step overrides tour', () {
       const step = HintStep(
         targetId: 'a',
@@ -151,6 +193,36 @@ void main() {
         plain.resolveMissingPolicy(HintMissingTargetPolicy.skipStep),
         HintMissingTargetPolicy.skipStep,
       );
+    });
+  });
+
+  group('hintTourWithSteps', () {
+    test('preserves every tour-level field (typo filtering must not drop them)',
+        () {
+      final tour = HintTour(
+        id: 't',
+        autoScroll: true,
+        disableBackButton: true,
+        stepTimeout: const Duration(seconds: 7),
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+        steps: const [
+          HintStep(targetId: 'a', title: 'A'),
+          HintStep(targetId: 'b', title: 'B'),
+        ],
+      );
+
+      final filtered = hintTourWithSteps(tour, [tour.steps.first]);
+
+      expect(filtered.id, 't');
+      expect(filtered.autoScroll, isTrue);
+      expect(filtered.disableBackButton, isTrue);
+      expect(filtered.stepTimeout, const Duration(seconds: 7));
+      expect(
+        filtered.missingTargetPolicy,
+        HintMissingTargetPolicy.skipStep,
+      );
+      expect(filtered.steps, hasLength(1));
+      expect(filtered.steps.single.targetId, 'a');
     });
   });
 }

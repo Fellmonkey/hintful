@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/tooltip_tail.dart';
+import 'package:hintful/src/engine/overlay/tooltip_tail.dart';
 
 void main() {
   group('tailSideFor', () {
@@ -157,7 +157,8 @@ void main() {
   });
 
   group('TooltipTailPainter', () {
-    test('shouldRepaint: closure/color changes repaint, same values do not', () {
+    test('shouldRepaint: closure/color changes repaint, same values do not',
+        () {
       final key = GlobalKey();
       Rect hole() => const Rect.fromLTWH(0, 0, 10, 10);
       Rect movedHole() => const Rect.fromLTWH(5, 0, 10, 10);

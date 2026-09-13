@@ -20,9 +20,9 @@ import 'dart:math' as math;
 /// `shared_preferences`) live OUTSIDE the core package to keep it
 /// dependency-free — see the example app for one.
 ///
-/// Whether/when to show is policy — it becomes the Hub layer in phase 2; on
-/// stage 1 this is the library service plus the integration pattern
-/// (`shouldShow` before start, `markShown` on exit).
+/// Typical use: [HintController.startOnce] (`shouldShow` → start →
+/// `markShown` on finish), or the manual gate `shouldShow` before start +
+/// `markShown` on the exit you choose.
 abstract class HintStore {
   /// Whether the hint should show (see class doc). [minVersion] — the app
   /// version the hint targets; null — "show once ever".

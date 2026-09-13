@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/pulse_painter.dart';
-import 'package:hintful/engine/position_resolver.dart';
-import 'package:hintful/engine/specs.dart' show FocusShape;
+import 'package:hintful/src/engine/overlay/pulse_painter.dart';
+import 'package:hintful/src/engine/position_resolver.dart';
+import 'package:hintful/src/engine/specs.dart' show FocusShape;
 
 class _FakeResolver implements HintPositionResolver {
   _FakeResolver(this.position);
@@ -45,24 +45,54 @@ void main() {
   group('PulsePainter focusShape', () {
     test('rect — RRect 4', () {
       final canvas = TestRecordingCanvas();
-      final r = _FakeResolver(const PositionedHint(translation: Offset(50, 50), size: Size(80, 40)));
-      final p = PulsePainter(animation: null, resolver: r, color: const Color(0xFFFFFFFF), focusShape: FocusShape.rectangle, focusPadding: 4);
+      final r = _FakeResolver(const PositionedHint(
+          translation: Offset(50, 50), size: Size(80, 40)));
+      final p = PulsePainter(
+          animation: null,
+          resolver: r,
+          color: const Color(0xFFFFFFFF),
+          focusShape: FocusShape.rectangle,
+          focusPadding: 4);
       p.paint(canvas, const Size(800, 600));
-      expect(canvas.invocations.where((i) => i.invocation.memberName == #drawRRect).length, 1);
+      expect(
+          canvas.invocations
+              .where((i) => i.invocation.memberName == #drawRRect)
+              .length,
+          1);
     });
     test('circle — oval', () {
       final canvas = TestRecordingCanvas();
-      final r = _FakeResolver(const PositionedHint(translation: Offset(50, 50), size: Size(80, 40)));
-      final p = PulsePainter(animation: null, resolver: r, color: const Color(0xFFFFFFFF), focusShape: FocusShape.circle, focusPadding: 0);
+      final r = _FakeResolver(const PositionedHint(
+          translation: Offset(50, 50), size: Size(80, 40)));
+      final p = PulsePainter(
+          animation: null,
+          resolver: r,
+          color: const Color(0xFFFFFFFF),
+          focusShape: FocusShape.circle,
+          focusPadding: 0);
       p.paint(canvas, const Size(800, 600));
-      expect(canvas.invocations.where((i) => i.invocation.memberName == #drawOval).length, 1);
+      expect(
+          canvas.invocations
+              .where((i) => i.invocation.memberName == #drawOval)
+              .length,
+          1);
     });
     test('rounded — RRect 12', () {
       final canvas = TestRecordingCanvas();
-      final r = _FakeResolver(const PositionedHint(translation: Offset(50, 50), size: Size(80, 40)));
-      final p = PulsePainter(animation: null, resolver: r, color: const Color(0xFFFFFFFF), focusShape: FocusShape.roundedRect, focusPadding: 4);
+      final r = _FakeResolver(const PositionedHint(
+          translation: Offset(50, 50), size: Size(80, 40)));
+      final p = PulsePainter(
+          animation: null,
+          resolver: r,
+          color: const Color(0xFFFFFFFF),
+          focusShape: FocusShape.roundedRect,
+          focusPadding: 4);
       p.paint(canvas, const Size(800, 600));
-      expect(canvas.invocations.where((i) => i.invocation.memberName == #drawRRect).length, 1);
+      expect(
+          canvas.invocations
+              .where((i) => i.invocation.memberName == #drawRRect)
+              .length,
+          1);
     });
   });
 
@@ -102,4 +132,3 @@ void main() {
     });
   });
 }
-

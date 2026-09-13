@@ -50,7 +50,6 @@ foreign ids then neither activate steps nor show up as typo candidates:
 // the greenhouse tab
 final controller = HintController(
   scopePrefix: 'greenhouse-',
-  overlayHostBuilder: defaultOverlayHost(),
 );
 
 HintTarget(id: 'greenhouse-addBed', child: AddBedButton())
@@ -188,12 +187,24 @@ if (!await controller.tryStart(tour)) return; // busy
 
 ## 6. Once per version — `HintStore`
 
-`shouldShow` before, `markShown` after — and "after" is the trap: `start` returns
-as soon as the tour is **seeded** (step 1 is on screen), not when the tour ends.
-Marking straight after `start` records a tour the user may have skipped one frame
-later.
+**Preferred:** `startOnce` — gate + start + mark-on-finish in one call:
 
-Gate it, then record it on exit:
+```dart
+final started = await controller.startOnce(
+  intro,
+  store: store,
+  minVersion: appVersion, // re-show when the app version passes this
+  version: appVersion,    // what gets recorded (defaults to minVersion)
+);
+if (!started) return; // already shown for this version, or busy
+```
+
+Semantics: `markShown` runs **only on finish** (Done / last step). Skip and
+timeout abort *without* marking — the tour may show again next launch. That
+is deliberate: "finished" means the user saw the whole thing.
+
+Prefer `startOnce` when that definition fits. For any other policy (mark on
+first frame, mark on skip too, mark a different key) roll your own:
 
 ```dart
 Future<void> startIntro() async {
@@ -211,8 +222,10 @@ controller.state.addListener(() {
 });
 ```
 
-Marking on start ("the user saw step 1") is defensible too — the point is to pick
-one definition and keep it in the entry point, never scattered across screens.
+The trap with the manual path: `start` returns as soon as the tour is
+**seeded** (step 1 is on screen), not when it ends — marking straight after
+`start` records a tour the user may have skipped one frame later. Pick one
+definition and keep it in the entry point, never scattered across screens.
 
 Key and version rules:
 
@@ -323,12 +336,12 @@ The contract:
 ```
 
 Reasons are typed (`HintSkipReason`): `timeout`, `unknown-target`,
-`user-skipped`, and `target-not-rendered` (no overlay could be found or captured).
+`user-skipped`, and `overlay-unavailable` (no overlay could be found or captured).
 A target that vanishes mid-step is *not* reported — the step goes back to waiting
 and a permanent loss surfaces as `timeout`.
 
-`DebugPrintDiagnostics` is the default, and the controller only attaches it in
-debug builds: in release `diagnostics` is `null` and costs nothing. Wire your own
+The controller attaches a debug-print handler only in debug builds: in
+release `diagnostics` is `null` and costs nothing. Wire your own
 for analytics or a dev panel — same contract, any number of handlers:
 
 ```dart
@@ -338,13 +351,12 @@ class AnalyticsDiagnostics implements HintDiagnosticsHandler {
   const AnalyticsDiagnostics();
 
   @override
-  void onHintSkipped(String tourId, int stepIndex, String targetId,
-      HintSkipReason reason, String detail) {
+  void onHintSkipped(HintSkipEvent event) {
     analytics.log('hint_skipped', {
-      'tour': tourId,
-      'step': stepIndex,
-      'target': targetId,
-      'reason': reason.label,
+      'tour': event.tourId,
+      'step': event.stepIndex,
+      'target': event.targetId,
+      'reason': event.reason.label,
     });
   }
 }
@@ -378,9 +390,7 @@ nothing to capture the root overlay from:
 
 ```dart
 final overlayKey = GlobalKey<OverlayState>();
-HintController(
-  overlayHostBuilder: defaultOverlayHost(overlay: () => overlayKey.currentState),
-);
+HintController(overlay: () => overlayKey.currentState);
 ```
 
 Otherwise the engine finds the root overlay from the first registered target.
@@ -453,19 +463,19 @@ turn it off — a callback takes over the advance, so move on yourself with
 ```dart
 HintStep(
   targetId: 'deleteSwipe',
-  tapOnOverlay: false,      // a stray scrim tap must not advance
-  onTapTarget: (ctx, details) {
+  overlayTap: const HintTapBehavior.ignore(), // a stray scrim tap must not advance
+  targetTap: HintTapBehavior.custom((ctx, details) {
     analytics.log('tapped_target', details.globalPosition);
     doTheRealAction();
     ctx.actions.next();     // move on when it makes sense
-  },
+  }),
 )
 ```
 
 When to deviate:
 
-- **critical steps** (irreversible actions, permission prompts): `tapOnOverlay: false` plus an explicit `onTapTarget`/button — a tap anywhere must not glide past them;
-- **the user must actually use the control** (log the first set): do it from `onTapTarget` — the widget itself will not receive the tap;
+- **critical steps** (irreversible actions, permission prompts): `overlayTap: ignore()` plus an explicit `targetTap` custom/button — a tap anywhere must not glide past them;
+- **the user must actually use the control** (log the first set): do it from `targetTap: HintTapBehavior.custom(...)` — the widget itself will not receive the tap;
 - **drags stay free**: the tap layer is translucent, so scrolling and scroll-through are unaffected (§8).
 
 ---
@@ -546,14 +556,14 @@ await controller.start(tour);
 
 What the wire format carries: `id`, steps with `targetId`/`moreTargets`, titles
 and descriptions, `position`, `moreTooltips`, `stepTimeoutMs`/`waitTimeoutMs`,
-`showSkip`, the missing-target policy, `tapOn*`, shapes/padding, `autoScroll`,
-`transitionCurve` and `targetRect`.
+`showSkip`, the missing-target policy, historical `tapOn*` bools,
+shapes/padding, `autoScroll`, `transitionCurve` and `targetRect`.
 
 What it **cannot** carry: builders and callbacks. `titleBuilder`,
-`descriptionBuilder`, `tooltipBuilder`, `onTapTarget` and the lifecycle hooks are
-code-side only. So a server rewrites the copy and the order of **known** targets
-— it cannot introduce targets that do not exist in the binary the user is
-running.
+`descriptionBuilder`, `tooltipBuilder`, `HintTapBehavior.custom` and the
+lifecycle hooks are code-side only. So a server rewrites the copy and the order
+of **known** targets — it cannot introduce targets that do not exist in the
+binary the user is running.
 
 Practical rules:
 
@@ -571,7 +581,7 @@ Practical rules:
 
 ## 20. Testing — headless first
 
-The controller does not need a UI: with `overlayHostBuilder: null` the whole
+The controller does not need a UI: with `headless: true` the whole
 machine runs without an overlay — waiting, timeouts, typo validation, policies,
 diagnostics — so a tour flow is a plain unit test:
 
@@ -579,7 +589,7 @@ diagnostics — so a tour flow is a plain unit test:
 final controller = HintController(
   registry: HintTargetRegistry(), // your own, never the app singleton
   diagnostics: recorder,
-  // no overlayHostBuilder → headless
+  headless: true, // no render mechanics — machine only
 );
 
 await controller.start(tour);                       // typo → assertion in debug
@@ -598,7 +608,7 @@ Notes:
 - `dispose()` every controller (it is idempotent) — otherwise the registry listener and the timer outlive the test.
 
 For full-fidelity tests (scrim, tooltip copy, taps, positioning) build a real
-scene — `MaterialApp` + `HintTarget`s + `defaultOverlayHost()` — the way the
+scene — `MaterialApp` + `HintTarget`s + `HintController()` — the way the
 package's own `test/helpers/tour_harness.dart` does, and remember the two-frame
 rule: `start` renders the scrim on frame 1 and the tooltip on frame 2, so pump
 twice before asserting the tooltip.
@@ -626,7 +636,7 @@ What it handles for you: no dialog when the tour already ran for `minVersion`, a
 decline remembered per page (and globally when the checkbox is on) under
 namespaced keys, and a barrier dismissal counted as a decline — "not now" must
 not nag. Accepting calls `controller.start(tour)`; recording the shown-state
-stays yours, on exit, exactly as in §6.
+stays yours on finish (see §6 / `startOnce`).
 
 Two rules: one offer per page entry point (offer from three buttons and the
 dialog appears where the user least expects it), and keep the tour reachable

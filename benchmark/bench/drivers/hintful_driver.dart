@@ -24,8 +24,7 @@ import 'package:hintful/hintful.dart';
 /// (row 5) and step 1 anchors the next row (row 6); update() is a step
 /// change (goTo) — hintful's genuine "content changed" flow.
 class HintfulDriver implements LibraryDriver {
-  HintfulDriver()
-      : _controller = HintController(overlayHostBuilder: defaultOverlayHost());
+  HintfulDriver() : _controller = HintController();
 
   /// Engine + machine + registry. The overlay host is built lazily at the
   /// first non-idle state and disposed on hide (hintful's zero-idle

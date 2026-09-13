@@ -5,57 +5,72 @@
 ///
 /// - tour data contracts ([HintStep], [HintTour]) — widget-free, serializable
 ///   1-to-1 to JSON (server-driven tours via `fromJson`);
-/// - target registry ([HintTargetRegistry], [HintTargetRegistration]) — the
-///   "no GlobalKey" model;
+/// - target registry ([HintTargetRegistry]) — the "no GlobalKey" model
+///   (the register-path and [HintTargetRegistration] are internal — drive
+///   targets through [HintTarget]);
 /// - observable machine state ([HintState] + subtypes) — the public
 ///   observable; events/effects/the machine itself are NOT exported;
 /// - motion ([hintTransitionDuration]) — the reduce-motion helper the entry
 ///   presets and custom tooltips share;
-/// - controller ([HintController]) and the render-mechanics contract
-///   ([HintOverlayHost]) — the single control point;
-/// - diagnostics ([HintDiagnosticsHandler], [HintSkipReason],
-///   [DebugPrintDiagnostics]) and the typo search ([closestTargetIds]);
-/// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget], [DefaultTooltip], the
-///   "Want a tour?" pre-dialog [showHintTourOffer]);
-/// - position value types ([HintPosition], [PositionedHint],
-///   [UnpositionedHint]) and the [HintPositionResolver] contract — for custom
-///   hosts;
+/// - controller ([HintController]) — the single control point; the render
+///   contract (`HintOverlayHost`, position types, the overlay factory) is
+///   deliberately internal and can change without breaking changes;
+/// - diagnostics ([HintDiagnosticsHandler], [HintSkipEvent],
+///   [HintSkipReason]) — failed shows arrive as one event object, extensible
+///   in 1.x;
+/// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
+///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
 ///   [compareVersions]) — the "show once per app version" service.
 ///
-/// Deliberately NOT exported is overlay internals ([HintOverlayEngine],
-/// scrim painter, placement delegate) — mechanics that can change without
-/// breaking changes. Exception — [defaultOverlayHost]: the single public
-/// entry into render mechanics, a stable factory for wiring the host (the
-/// controller's `overlayHostBuilder`).
+/// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
+/// `HintOverlayHost`, `defaultOverlayHost`, position value types
+/// `HintPosition`/`PositionedHint`/`UnpositionedHint`/
+/// `HintPositionResolver`), the register-path
+/// (`HintTargetRegistration`/`register`/`unregister`/`lookup`), the
+/// diagnostics helpers (`formatHintSkipped`, `DebugPrintDiagnostics`,
+/// `closestTargetIds`, `editDistance`), the focus-padding fallback constant
+/// `kHintFocusPadding`, the internal `hintTourWithSteps`, and the concrete
+/// resolvers `CompositorHintResolver` / `UnpositionedHintResolver` (they
+/// touch Flutter's layer internals). They stay public inside `lib/src/` for
+/// the package's own tests.
 ///
-/// Also outside the contract, for the same reason: the diagnostics helpers
-/// `formatHintSkipped` (the exact log line is not an API) and `editDistance`
-/// (a generic string metric), and the concrete resolvers
-/// `CompositorHintResolver` / `UnpositionedHintResolver` (they touch
-/// Flutter's layer internals). They stay public inside `lib/engine/` for the
-/// package's own tests.
+/// Deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
+/// are NOT part of the contract — the implementation lives under `lib/src/`
+/// and is only reachable through this barrel.
 library;
 
-export 'engine/controller.dart' show HintController, HintOverlayHost;
-export 'engine/diagnostics.dart'
+export 'src/engine/controller.dart' show HintController;
+export 'src/engine/diagnostics.dart'
+    show HintDiagnosticsHandler, HintSkipEvent, HintSkipReason;
+export 'src/engine/labels.dart' show HintTooltipLabels;
+export 'src/engine/machine.dart'
+    show HintActive, HintIdle, HintState, HintWaiting;
+export 'src/engine/motion.dart' show hintTransitionDuration;
+export 'src/engine/registry.dart' show HintTargetRegistry;
+export 'src/engine/specs.dart'
     show
-        DebugPrintDiagnostics,
-        HintDiagnosticsHandler,
-        HintSkipReason,
-        closestTargetIds;
-export 'engine/labels.dart';
-export 'engine/overlay/overlay_engine.dart' show defaultOverlayHost;
-export 'engine/machine.dart' show HintActive, HintIdle, HintState, HintWaiting;
-export 'engine/motion.dart' show hintTransitionDuration;
-export 'engine/position_resolver.dart'
-    show HintPosition, HintPositionResolver, PositionedHint, UnpositionedHint;
-export 'engine/registry.dart';
-export 'engine/specs.dart';
-export 'engine/store.dart';
-export 'engine/theme/hint_theme.dart';
-export 'engine/tour_factory.dart';
-export 'widgets/default_tooltip.dart';
-export 'widgets/hint_target.dart';
-export 'widgets/hint_target_ext.dart';
-export 'widgets/tour_offer.dart';
+        FocusShape,
+        HintActions,
+        HintCurve,
+        HintMissingTargetPolicy,
+        HintStep,
+        HintStepContent,
+        HintTapAdvance,
+        HintTapBehavior,
+        HintTapCustom,
+        HintTapIgnore,
+        HintTooltip,
+        HintTooltipContext,
+        HintTour,
+        TooltipPosition;
+export 'src/engine/store.dart'
+    show HintStore, InMemoryHintStore, compareVersions;
+export 'src/engine/theme/hint_theme.dart' show HintTheme, HintThemeX;
+export 'src/engine/tour_factory.dart'
+    show FetcherHintTourFactory, HintTourFactory, InMemoryHintTourFactory;
+export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
+export 'src/widgets/hint_target.dart' show HintTarget;
+export 'src/widgets/hint_target_ext.dart' show HintTargetX;
+export 'src/widgets/tour_offer.dart'
+    show HintTourOfferLabels, HintTourOfferResult, showHintTourOffer;

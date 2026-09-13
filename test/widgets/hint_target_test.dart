@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/registry.dart';
-import 'package:hintful/widgets/hint_target.dart';
+import 'package:hintful/src/engine/registry.dart';
+import 'package:hintful/src/widgets/hint_target.dart';
 
 Widget _app(Widget body) => MaterialApp(home: Scaffold(body: body));
 

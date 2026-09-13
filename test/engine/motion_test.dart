@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/motion.dart';
+import 'package:hintful/src/engine/motion.dart';
 
 void main() {
   group('hintTransitionDuration (reduce-motion contract)', () {

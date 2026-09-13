@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/registry.dart';
+import 'package:hintful/src/engine/registry.dart';
 
 /// Registration needs a BuildContext; the harness takes a live one from the
 /// tree.

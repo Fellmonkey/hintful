@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../position_resolver.dart';
-import '../specs.dart' show FocusShape;
+import '../specs.dart' show FocusShape, kHintFocusPadding;
 
 /// Pulsing ring around the primary target (Material feature-discovery
 /// pattern). Opt-in via `HintTheme.showPulse`; the animation runs only while
@@ -20,7 +20,7 @@ class PulsePainter extends CustomPainter {
     required this.resolver,
     required this.color,
     this.focusShape = FocusShape.rectangle,
-    this.focusPadding = 4.0,
+    this.focusPadding = kHintFocusPadding,
   });
 
   final Animation<double>? animation;
@@ -33,7 +33,9 @@ class PulsePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final position = resolver?.resolve();
     if (position is! PositionedHint) return;
-    final hole = (Offset.zero & position.size).inflate(focusPadding).shift(position.translation);
+    final hole = (Offset.zero & position.size)
+        .inflate(focusPadding)
+        .shift(position.translation);
     final t = (animation?.value ?? 0).clamp(0.0, 1.0);
     final expansion = 24 * t;
     final ringRect = hole.inflate(expansion);
@@ -44,21 +46,18 @@ class PulsePainter extends CustomPainter {
       ..color = color.withAlpha((opacity * 255).round());
     switch (focusShape) {
       case FocusShape.circle:
-        final side = ringRect.width > ringRect.height
-            ? ringRect.width
-            : ringRect.height;
+        final side =
+            ringRect.width > ringRect.height ? ringRect.width : ringRect.height;
         canvas.drawOval(
             Rect.fromCenter(center: ringRect.center, width: side, height: side),
             paint);
       case FocusShape.roundedRect:
         canvas.drawRRect(
-            RRect.fromRectAndRadius(
-                ringRect, const Radius.circular(12)),
+            RRect.fromRectAndRadius(ringRect, const Radius.circular(12)),
             paint);
       case FocusShape.rectangle:
         canvas.drawRRect(
-            RRect.fromRectAndRadius(ringRect, const Radius.circular(4)),
-            paint);
+            RRect.fromRectAndRadius(ringRect, const Radius.circular(4)), paint);
     }
   }
 

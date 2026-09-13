@@ -341,7 +341,8 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
     HintStep step,
   ) =>
-      step.hasRectTarget || step.targetIds.every((id) => _present(targetPresent, id));
+      step.hasRectTarget ||
+      step.targetIds.every((id) => _present(targetPresent, id));
 
   /// The single entry point. Returns the transition and applies it to the
   /// internal state.

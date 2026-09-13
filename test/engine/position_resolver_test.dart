@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/position_resolver.dart';
+import 'package:hintful/src/engine/position_resolver.dart';
 
 /// Classic scene: the target (leader) and a follower in one Stack — as in the
 /// engine.

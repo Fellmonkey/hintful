@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/tooltip_tail.dart';
+import 'package:hintful/src/engine/overlay/tooltip_tail.dart';
 import 'package:hintful/hintful.dart';
 
 import '../helpers/tour_harness.dart';
@@ -112,9 +112,7 @@ void main() {
     testWidgets(
         'target offstaged (kept, unpainted): the spotlight retracts '
         'instead of freezing, returns when painted again', (tester) async {
-      final controller = HintController(
-        overlayHostBuilder: defaultOverlayHost(),
-      );
+      final controller = HintController();
       addTearDown(controller.dispose);
       var offstage = false;
       late StateSetter setOffstage;

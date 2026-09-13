@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/tooltip_placement.dart';
-import 'package:hintful/engine/specs.dart';
+import 'package:hintful/src/engine/overlay/tooltip_placement.dart';
+import 'package:hintful/src/engine/specs.dart';
 
 void main() {
   const screen = Rect.fromLTWH(0, 0, 800, 600);
@@ -208,8 +208,8 @@ void main() {
     });
 
     test('full-width hole above the top: pinned to the top edge', () {
-      expect(place(const Rect.fromLTWH(0, -300, 800, 60)),
-          const Offset(240, 0));
+      expect(
+          place(const Rect.fromLTWH(0, -300, 800, 60)), const Offset(240, 0));
     });
 
     test('narrow hole below the fold: the real side placement still wins', () {
@@ -220,7 +220,8 @@ void main() {
           const Offset(212, 450));
     });
 
-    test('continuous across the join: the clamped edge is the side placement '
+    test(
+        'continuous across the join: the clamped edge is the side placement '
         'that takes over', () {
       // 17 px above the fold: the mirrored side fits (595-162 = 433).
       expect(place(const Rect.fromLTWH(0, 595, 800, 60)).dy, 433);

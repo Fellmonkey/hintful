@@ -1,5 +1,99 @@
 # Changelog
 
+## 1.0.0
+
+- **Default rendering:** `HintController()` now renders out of the box — the
+  default engine wiring runs instead of a headless mode. Migration: headless
+  runs (tests, pure machines) must now pass `headless: true`;
+  `overlay: null` is no longer a headless marker
+  (assert: `headless: true cannot be combined with overlay:`).
+- **Render contract is internal:** **Breaking** — `HintOverlayHost`,
+  `defaultOverlayHost`, `HintPosition`/`PositionedHint`/`UnpositionedHint`/
+  `HintPositionResolver` leave the public barrel. The constructor's
+  `overlayHostBuilder:` parameter is replaced by the narrow
+  `overlay: OverlayState? Function()?` provider (zero-target `targetRect`
+  tours); test seams use `@visibleForTesting HintController.withHost`.
+- **Register-path is internal:** **Breaking** — `HintTargetRegistration` and
+  `register`/`unregister`/`lookup` leave the barrel (an internal extension).
+  Drive targets through `HintTarget`; the public registry exposes
+  `defaultInstance`, `onWarning`, `addListener`, `removeListener`, `ids`.
+- **Diagnostics as an event object:** **Breaking** —
+  `HintDiagnosticsHandler.onHintSkipped` now takes a single `HintSkipEvent`
+  (`tourId`, `stepIndex`, `targetId`, `reason`, `detail`) instead of five
+  positional arguments; new fields can be added in 1.x without breaking
+  implementations. `DebugPrintDiagnostics` and `closestTargetIds` are no
+  longer exported (the debug handler is attached automatically in debug
+  builds; typo candidates arrive in `detail`). `kHintFocusPadding` and the
+  internal `hintTourWithSteps` are also out of the barrel.
+- **Single registry source:** the default host reads
+  `HintController.registry` (public getter), so a custom host and the engine
+  can no longer desync.
+- **Diagnostics reach the engine:** the default host hands the engine the
+  controller's handler (`HintController.diagnostics`, public getter) —
+  overlay failures are no longer silent in the default wiring.
+- **Breaking:** `HintSkipReason.targetNotRendered` → `overlayUnavailable`
+  (label `target-not-rendered` → `overlay-unavailable`) — the check is about
+  the overlay, not a particular target. Update exhaustive `switch`es and any
+  log scrapers matching the old label.
+- **Typo filtering preserves tour fields:** release-path typo filtering
+  (`_withoutTypoSteps`) used a partial reconstruction that silently dropped
+  `autoScroll` — fixed by routing through the internal `hintTourWithSteps`
+  (not part of the public API).
+- **Step lifecycle hooks, visit semantics:** **Breaking** rename
+  `onBeforeAction`/`onAfterAction` → `onStepEnter`/`onStepExit`. They now
+  bracket a *step visit* — enter once on first activation, exit once when the
+  visit ends (step change, finish, skip, abort). Order is
+  `old.exit → new.enter`; hooks are serialized and awaited (a throwing hook
+  is logged, the chain continues). Target vanish/reappear no longer re-fires
+  enter. Previously exit only ran on Active→Active (never on finish), enter
+  could run before the previous exit, and vanish/reappear double-fired enter.
+- **Content is sugar-only:** **Breaking** — the `content:` parameter on
+  `HintStep`/`HintTooltip` is gone; pass `title`/`description` +
+  `titleBuilder`/`descriptionBuilder` on the constructor (they feed the
+  `content` getter). `HintStepContent` stays as the slot type the getter
+  returns and `DefaultTooltip.content` accepts (extra-slot override).
+  JSON wire keeps the flat `title`/`description` keys. The XOR assert
+  (`content:` vs sugar) disappears with the parameter.
+- **`startOnce` — show-once from the box:** `HintController.startOnce(tour,
+  store:, minVersion:, version:)` runs `shouldShow` → `start` →
+  `markShown` **on finish only** (skip/timeout abort without marking — the
+  tour may show again). Replaces the hand-rolled gate + idle-listener glue.
+- **Offer `pageId` is optional:** `showHintTourOffer(pageId:)` defaults to
+  `tour.id` (per-page decline key `offer:<tourId>@<tourId>`). Explicit
+  call sites are unchanged.
+- **Enums closed in 1.x:** dartdoc on `HintSkipReason`, `TooltipPosition`,
+  `FocusShape`, `HintCurve`, `HintMissingTargetPolicy` and
+  `HintTourOfferResult` — no new values before 2.0; exhaustive app-side
+  `switch`es are safe. (`HintSkipEvent` fields stay extensible.)
+- **Tap behaviors (`HintTapBehavior`):** **Breaking** — `tapOnTarget: bool` +
+  `onTapTarget:` (and the overlay pair) collapse into one sealed
+  `HintTapBehavior` per region: `targetTap`/`overlayTap` with
+  `advance()` (default) / `ignore()` / `custom(onTap)`.
+  Migration: `tapOnTarget: false` → `targetTap: const HintTapBehavior.ignore()`;
+  `onTapTarget: cb` → `targetTap: HintTapBehavior.custom(cb)`.
+  JSON wire keeps the historical bool keys (`true` ⇔ advance, `false` ⇔ ignore).
+- **One scrim painter:** resolver-anchored `ScrimHolePainter` is gone;
+  `RectScrimPainter` is the single painter (waiting = empty holes = full dim).
+  `holeShape`/`scrimClipPath` live on `RectScrimPainter`. Focus fallback
+  order is one chain (`resolveFocusShape`/`resolveFocusPadding` →
+  the internal focus-padding default).
+- **Overlay trusts the machine for waiting/active:** the overlay reads
+  `HintActive` vs waiting from the machine state instead of re-deriving from
+  the registry alone (same-frame unregistration still falls back to waiting
+  as a desync-guard).
+- **Internals under `lib/src/`:** `lib/engine/` and `lib/widgets/` moved to
+  `lib/src/engine/` and `lib/src/widgets/` — deep imports
+  `package:hintful/engine/...` / `package:hintful/widgets/...` no longer
+  resolve. The only supported import is `package:hintful/hintful.dart`.
+- **Removed adapter stubs:** the comment-only `lib/src/adapters/*` recipes
+  (bloc/riverpod/provider/getx) are gone — wire via `controller.state`
+  (`ValueListenable<HintState>`) in your app; see README/`doc/`.
+- **Explicit barrel `show` lists:** every export names its symbols — a new
+  public class in an existing file can no longer leak into the API by
+  accident. `HintStepContent`, `HintTapBehavior` (+ subclasses) and
+  `HintSkipEvent` are in; render internals, the register-path, diagnostics
+  helpers and `kHintFocusPadding` are out.
+
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 
 **Breaking:** `HintSkipReason.targetUnmountedDuringStep` is gone — drop the case

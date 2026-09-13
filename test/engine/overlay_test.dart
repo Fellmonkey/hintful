@@ -3,23 +3,21 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/machine.dart';
-import 'package:hintful/engine/overlay/overlay_engine.dart';
-import 'package:hintful/widgets/default_tooltip.dart';
+import 'package:hintful/src/engine/machine.dart';
+import 'package:hintful/src/engine/overlay/overlay_engine.dart';
+import 'package:hintful/src/widgets/default_tooltip.dart';
 
-import 'package:hintful/engine/overlay/pulse_painter.dart';
-import 'package:hintful/engine/overlay/scrim_painter.dart';
-import 'package:hintful/engine/registry.dart';
-import 'package:hintful/engine/specs.dart';
-import 'package:hintful/engine/theme/hint_theme.dart';
+import 'package:hintful/src/engine/overlay/pulse_painter.dart';
+import 'package:hintful/src/engine/overlay/scrim_painter.dart';
+import 'package:hintful/src/engine/registry.dart';
+import 'package:hintful/src/engine/specs.dart';
+import 'package:hintful/src/engine/theme/hint_theme.dart';
 
 /// The scrim layer — plain dim (global RectScrimPainter) or blur + dim.
 /// Plain is a global RectScrimPainter with live holes; blur is a
-/// BackdropFilter clipped by ScrimHolePainter.scrimClipPath.
+/// BackdropFilter clipped by RectScrimPainter.scrimClipPath.
 final Finder _scrimFinder = find.byWidgetPredicate(
-  (w) =>
-      w is CustomPaint &&
-      (w.painter is ScrimHolePainter || w.painter is RectScrimPainter),
+  (w) => w is CustomPaint && w.painter is RectScrimPainter,
 );
 
 class _FakeInput implements HintActions {
@@ -509,7 +507,7 @@ void main() {
     });
 
     testWidgets(
-        'tap regions: onTapTarget/onTapOverlay receive the tap position',
+        'tap regions: targetTap/overlayTap custom receive the tap position',
         (tester) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
@@ -536,8 +534,12 @@ void main() {
           HintStep(
             targetId: 'stats',
             title: 'Title',
-            onTapTarget: (ctx, details) => targetTap = details.globalPosition,
-            onTapOverlay: (ctx, details) => overlayTap = details.globalPosition,
+            targetTap: HintTapBehavior.custom(
+              (ctx, details) => targetTap = details.globalPosition,
+            ),
+            overlayTap: HintTapBehavior.custom(
+              (ctx, details) => overlayTap = details.globalPosition,
+            ),
           ),
         ],
       );
@@ -553,14 +555,15 @@ void main() {
       expect(overlayTap, isNull);
 
       // Tap on the scrim far from the target and the tooltip → the overlay
-      // callback. The callbacks replaced the default "next" — no advance.
+      // callback. The custom behaviors replaced the default "next" — no advance.
       const scrimTap = Offset(700, 550);
       await tester.tapAt(scrimTap);
       expect(overlayTap, scrimTap);
       expect(input.nextCalls, 0);
     });
 
-    testWidgets('tapOnTarget: false disables the target region',
+    testWidgets(
+        'targetTap: HintTapBehavior.ignore() disables the target region',
         (tester) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
@@ -584,7 +587,7 @@ void main() {
           HintStep(
             targetId: 'stats',
             title: 'Title',
-            tapOnTarget: false,
+            targetTap: const HintTapBehavior.ignore(),
           ),
         ],
       );

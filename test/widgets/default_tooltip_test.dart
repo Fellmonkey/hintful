@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/labels.dart';
-import 'package:hintful/engine/specs.dart';
-import 'package:hintful/engine/theme/hint_theme.dart';
-import 'package:hintful/widgets/default_tooltip.dart';
+import 'package:hintful/src/engine/labels.dart';
+import 'package:hintful/src/engine/specs.dart';
+import 'package:hintful/src/engine/theme/hint_theme.dart';
+import 'package:hintful/src/widgets/default_tooltip.dart';
 
 class _FakeActions implements HintActions {
   int nextCalls = 0;
@@ -187,7 +187,8 @@ void main() {
     expect(find.text('Next'), findsOneWidget);
   });
 
-  testWidgets('text scale 1.0: no scrollable is built (content grows '
+  testWidgets(
+      'text scale 1.0: no scrollable is built (content grows '
       'freely, width still capped)', (tester) async {
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: step,

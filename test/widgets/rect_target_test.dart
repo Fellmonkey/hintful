@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/overlay/scrim_painter.dart';
+import 'package:hintful/src/engine/overlay/scrim_painter.dart';
 import 'package:hintful/hintful.dart';
 
 /// Rect-anchored steps ([HintStep.targetRect]): the spotlight is cut at
@@ -39,9 +39,7 @@ bool _hasRectScrim(WidgetTester tester) {
 void main() {
   testWidgets('rect step: hole at coords + tooltip, tap hole finishes',
       (tester) async {
-    final controller = HintController(
-      overlayHostBuilder: defaultOverlayHost(),
-    );
+    final controller = HintController();
     addTearDown(controller.dispose);
 
     // An unrelated mounted target: the overlay capture anchor (the rect
@@ -79,9 +77,7 @@ void main() {
       (tester) async {
     final overlayKey = GlobalKey<OverlayState>();
     final controller = HintController(
-      overlayHostBuilder: defaultOverlayHost(
-        overlay: () => overlayKey.currentState,
-      ),
+      overlay: () => overlayKey.currentState,
     );
     addTearDown(controller.dispose);
 

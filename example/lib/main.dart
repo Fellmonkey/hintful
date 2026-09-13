@@ -44,11 +44,9 @@ class ExampleApp extends StatefulWidget {
 class _ExampleAppState extends State<ExampleApp> {
   // Zero-config: the default registry + an engine that captures the root
   // overlay of the first mounted target by itself. The host is built lazily —
-  // only on the first non-idle state, absent while idle. defaultOverlayHost()
-  // is the single public entry into render mechanics.
-  final HintController _controller = HintController(
-    overlayHostBuilder: defaultOverlayHost(),
-  );
+  // only on the first non-idle state, absent while idle. HintController()
+  // wires the default render mechanics out of the box.
+  final HintController _controller = HintController();
 
   /// The versioned-hints store; null until `shared_preferences` loads
   /// (async init) — the demo card shows "Loading…" and the versioned gate

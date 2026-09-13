@@ -73,11 +73,25 @@ class HintTargetRegistry {
 
   final Map<String, HintTargetRegistration> _byId = {};
 
-  /// Current registration for [id], or null if the target is not mounted.
-  HintTargetRegistration? lookup(String id) => _byId[id];
-
   /// All registered ids (unmodifiable copy; used for typo candidates).
   Set<String> get ids => Set.unmodifiable(_byId.keys);
+
+  void _notifyChanged() {
+    // Copy: a listener may unsubscribe/resubscribe during notification.
+    for (final listener in List<VoidCallback>.of(_listeners)) {
+      listener();
+    }
+  }
+}
+
+/// The register-path: who mounts/unmounts targets.
+///
+/// Deliberately an extension, not part of the class's public surface —
+/// consumers drive it through `HintTarget` and never touch registrations
+/// directly. Kept out of the barrel's `show` list for the same reason.
+extension HintTargetRegistryInternal on HintTargetRegistry {
+  /// Current registration for [id], or null if the target is not mounted.
+  HintTargetRegistration? lookup(String id) => _byId[id];
 
   void register(HintTargetRegistration registration) {
     final existing = _byId[registration.id];
@@ -101,12 +115,5 @@ class HintTargetRegistry {
     }
     _byId.remove(registration.id);
     _notifyChanged();
-  }
-
-  void _notifyChanged() {
-    // Copy: a listener may unsubscribe/resubscribe during notification.
-    for (final listener in List<VoidCallback>.of(_listeners)) {
-      listener();
-    }
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/controller.dart';
-import 'package:hintful/engine/specs.dart';
-import 'package:hintful/engine/store.dart';
-import 'package:hintful/widgets/tour_offer.dart';
+import 'package:hintful/src/engine/controller.dart';
+import 'package:hintful/src/engine/specs.dart';
+import 'package:hintful/src/engine/store.dart';
+import 'package:hintful/src/widgets/tour_offer.dart';
 
 HintTour _tour(String id) => HintTour(
       id: id,
@@ -27,7 +27,7 @@ Future<void> _pumpDialog(WidgetTester tester) async {
 void main() {
   testWidgets('accept starts the tour', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController();
+    final controller = HintController(headless: true);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
 
@@ -56,7 +56,7 @@ void main() {
       'the dialog is skipped when the tour already ran for the '
       'version', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController();
+    final controller = HintController(headless: true);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -80,7 +80,7 @@ void main() {
   testWidgets('decline: remembered per page, other pages still offer',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController();
+    final controller = HintController(headless: true);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -131,7 +131,7 @@ void main() {
   testWidgets('decline with "apply to all pages": remembered globally',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController();
+    final controller = HintController(headless: true);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -170,7 +170,7 @@ void main() {
   testWidgets('a decline does not suppress the tour from other entry points',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController();
+    final controller = HintController(headless: true);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -190,5 +190,42 @@ void main() {
     // The tour's own shown-state key is untouched — a manual start (e.g. a
     // settings button) still works.
     expect(store.shouldShow('t'), isTrue);
+  });
+
+  testWidgets('pageId omitted — decline key defaults to tour.id',
+      (tester) async {
+    final store = InMemoryHintStore();
+    final controller = HintController(headless: true);
+    addTearDown(controller.dispose);
+    final context = await _pumpApp(tester);
+    final tour = _tour('t');
+
+    final result = showHintTourOffer(
+      context: context,
+      controller: controller,
+      tour: tour,
+      store: store,
+      // pageId omitted → tour.id
+    );
+    await _pumpDialog(tester);
+    expect(find.text('Want a tour?'), findsOneWidget);
+
+    await tester.tap(find.text('Later'));
+    await tester.pump();
+    expect(await result, HintTourOfferResult.declined);
+    expect(store.shouldShow('offer:t@t'), isFalse,
+        reason: 'per-page key uses tour.id as the default page');
+    expect(store.shouldShow('offer:t'), isTrue);
+
+    // Same default page no longer offers.
+    final again = showHintTourOffer(
+      context: context,
+      controller: controller,
+      tour: tour,
+      store: store,
+    );
+    await _pumpDialog(tester);
+    expect(find.text('Want a tour?'), findsNothing);
+    expect(await again, HintTourOfferResult.declined);
   });
 }

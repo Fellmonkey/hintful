@@ -83,9 +83,7 @@ final introTour = HintTour(
 );
 
 // 3. Wire once, show once
-final controller = HintController(
-  overlayHostBuilder: defaultOverlayHost(),
-);
+final controller = HintController();
 controller.start(introTour);
 ```
 
@@ -117,7 +115,8 @@ Out of the box, `title`/`description` steps render in a default tooltip under
 a default theme — the tour above is already complete. When you need more, the
 API grows rung by rung, each optional: `HintTheme` styles → `HintTooltipLabels`
 (button texts, waiting placeholder, screen-reader announcements) →
-`titleBuilder`/`descriptionBuilder` for l10n → a fully
+`titleBuilder`/`descriptionBuilder` for
+l10n → a fully
 custom tooltip through `tooltipBuilder`. Your design system, your call.
 
 ## Diagnosis over mystery
@@ -160,10 +159,11 @@ The state/data core is framework-agnostic by construction — `controller`,
 state-management related. (Render mechanics and `HintTheme` are built on
 `material` — that is where `ColorScheme` and the dialog come from.) Vanilla
 Flutter works out of the box via `ValueListenableBuilder` — zero
-dependencies. Bloc/Riverpod/Provider/GetX wiring ships as copy-paste recipes
-in `lib/src/adapters/` (bring your own package).
+dependencies. Bloc/Riverpod/Provider/GetX wiring is a ~15-line
+`ValueListenable` wrapper in your app (bring your own package) — see
+[best practices](doc/best_practices.md) for the pattern.
 
-And it is testable headless: `HintController(overlayHostBuilder: null)` runs
+And it is testable headless: `HintController(headless: true)` runs
 the whole machine — wait-for-target, timeouts, typo validation, diagnostics —
 with no overlay at all, which is how the tour flow tests drive it
 (`test/helpers/tour_harness.dart`). Headless vs full-fidelity, and the
@@ -214,15 +214,31 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - Enum-typed tours: `HintTour.fromEnum` — the exhaustive `stepFor` switch
   makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
-  `shouldShow(key, minVersion:)` before start, `markShown` on exit
+  `startOnce(tour, store:, minVersion:)` (marks on finish) or
+  `shouldShow`/`markShown` by hand
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   declines persist per page or globally, the tour stays reachable from other
   entry points
 - `withHint` sugar (`child.withHint('id')`) and target-level
   `focusShape`/`focusPadding` — the shape lives on the widget, a step
   overrides only the exception
-- Per-step lifecycle hooks: `onBeforeAction`/`onAfterAction` (async) around a
-  step — analytics and app reactions
+- Per-step lifecycle hooks: `onStepEnter`/`onStepExit` (async) bracket a
+  step visit — serialized, exit of the old step runs before enter of the
+  new one; analytics and app reactions
+- One content slot type (`HintStepContent`) for strings + l10n
+  builders; one tap behavior per region (`targetTap`/`overlayTap`:
+  advance / ignore / custom)
+
+## Public contract
+
+The only supported import is `package:hintful/hintful.dart`. Deep imports
+(`package:hintful/engine/...`, `package:hintful/widgets/...`) are not part of
+the API — implementation lives under `lib/src/` and is reachable only through
+this barrel (explicit `show` lists). The exported surface: tour data
+(`HintStep`/`HintTour`/`HintTooltip`/`HintStepContent`/`HintTapBehavior` +
+enums), registry, machine states, controller + overlay host, diagnostics,
+theme/labels, widgets (`HintTarget`, `DefaultTooltip`, `withHint`,
+`showHintTourOffer`), motion helper, position types, store and tour factories.
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
@@ -253,7 +269,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hintful: ^0.7.0
+  hintful: ^1.0.0
 ```
 
 ```dart

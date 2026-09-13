@@ -1,9 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/diagnostics.dart';
-import 'package:hintful/engine/machine.dart';
-import 'package:hintful/engine/specs.dart';
+import 'package:hintful/src/engine/diagnostics.dart';
+import 'package:hintful/src/engine/machine.dart';
+import 'package:hintful/src/engine/specs.dart';
 
 HintTour _tour({
   int steps = 2,
@@ -578,8 +578,7 @@ void main() {
         transition.effects,
         [
           const ClearTimeoutEffect(),
-          isA<StepSkippedEffect>()
-              .having((e) => e.stepIndex, 'stepIndex', 1),
+          isA<StepSkippedEffect>().having((e) => e.stepIndex, 'stepIndex', 1),
           const FinishedEffect(tourId: 'skip'),
         ],
       );

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hintful/engine/controller.dart';
-import 'package:hintful/engine/diagnostics.dart';
-import 'package:hintful/engine/machine.dart';
-import 'package:hintful/engine/registry.dart';
-import 'package:hintful/engine/specs.dart';
+import 'package:hintful/src/engine/controller.dart';
+import 'package:hintful/src/engine/diagnostics.dart';
+import 'package:hintful/src/engine/machine.dart';
+import 'package:hintful/src/engine/overlay/overlay_engine.dart';
+import 'package:hintful/src/engine/registry.dart';
+import 'package:hintful/src/engine/specs.dart';
+import 'package:hintful/src/engine/store.dart';
 
 HintTour _tour2() => HintTour(
       id: 't',
@@ -28,31 +30,10 @@ Future<BuildContext> _pumpContext(WidgetTester tester) async {
 }
 
 class _DiagRecorder implements HintDiagnosticsHandler {
-  final List<
-      ({
-        String tourId,
-        int stepIndex,
-        String targetId,
-        HintSkipReason reason,
-        String detail,
-      })> events = [];
+  final List<HintSkipEvent> events = [];
 
   @override
-  void onHintSkipped(
-    String tourId,
-    int stepIndex,
-    String targetId,
-    HintSkipReason reason,
-    String detail,
-  ) {
-    events.add((
-      tourId: tourId,
-      stepIndex: stepIndex,
-      targetId: targetId,
-      reason: reason,
-      detail: detail,
-    ));
-  }
+  void onHintSkipped(HintSkipEvent event) => events.add(event);
 }
 
 class _RecordingHost implements HintOverlayHost {
@@ -70,15 +51,69 @@ class _RecordingHost implements HintOverlayHost {
 
 void main() {
   group('HintController', () {
+    test('headless + overlay is an assert (the two exclude each other)', () {
+      expect(
+        () => HintController(
+          headless: true,
+          overlay: () => null,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('registry getter is the one the controller wires over', () {
+      final registry = HintTargetRegistry();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      expect(controller.registry, same(registry));
+    });
+
+    test('diagnostics getter is the handler the default host inherits', () {
+      final diag = _DiagRecorder();
+      final controller = HintController(
+        registry: HintTargetRegistry(),
+        diagnostics: diag,
+        headless: true,
+      );
+      addTearDown(controller.dispose);
+      expect(controller.diagnostics, same(diag));
+    });
+
+    test(
+        'defaultOverlayHost wires controller.diagnostics into the engine '
+        '(overlay failures are reported)', () {
+      final diag = _DiagRecorder();
+      final controller = HintController(
+        registry: HintTargetRegistry(), // empty: nothing to capture from
+        diagnostics: diag,
+      );
+      addTearDown(controller.dispose);
+
+      final host = defaultOverlayHost()(controller);
+      addTearDown(host.dispose);
+      final tour = HintTour(
+        id: 't',
+        steps: const [HintStep(targetId: 'stats', title: 'Stats')],
+      );
+
+      host.update(HintWaiting(tour: tour, stepIndex: 0));
+
+      expect(diag.events, hasLength(1));
+      expect(
+        diag.events.single.reason,
+        HintSkipReason.overlayUnavailable,
+      );
+      expect(diag.events.single.tourId, 't');
+      expect(diag.events.single.targetId, 'stats');
+    });
+
     testWidgets('start with a mounted target — immediately active step',
         (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller =
+          HintController.withHost((_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -104,10 +139,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller =
+          HintController.withHost((_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -130,11 +163,8 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final diag = _DiagRecorder();
-      final controller = HintController(
-        registry: registry,
-        diagnostics: diag,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller = HintController.withHost((_) => host,
+          registry: registry, diagnostics: diag);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -160,11 +190,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        diagnostics: diag,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller = HintController.withHost((_) => host,
+          registry: registry, diagnostics: diag);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -197,10 +224,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller =
+          HintController.withHost((_) => host, registry: registry);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -222,7 +247,7 @@ void main() {
     testWidgets('showHint: deferred target — the same waiting with id prefix',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
 
       await controller.showHint(HintStep(targetId: 'never', title: 'x'));
 
@@ -240,10 +265,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller =
+          HintController.withHost((_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -273,7 +296,7 @@ void main() {
         (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -307,6 +330,7 @@ void main() {
       final controller = HintController(
         registry: registry,
         diagnostics: diag,
+        headless: true,
       );
       final tour = _tour2();
       addTearDown(controller.dispose);
@@ -331,7 +355,7 @@ void main() {
 
     testWidgets('no-op events do not notify state listeners', (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       var notifications = 0;
@@ -349,7 +373,7 @@ void main() {
         'debug', (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -380,11 +404,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        diagnostics: diag,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller = HintController.withHost((_) => host,
+          registry: registry, diagnostics: diag);
 
       await controller.start(_tour2()); // waiting(0) + 3s timer
       controller.dispose();
@@ -399,7 +420,7 @@ void main() {
     testWidgets('tryStart while busy — false, no assert, tour untouched',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       await controller.start(_tour2());
@@ -415,7 +436,7 @@ void main() {
     testWidgets('tryStart while idle — starts and returns true',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       expect(controller.isIdle, isTrue);
@@ -433,6 +454,7 @@ void main() {
       final controller = HintController(
         registry: registry,
         diagnostics: diag,
+        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -464,13 +486,208 @@ void main() {
 
     testWidgets('restart while idle — equivalent to start', (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry);
+      final controller = HintController(registry: registry, headless: true);
       addTearDown(controller.dispose);
 
       await controller.restart(_tour2());
       expect(controller.currentState, isA<HintWaiting>());
 
       controller.dispose();
+    });
+  });
+
+  group('startOnce (show-once: mark only on finish)', () {
+    HintTour oneStep() => HintTour(
+          id: 'intro',
+          steps: const [HintStep(targetId: 'target0', title: 'A')],
+        );
+
+    testWidgets('gate closed — false, stays idle, no mark', (tester) async {
+      final store = InMemoryHintStore()..markShown('intro', '1.0.0');
+      final controller =
+          HintController(registry: HintTargetRegistry(), headless: true);
+      addTearDown(controller.dispose);
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isFalse,
+      );
+      expect(controller.isIdle, isTrue);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
+    });
+
+    testWidgets('finish marks shown for minVersion', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isTrue,
+      );
+      expect(controller.isIdle, isFalse);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'not marked until finish');
+
+      controller.finish();
+      expect(controller.isIdle, isTrue);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
+    });
+
+    testWidgets('skip does not mark — the tour may show again', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isTrue,
+      );
+      controller.skip();
+      expect(controller.isIdle, isTrue);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'abort/skip must not mark');
+    });
+
+    testWidgets('timeout abort does not mark', (tester) async {
+      final store = InMemoryHintStore();
+      final controller =
+          HintController(registry: HintTargetRegistry(), headless: true);
+      addTearDown(controller.dispose);
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isTrue,
+      );
+      // No target registered → waiting, 3s default timeout.
+      await tester.pump(const Duration(seconds: 3));
+      expect(controller.isIdle, isTrue);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
+    });
+
+    testWidgets('busy — false, no mark armed', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      expect(await controller.tryStart(_tour2()), isTrue);
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isFalse,
+      );
+
+      controller.finish();
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'busy startOnce never armed a mark');
+    });
+
+    testWidgets('plain start() of another tour does not mark the once key',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      for (final id in ['target0', 'target1']) {
+        registry.register(HintTargetRegistration(
+          id: id,
+          link: LayerLink(),
+          context: ctx,
+        ));
+      }
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.0.0',
+        ),
+        isTrue,
+      );
+      controller.skip(); // disarms without mark
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
+
+      await controller.start(_tour2());
+      controller.finish();
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'a different tour finishing must not mark intro');
+      expect(store.shouldShow('t', minVersion: '1.0.0'), isTrue,
+          reason: 'plain start never marks');
+    });
+
+    testWidgets('version bump re-shows after a finish', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      await controller.startOnce(
+        oneStep(),
+        store: store,
+        minVersion: '1.0.0',
+        version: '1.0.0',
+      );
+      controller.finish();
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
+
+      expect(
+        await controller.startOnce(
+          oneStep(),
+          store: store,
+          minVersion: '1.1.0',
+          version: '1.1.0',
+        ),
+        isTrue,
+      );
+      controller.finish();
+      expect(store.shouldShow('intro', minVersion: '1.1.0'), isFalse);
     });
   });
 
@@ -481,6 +698,7 @@ void main() {
       final controller = HintController(
         registry: registry,
         scopePrefix: 'greenhouse-',
+        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -514,6 +732,7 @@ void main() {
       final controller = HintController(
         registry: registry,
         scopePrefix: 'greenhouse-',
+        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -536,6 +755,199 @@ void main() {
     });
   });
 
+  group('step lifecycle hooks (onStepEnter / onStepExit)', () {
+    HintTour hookTour(
+      List<String> log, {
+      Future<void> Function()? enter0,
+      Future<void> Function()? exit0,
+      Future<void> Function()? enter1,
+      Future<void> Function()? exit1,
+    }) =>
+        HintTour(
+          id: 'hooks',
+          steps: [
+            HintStep(
+              targetId: 'target0',
+              title: 'A',
+              onStepEnter: enter0,
+              onStepExit: exit0,
+            ),
+            HintStep(
+              targetId: 'target1',
+              title: 'B',
+              onStepEnter: enter1,
+              onStepExit: exit1,
+            ),
+          ],
+        );
+
+    testWidgets(
+        'order: old.exit → new.enter on step change; '
+        'finish/skip fire exit for the open visit', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final log = <String>[];
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+
+      for (final id in ['target0', 'target1']) {
+        registry.register(HintTargetRegistration(
+          id: id,
+          link: LayerLink(),
+          context: ctx,
+        ));
+      }
+
+      final tour = hookTour(
+        log,
+        enter0: () async => log.add('enter0'),
+        exit0: () async => log.add('exit0'),
+        enter1: () async => log.add('enter1'),
+        exit1: () async => log.add('exit1'),
+      );
+
+      await controller.start(tour);
+      await tester.pump();
+      expect(log, ['enter0']);
+
+      controller.next();
+      await tester.pump();
+      expect(log, ['enter0', 'exit0', 'enter1'],
+          reason: 'step change: exit(old) before enter(new)');
+
+      controller.finish();
+      await tester.pump();
+      expect(log, ['enter0', 'exit0', 'enter1', 'exit1'],
+          reason: 'finish ends the open visit');
+
+      // skip on a fresh visit also fires exit
+      await controller.start(hookTour(
+        log,
+        enter0: () async => log.add('enter0'),
+        exit0: () async => log.add('exit0'),
+      ));
+      await tester.pump();
+      controller.skip();
+      await tester.pump();
+      expect(log.last, 'exit0');
+    });
+
+    testWidgets(
+        'async hooks run serialized: a slow enter does not interleave '
+        'with exit/enter of the next step', (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final log = <String>[];
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+
+      for (final id in ['target0', 'target1']) {
+        registry.register(HintTargetRegistration(
+          id: id,
+          link: LayerLink(),
+          context: ctx,
+        ));
+      }
+
+      final tour = hookTour(
+        log,
+        enter0: () async {
+          log.add('enter0:start');
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          log.add('enter0:end');
+        },
+        exit0: () async => log.add('exit0'),
+        enter1: () async => log.add('enter1'),
+      );
+
+      await controller.start(tour);
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(log, ['enter0:start', 'enter0:end']);
+
+      controller.next(); // fires while nothing is pending
+      await tester.pump();
+      expect(log, ['enter0:start', 'enter0:end', 'exit0', 'enter1']);
+    });
+
+    testWidgets('target vanish/reappear does not re-fire hooks (one visit)',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final log = <String>[];
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+
+      final reg = HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      );
+      registry.register(reg);
+
+      final tour = hookTour(
+        log,
+        enter0: () async => log.add('enter0'),
+        exit0: () async => log.add('exit0'),
+        enter1: () async => log.add('enter1'),
+      );
+
+      await controller.start(tour);
+      await tester.pump();
+      expect(log, ['enter0']);
+      expect(controller.currentState, isA<HintActive>());
+
+      registry.unregister(reg); // Active → Waiting (same step)
+      await tester.pump();
+      expect(controller.currentState, isA<HintWaiting>());
+      expect(log, ['enter0'], reason: 'vanish keeps the visit open');
+
+      registry.register(reg); // Waiting → Active (same step)
+      await tester.pump();
+      expect(controller.currentState, isA<HintActive>());
+      expect(log, ['enter0'], reason: 'reappear does not re-fire enter');
+
+      controller.finish();
+      await tester.pump();
+      expect(log, ['enter0', 'exit0']);
+    });
+
+    testWidgets('a throwing hook is reported and does not break the chain',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final log = <String>[];
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+
+      for (final id in ['target0', 'target1']) {
+        registry.register(HintTargetRegistration(
+          id: id,
+          link: LayerLink(),
+          context: ctx,
+        ));
+      }
+
+      final tour = hookTour(
+        log,
+        enter0: () async {
+          log.add('enter0');
+          throw StateError('boom');
+        },
+        exit0: () async => log.add('exit0'),
+        enter1: () async => log.add('enter1'),
+      );
+
+      await controller.start(tour);
+      await tester.pump();
+      expect(log, ['enter0']);
+
+      controller.next();
+      await tester.pump();
+      expect(log, ['enter0', 'exit0', 'enter1'],
+          reason: 'exit/enter still run after a throwing enter');
+    });
+  });
+
   group('skipStep policy (controller integration)', () {
     testWidgets('timeout skips the step and the tour continues',
         (tester) async {
@@ -543,11 +955,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController(
-        registry: registry,
-        diagnostics: diag,
-        overlayHostBuilder: (_) => host,
-      );
+      final controller = HintController.withHost((_) => host,
+          registry: registry, diagnostics: diag);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(

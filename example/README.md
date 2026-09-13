@@ -23,7 +23,7 @@ The AppBar has **Show tour** (the versioned intro), **Show hint** and
 | l10n, target-level shape, `withHint` | **L10n** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target; its first step sets `autoScroll: true` to bring that row in |
 | Spotlight shapes | **Circle / Rounded / Neg pad / Rect** — `focusShape`, negative `focusPadding`, and a `targetRect` step with no widget at all |
 | Entry-animation rungs | **Sprung** (the preset bounce) and **Custom** (a `tooltipBuilder` with its own `TweenAnimationBuilder`) |
-| Step lifecycle hooks | **Hooks** — `onBeforeAction`/`onAfterAction` fire around the step |
+| Step lifecycle hooks | **Hooks** — `onStepEnter`/`onStepExit` fire around the step |
 | Per-step scroll | **Step scroll** — the offscreen `entry-5` step sets `autoScroll: true`, the first step of that tour does not |
 
 ## Layout

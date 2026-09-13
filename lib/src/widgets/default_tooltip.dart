@@ -20,7 +20,7 @@ import '../engine/theme/hint_theme.dart';
 ///
 /// Multi-content slots ([HintStep.moreTooltips]) reuse the same widget with
 /// [showActions] = false — informational tooltips without the tour controls
-/// (the primary tooltip owns them) — and their own [title]/[description].
+/// (the primary tooltip owns them) — and their own [content].
 ///
 /// A11y: the container is announced to screen readers as "Step N of M: …";
 /// each button exposes the button role + tap action.
@@ -34,18 +34,17 @@ class DefaultTooltip extends StatelessWidget {
     super.key,
     required this.step,
     required this.ctx,
-    this.title,
-    this.description,
+    this.content,
     this.showActions = true,
     this.labels,
   });
 
   final HintStep step;
 
-  /// Content overrides for a non-primary slot: null — the step's own values.
-  /// For the primary tooltip leave null (the step carries the content).
-  final String? title;
-  final String? description;
+  /// Content override for a non-primary slot: null — the step's own
+  /// [HintStep.content]. For the primary tooltip leave null (the step
+  /// carries the content).
+  final HintStepContent? content;
 
   /// false — an informational slot without the action button row (extra
   /// tooltips); the primary tooltip keeps its Skip/Back/Next/Done controls.
@@ -82,8 +81,9 @@ class DefaultTooltip extends StatelessWidget {
     // width-capped (text wraps) and grows freely.
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final maxHeight = math.max(160.0, screenSize.height - 48);
-    final title = this.title ?? step.effectiveTitle(context);
-    final description = this.description ?? step.effectiveDescription(context);
+    final copy = this.content ?? step.content;
+    final title = copy.effectiveTitle(context);
+    final description = copy.effectiveDescription(context);
     // The buttons keep inheriting the ambient Material theme the way the
     // old Material buttons did (their text style was `textTheme.labelLarge`
     // — a product's fontFamily/letterSpacing/height must survive a theme

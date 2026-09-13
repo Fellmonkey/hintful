@@ -7,8 +7,15 @@ import 'package:flutter/widgets.dart';
 /// is recomputed from the target's current rect on every movement frame, so
 /// an explicit side mirrors when it stops fitting and [TooltipPosition.auto]
 /// re-picks the side with the most free space.
+///
+/// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
+/// code are safe.
 enum TooltipPosition { auto, top, bottom, left, right }
 
+/// Hole shape cut into the scrim around a spotlighted target.
+///
+/// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
+/// code are safe.
 enum FocusShape { rectangle, circle, roundedRect }
 
 /// Tooltip entry animation — the preset ladder, rung 2 of the animation
@@ -26,6 +33,9 @@ enum FocusShape { rectangle, circle, roundedRect }
 /// a custom button) is rung 3: a `tooltipBuilder` with its own animation
 /// widgets — the engine places the built tooltip, the builder owns how it
 /// enters.
+///
+/// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
+/// code are safe.
 enum HintCurve { easeOut, sprung }
 
 /// Actions available to a step's content (custom tooltips).
@@ -80,32 +90,125 @@ class HintTooltipContext {
 ///   one; skipping the last step finishes the tour. For conditionally-absent
 ///   targets pair with a short `waitTimeout` (`Duration.zero` skips instantly,
 ///   no waiting flash).
+///
+/// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
+/// code are safe.
 enum HintMissingTargetPolicy { abortTour, skipStep }
+
+/// Default focus padding when neither the step nor the target sets one.
+const double kHintFocusPadding = 4.0;
+
+/// Step/slot copy: strings and/or localized builders — one place for the
+/// zero-config ↔ l10n precedence (builders win), shared by [HintStep],
+/// [HintTooltip] and `DefaultTooltip`.
+@immutable
+class HintStepContent {
+  const HintStepContent({
+    this.title,
+    this.description,
+    this.titleBuilder,
+    this.descriptionBuilder,
+  });
+
+  /// Zero-config title/description; ignored when a `tooltipBuilder` is set.
+  final String? title;
+  final String? description;
+
+  /// Localized builders; called with the overlay's BuildContext at show
+  /// time. Takes precedence over [title]/[description] — use for l10n:
+  /// `titleBuilder: (c) => AppLocalizations.of(c)!.introTitle`.
+  final String Function(BuildContext)? titleBuilder;
+  final String Function(BuildContext)? descriptionBuilder;
+
+  bool get isEmpty =>
+      title == null &&
+      description == null &&
+      titleBuilder == null &&
+      descriptionBuilder == null;
+
+  /// Effective title for [context] — builders take precedence.
+  String? effectiveTitle(BuildContext context) =>
+      titleBuilder?.call(context) ?? title;
+
+  /// Effective description for [context] — builders take precedence.
+  String? effectiveDescription(BuildContext context) =>
+      descriptionBuilder?.call(context) ?? description;
+
+  Map<String, dynamic> toJson() => {
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      };
+
+  factory HintStepContent.fromJson(Map<String, dynamic> json) =>
+      HintStepContent(
+        title: json['title'] as String?,
+        description: json['description'] as String?,
+      );
+}
+
+/// What a tap on one region (target or overlay) does — one entity instead of
+/// a bool + callback pair.
+///
+/// The machine only ever sees `UserNext`: these behaviors gate or replace
+/// that single action for the region (an action is a state change; the
+/// region config does not invent a second action pipeline).
+@immutable
+sealed class HintTapBehavior {
+  const HintTapBehavior();
+
+  /// Default: advance the tour (`actions.next()`).
+  const factory HintTapBehavior.advance() = HintTapAdvance;
+
+  /// Ignore taps in this region (no advance, no callback).
+  const factory HintTapBehavior.ignore() = HintTapIgnore;
+
+  /// Run [onTap] instead of advancing; call `ctx.actions.next()` yourself
+  /// when the step should continue. Not serializable (like every callback).
+  const factory HintTapBehavior.custom(
+    void Function(HintTooltipContext ctx, TapDownDetails details) onTap,
+  ) = HintTapCustom;
+}
+
+/// Tap in the region advances the tour (the historical default).
+final class HintTapAdvance extends HintTapBehavior {
+  const HintTapAdvance();
+}
+
+/// Tap in the region is ignored.
+final class HintTapIgnore extends HintTapBehavior {
+  const HintTapIgnore();
+}
+
+/// Tap in the region runs a custom handler instead of advancing.
+final class HintTapCustom extends HintTapBehavior {
+  const HintTapCustom(this.onTap);
+
+  final void Function(HintTooltipContext ctx, TapDownDetails details) onTap;
+}
 
 /// A single tour step — data, not a widget.
 ///
-/// Two content paths: zero-config (`title`/`description`, rendered by the
-/// default tooltip from [HintTheme]) and custom (`tooltipBuilder`, the
-/// full-customization ladder). `tooltipBuilder` is the only widget-typed slot
-/// in the contract — a deliberate exception to allow fully replacing a tooltip.
+/// Two content paths: zero-config (`title`/`description` +
+/// `titleBuilder`/`descriptionBuilder`, rendered by the default tooltip from
+/// [HintTheme]) and custom (`tooltipBuilder`, the full-customization ladder).
+/// `tooltipBuilder` is the only widget-typed slot in the contract — a
+/// deliberate exception to allow fully replacing a tooltip.
 @immutable
 class HintStep {
   const HintStep({
     required this.targetId,
     this.moreTargets = const [],
     this.moreTooltips = const [],
-    this.title,
-    this.description,
-    this.titleBuilder,
-    this.descriptionBuilder,
+    String? title,
+    String? description,
+    String Function(BuildContext)? titleBuilder,
+    String Function(BuildContext)? descriptionBuilder,
     this.position = TooltipPosition.auto,
     this.waitTimeout,
     this.showSkip = true,
     this.missingTargetPolicy,
-    this.tapOnTarget = true,
-    this.tapOnOverlay = true,
-    this.onTapTarget,
-    this.onTapOverlay,
+    this.targetTap = const HintTapBehavior.advance(),
+    this.overlayTap = const HintTapBehavior.advance(),
     this.tooltipBuilder,
     this.focusShape,
     this.focusPadding,
@@ -113,17 +216,22 @@ class HintStep {
     this.transitionDuration,
     this.transitionCurve,
     this.targetRect,
-    this.onBeforeAction,
-    this.onAfterAction,
+    this.onStepEnter,
+    this.onStepExit,
   })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
         assert(
-          title != null ||
+          tooltipBuilder != null ||
+              title != null ||
+              description != null ||
               titleBuilder != null ||
-              tooltipBuilder != null,
-          'HintStep must have title/description (zero-config), '
-          'titleBuilder/descriptionBuilder (l10n) or tooltipBuilder'
-          ' (custom tooltip)',
-        );
+              descriptionBuilder != null,
+          'HintStep must have content (title/description/builders) '
+          'or tooltipBuilder (custom tooltip)',
+        ),
+        _title = title,
+        _description = description,
+        _titleBuilder = titleBuilder,
+        _descriptionBuilder = descriptionBuilder;
 
   /// Key in the target registry — not a GlobalKey.
   final String targetId;
@@ -140,15 +248,28 @@ class HintStep {
   /// (keep-in-safe-area applies to every slot).
   final List<HintTooltip> moreTooltips;
 
-  /// Zero-config title/description; ignored when [tooltipBuilder] is set.
-  final String? title;
-  final String? description;
+  final String? _title;
+  final String? _description;
+  final String Function(BuildContext)? _titleBuilder;
+  final String Function(BuildContext)? _descriptionBuilder;
 
-  /// Localized builders; called with the overlay's BuildContext at show
-  /// time. Takes precedence over [title]/[description] — use for l10n:
-  /// `titleBuilder: (c) => AppLocalizations.of(c)!.introTitle`.
-  final String Function(BuildContext)? titleBuilder;
-  final String Function(BuildContext)? descriptionBuilder;
+  /// Copy for the primary tooltip (strings + optional l10n builders).
+  /// Built from the constructor sugar `title`/`description`/`titleBuilder`/
+  /// `descriptionBuilder`.
+  HintStepContent get content => HintStepContent(
+        title: _title,
+        description: _description,
+        titleBuilder: _titleBuilder,
+        descriptionBuilder: _descriptionBuilder,
+      );
+
+  /// Sugar over [content]'s `title` — prefer reading [content] when both
+  /// are relevant.
+  String? get title => content.title;
+  String? get description => content.description;
+  String Function(BuildContext)? get titleBuilder => content.titleBuilder;
+  String Function(BuildContext)? get descriptionBuilder =>
+      content.descriptionBuilder;
 
   final TooltipPosition position;
 
@@ -166,26 +287,12 @@ class HintStep {
   /// [HintTour.missingTargetPolicy].
   final HintMissingTargetPolicy? missingTargetPolicy;
 
-  /// Whether a tap on a spotlighted target advances the tour (when
-  /// [onTapTarget] is not set). Both taps default to "next" — the same
-  /// behavior as before region distinction; set false to require an explicit
-  /// button/callback.
-  final bool tapOnTarget;
+  /// Tap on a spotlighted target: one behavior (advance / ignore / custom).
+  /// Default advances — the historical `tapOnTarget: true`.
+  final HintTapBehavior targetTap;
 
-  /// Whether a tap on the scrim (outside any target) advances the tour
-  /// (when [onTapOverlay] is not set).
-  final bool tapOnOverlay;
-
-  /// Tap on a spotlighted target: replaces the default [tapOnTarget]
-  /// behavior. Receives the step context (actions + position in the tour)
-  /// and the tap details (position — for analytics / micro-interactions).
-  final void Function(HintTooltipContext ctx, TapDownDetails details)?
-      onTapTarget;
-
-  /// Tap on the scrim (outside any target): replaces the default
-  /// [tapOnOverlay] behavior.
-  final void Function(HintTooltipContext ctx, TapDownDetails details)?
-      onTapOverlay;
+  /// Tap on the scrim (outside any target): same contract as [targetTap].
+  final HintTapBehavior overlayTap;
 
   /// Fully custom tooltip. Receives the step itself (styling by targetId)
   /// and a [HintTooltipContext] — actions for buttons plus the position in
@@ -209,12 +316,11 @@ class HintStep {
   final bool? autoScroll;
 
   /// Effective title/description for the overlay's BuildContext at show
-  /// time. Builders take precedence — use for l10n without threading
-  /// BuildContext through AppTours: `titleBuilder: (c) => l10n.of(c).intro`.
+  /// time — delegates to [content] (builders take precedence).
   String? effectiveTitle(BuildContext context) =>
-      titleBuilder?.call(context) ?? title;
+      content.effectiveTitle(context);
   String? effectiveDescription(BuildContext context) =>
-      descriptionBuilder?.call(context) ?? description;
+      content.effectiveDescription(context);
 
   /// Entry-animation length for [transitionCurve]; null — the preset's own
   /// default (200 ms for [HintCurve.easeOut], 800 ms for [HintCurve.sprung]).
@@ -226,8 +332,15 @@ class HintStep {
   /// [tooltipBuilder] with its own animation widgets.
   final HintCurve? transitionCurve;
   final Rect? targetRect;
-  final Future<void> Function()? onBeforeAction;
-  final Future<void> Function()? onAfterAction;
+
+  /// Lifecycle: fires once when this step first becomes active — the start
+  /// of a *visit*. Async; hooks run serialized (`onStepExit` of the previous
+  /// step completes first). Target vanish/reappear does not re-fire it.
+  final Future<void> Function()? onStepEnter;
+
+  /// Lifecycle: fires once when the visit ends — step change, finish, skip
+  /// or abort. Async; ordered before the next step's [onStepEnter].
+  final Future<void> Function()? onStepExit;
 
   /// All target ids of the step: the primary [targetId] + [moreTargets].
   List<String> get targetIds => [targetId, ...moreTargets];
@@ -248,22 +361,30 @@ class HintStep {
         if (moreTargets.isNotEmpty) 'moreTargets': moreTargets,
         if (moreTooltips.isNotEmpty)
           'moreTooltips': moreTooltips.map((t) => t.toJson()).toList(),
-        if (title != null) 'title': title,
-        if (description != null) 'description': description,
+        if (content.title != null) 'title': content.title,
+        if (content.description != null) 'description': content.description,
         'position': position.name,
         if (waitTimeout != null) 'waitTimeoutMs': waitTimeout!.inMilliseconds,
         'showSkip': showSkip,
         if (missingTargetPolicy != null)
           'missingTargetPolicy': missingTargetPolicy!.name,
-        'tapOnTarget': tapOnTarget,
-        'tapOnOverlay': tapOnOverlay,
+        // Wire keeps the historical bool: false ⇔ ignore, true ⇔ advance.
+        // custom() is code-side only (same as every callback).
+        'tapOnTarget': targetTap is! HintTapIgnore,
+        'tapOnOverlay': overlayTap is! HintTapIgnore,
         if (focusShape != null) 'focusShape': focusShape!.name,
         if (focusPadding != null) 'focusPadding': focusPadding,
         if (autoScroll != null) 'autoScroll': autoScroll,
-        if (transitionDuration != null) 'transitionDurationMs': transitionDuration!.inMilliseconds,
+        if (transitionDuration != null)
+          'transitionDurationMs': transitionDuration!.inMilliseconds,
         if (transitionCurve != null) 'transitionCurve': transitionCurve!.name,
         if (targetRect != null)
-          'targetRect': {'left': targetRect!.left, 'top': targetRect!.top, 'width': targetRect!.width, 'height': targetRect!.height},
+          'targetRect': {
+            'left': targetRect!.left,
+            'top': targetRect!.top,
+            'width': targetRect!.width,
+            'height': targetRect!.height
+          },
       };
 
   factory HintStep.fromJson(
@@ -282,26 +403,38 @@ class HintStep {
             const [],
         title: json['title'] as String?,
         description: json['description'] as String?,
-        position: _enumOrDefault(TooltipPosition.values, json['position'],
-            TooltipPosition.auto, field: 'position', onWarning: onWarning),
-        waitTimeout: json['waitTimeoutMs'] == null ? null : Duration(milliseconds: json['waitTimeoutMs'] as int),
+        position: _enumOrDefault(
+            TooltipPosition.values, json['position'], TooltipPosition.auto,
+            field: 'position', onWarning: onWarning),
+        waitTimeout: json['waitTimeoutMs'] == null
+            ? null
+            : Duration(milliseconds: json['waitTimeoutMs'] as int),
         showSkip: json['showSkip'] as bool? ?? true,
-        missingTargetPolicy: _enumOrNull(HintMissingTargetPolicy.values,
-            json['missingTargetPolicy'],
-            field: 'missingTargetPolicy',
-            onWarning: onWarning),
-        tapOnTarget: json['tapOnTarget'] as bool? ?? true,
-        tapOnOverlay: json['tapOnOverlay'] as bool? ?? true,
+        missingTargetPolicy: _enumOrNull(
+            HintMissingTargetPolicy.values, json['missingTargetPolicy'],
+            field: 'missingTargetPolicy', onWarning: onWarning),
+        targetTap: (json['tapOnTarget'] as bool? ?? true)
+            ? const HintTapBehavior.advance()
+            : const HintTapBehavior.ignore(),
+        overlayTap: (json['tapOnOverlay'] as bool? ?? true)
+            ? const HintTapBehavior.advance()
+            : const HintTapBehavior.ignore(),
         focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
             field: 'focusShape', onWarning: onWarning),
         focusPadding: (json['focusPadding'] as num?)?.toDouble(),
         autoScroll: json['autoScroll'] as bool?,
-        transitionDuration: json['transitionDurationMs'] == null ? null : Duration(milliseconds: json['transitionDurationMs'] as int),
+        transitionDuration: json['transitionDurationMs'] == null
+            ? null
+            : Duration(milliseconds: json['transitionDurationMs'] as int),
         transitionCurve: _enumOrNull(HintCurve.values, json['transitionCurve'],
             field: 'transitionCurve', onWarning: onWarning),
         targetRect: json['targetRect'] == null
             ? null
-            : Rect.fromLTWH((json['targetRect']['left'] as num).toDouble(), (json['targetRect']['top'] as num).toDouble(), (json['targetRect']['width'] as num).toDouble(), (json['targetRect']['height'] as num).toDouble()),
+            : Rect.fromLTWH(
+                (json['targetRect']['left'] as num).toDouble(),
+                (json['targetRect']['top'] as num).toDouble(),
+                (json['targetRect']['width'] as num).toDouble(),
+                (json['targetRect']['height'] as num).toDouble()),
       );
 }
 
@@ -314,19 +447,24 @@ class HintStep {
 class HintTooltip {
   const HintTooltip({
     required this.position,
-    this.title,
-    this.description,
-    this.titleBuilder,
-    this.descriptionBuilder,
+    String? title,
+    String? description,
+    String Function(BuildContext)? titleBuilder,
+    String Function(BuildContext)? descriptionBuilder,
     this.tooltipBuilder,
-  }) : assert(
-          title != null ||
+  })  : assert(
+          tooltipBuilder != null ||
+              title != null ||
+              description != null ||
               titleBuilder != null ||
-              tooltipBuilder != null,
-          'HintTooltip must have title/description (zero-config), '
-          'titleBuilder/descriptionBuilder (l10n) or '
-          'tooltipBuilder (custom tooltip)',
-        );
+              descriptionBuilder != null,
+          'HintTooltip must have content (title/description/builders) '
+          'or tooltipBuilder (custom tooltip)',
+        ),
+        _title = title,
+        _description = description,
+        _titleBuilder = titleBuilder,
+        _descriptionBuilder = descriptionBuilder;
 
   /// Preferred side relative to the primary target. An explicit side is
   /// recommended — auto re-picks by free space and may fight the primary
@@ -334,18 +472,29 @@ class HintTooltip {
   /// (and the engine guarantees slots never overlap each other).
   final TooltipPosition position;
 
-  /// Zero-config content; ignored when [tooltipBuilder] is set.
-  final String? title;
-  final String? description;
+  final String? _title;
+  final String? _description;
+  final String Function(BuildContext)? _titleBuilder;
+  final String Function(BuildContext)? _descriptionBuilder;
 
-  /// Localized builders; takes precedence over [title]/[description].
-  final String Function(BuildContext)? titleBuilder;
-  final String Function(BuildContext)? descriptionBuilder;
+  /// Copy for this slot — same contract as [HintStep.content].
+  HintStepContent get content => HintStepContent(
+        title: _title,
+        description: _description,
+        titleBuilder: _titleBuilder,
+        descriptionBuilder: _descriptionBuilder,
+      );
+
+  String? get title => content.title;
+  String? get description => content.description;
+  String Function(BuildContext)? get titleBuilder => content.titleBuilder;
+  String Function(BuildContext)? get descriptionBuilder =>
+      content.descriptionBuilder;
 
   String? effectiveTitle(BuildContext context) =>
-      titleBuilder?.call(context) ?? title;
+      content.effectiveTitle(context);
   String? effectiveDescription(BuildContext context) =>
-      descriptionBuilder?.call(context) ?? description;
+      content.effectiveDescription(context);
 
   /// Fully custom content.
   final Widget Function(
@@ -365,8 +514,9 @@ class HintTooltip {
     void Function(String warning)? onWarning,
   }) =>
       HintTooltip(
-        position: _enumOrDefault(TooltipPosition.values, json['position'],
-            TooltipPosition.auto, field: 'position', onWarning: onWarning),
+        position: _enumOrDefault(
+            TooltipPosition.values, json['position'], TooltipPosition.auto,
+            field: 'position', onWarning: onWarning),
         title: json['title'] as String?,
         description: json['description'] as String?,
       );
@@ -489,6 +639,21 @@ class HintTour {
             field: 'missingTargetPolicy', onWarning: onWarning),
       );
 }
+
+/// Same tour with a different [steps] list — every other field is preserved
+/// (typo filtering must not drop tour-level settings such as
+/// [HintTour.autoScroll]).
+///
+/// Internal helper for the controller's release-path typo filter; not part
+/// of the public barrel contract.
+HintTour hintTourWithSteps(HintTour tour, List<HintStep> steps) => HintTour(
+      id: tour.id,
+      steps: steps,
+      stepTimeout: tour.stepTimeout,
+      disableBackButton: tour.disableBackButton,
+      missingTargetPolicy: tour.missingTargetPolicy,
+      autoScroll: tour.autoScroll,
+    );
 
 /// Enum value from a JSON [name]: null when the field is absent, null + a
 /// warning when the name is unknown.

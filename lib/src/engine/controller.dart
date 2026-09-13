@@ -1,20 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show OverlayState;
 
 import 'diagnostics.dart';
 import 'machine.dart';
+import 'overlay/overlay_engine.dart' show defaultOverlayHost;
 import 'registry.dart';
 import 'specs.dart';
+import 'store.dart';
 
 /// Overlay host — the contract of tour render mechanics.
 ///
 /// The controller does not know what the overlay looks like: it only asks to
 /// show the machine's current state and hide it on completion. The
-/// implementation is `HintOverlayEngine`. In headless runs the host is absent
-/// (`overlayHost: null`) and tours run without rendering: the machine, timers
-/// and diagnostics always work — this is what makes the engine a testable
-/// artifact.
+/// implementation is `HintOverlayEngine`. In headless runs
+/// (`HintController(headless: true)`) the host is absent and tours run
+/// without rendering: the machine, timers and diagnostics always work —
+/// this is what makes the engine a testable artifact.
 abstract class HintOverlayHost {
   /// Show/update the UI for [state] (waiting — scrim without a hole, active —
   /// hole + tooltip); on [HintIdle] — remove the overlay.
@@ -93,27 +96,59 @@ bool _differsOnlyInDigits(String a, String b) {
 ///
 /// Owns the machine, registry, timer and (optionally) the overlay. State is
 /// published as a [ValueListenable] — the vanilla Flutter default without any
-/// state-management dependency; adapters build on this same contract. No
-/// contexts/singletons are stored — the ValueNotifier state survives
-/// hot-reload and an open overlay is not reset (hot-reload friendly by
-/// construction).
+/// state-management dependency; app-side adapters build on this same
+/// contract. No contexts/singletons are stored — the ValueNotifier state
+/// survives hot-reload and an open overlay is not reset (hot-reload friendly
+/// by construction).
 class HintController implements HintActions {
-  /// [registry] defaults to the default singleton (zero-config).
-  /// [diagnostics] defaults to `DebugPrintDiagnostics`, but only in debug
+  /// [registry] defaults to the default singleton (zero-config) — the same
+  /// instance the default overlay host renders from ([registry] getter: one
+  /// source of truth, the wait logic and the rendering cannot desync).
+  /// [diagnostics] defaults to a debug-print handler, but only in debug
   /// builds: in release the diagnostics cost is zero, reasons go to the
   /// callback if the user supplies a handler.
-  /// [overlayHostBuilder] is a lazy factory for the render mechanics and
-  /// receives the controller itself (the engine needs the input back-channel:
-  /// next/skip/finish); null = headless.
+  /// [overlay] is a lazy provider of the `OverlayState` the engine renders
+  /// into — needed only for fully-deferred scenarios with zero mounted
+  /// targets (`targetRect`-only tours): there is nothing to capture the root
+  /// overlay from. Omitted — the engine finds the root overlay of the first
+  /// registered target itself: `HintController()` renders out of the box.
+  /// [headless] — no render mechanics at all (tests, pure machines); cannot
+  /// be combined with [overlay].
   HintController({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    HintOverlayHost Function(HintController)? overlayHostBuilder,
+    OverlayState? Function()? overlay,
+    bool headless = false,
+    this.scopePrefix,
+  })  : assert(
+          !(headless && overlay != null),
+          'hintful: headless: true cannot be combined with overlay:',
+        ),
+        _registry = registry ?? HintTargetRegistry.defaultInstance,
+        _diagnostics =
+            diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
+        _overlayHostBuilder =
+            headless ? null : defaultOverlayHost(overlay: overlay) {
+    _init();
+  }
+
+  /// Test-only seam: inject a custom [HintOverlayHost] without going through
+  /// the public constructor (the render contract is deliberately not part of
+  /// the public API — see the barrel).
+  @visibleForTesting
+  HintController.withHost(
+    HintOverlayHost Function(HintController) host, {
+    HintTargetRegistry? registry,
+    HintDiagnosticsHandler? diagnostics,
     this.scopePrefix,
   })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics =
             diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
-        _overlayHostBuilder = overlayHostBuilder {
+        _overlayHostBuilder = host {
+    _init();
+  }
+
+  void _init() {
     // A listener, not a slot: other subsystems subscribe the same way, and
     // several controllers on one registry no longer overwrite each other.
     _registry.addListener(_onRegistryChanged);
@@ -126,6 +161,17 @@ class HintController implements HintActions {
   final HintTargetRegistry _registry;
   final HintDiagnosticsHandler? _diagnostics;
   final HintOverlayHost Function(HintController)? _overlayHostBuilder;
+
+  /// The registry this controller's wait logic runs over — and the registry
+  /// the default overlay host ([defaultOverlayHost]) renders from. Set once
+  /// via the constructor; never desynced from the rendering.
+  HintTargetRegistry get registry => _registry;
+
+  /// The handler this controller reports failed shows to (wait timeouts,
+  /// typos, user skips). Also handed to the default overlay host —
+  /// engine-side overlay failures (`overlayUnavailable`) go through the
+  /// same channel.
+  HintDiagnosticsHandler? get diagnostics => _diagnostics;
   HintOverlayHost? _builtHost;
 
   /// Scope: which registry ids belong to this controller's screen.
@@ -139,8 +185,7 @@ class HintController implements HintActions {
   final String? scopePrefix;
 
   /// True when [id] belongs to this controller's scope.
-  bool inScope(String id) =>
-      scopePrefix == null || id.startsWith(scopePrefix!);
+  bool inScope(String id) => scopePrefix == null || id.startsWith(scopePrefix!);
 
   final HintMachine _machine = HintMachine();
   final ValueNotifier<HintState> _stateNotifier =
@@ -150,6 +195,20 @@ class HintController implements HintActions {
   Set<String> _lastKnownIds = const {};
   bool _registrySyncScheduled = false;
   bool _disposed = false;
+
+  /// The step visit that received `onStepEnter` and is still open
+  /// (`onStepExit` not yet fired). null — no open visit.
+  ({HintTour tour, int index})? _hookedVisit;
+
+  /// Armed by [startOnce]: mark this tour's shown-state on finish only.
+  /// Cleared on abort/skip (no mark) or when the pending tour finishes.
+  ({String tourId, HintStore store, String version})? _pendingOnce;
+
+  /// Serialized lifecycle-hook runner: one hook at a time, FIFO. A hook may
+  /// call `next()`/`finish()` — the nested transition enqueues its own hooks
+  /// behind the current one, so order stays `old.onStepExit → new.onStepEnter`.
+  final List<Future<void> Function()> _pendingHooks = [];
+  bool _hooksRunning = false;
 
   /// Observable tour state.
   ValueListenable<HintState> get state => _stateNotifier;
@@ -185,7 +244,10 @@ class HintController implements HintActions {
 
     final classification = classifyStepTargets(
       tour,
-      {for (final id in _registry.ids) if (inScope(id)) id},
+      {
+        for (final id in _registry.ids)
+          if (inScope(id)) id
+      },
     );
     if (classification.typos.isNotEmpty) {
       final message = _describeTypos(tour, classification.typos);
@@ -203,7 +265,10 @@ class HintController implements HintActions {
       if (!inScope(id)) continue;
       _dispatch(TargetAppeared(targetId: id));
     }
-    _lastKnownIds = {for (final id in _registry.ids) if (inScope(id)) id};
+    _lastKnownIds = {
+      for (final id in _registry.ids)
+        if (inScope(id)) id
+    };
   }
 
   /// Start a tour unless one is already running — atomic, no assert.
@@ -213,6 +278,39 @@ class HintController implements HintActions {
   Future<bool> tryStart(HintTour tour) async {
     if (!isIdle) return false;
     await start(tour);
+    return true;
+  }
+
+  /// Show-once from the box: [HintStore.shouldShow] → [start] →
+  /// [HintStore.markShown] **on finish** (normal completion).
+  ///
+  /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
+  /// - started → arms a one-shot mark for `tour.id`; when that tour emits
+  ///   [FinishedEffect] (Done / last step), `store.markShown` runs once;
+  /// - **skip / timeout / abort do not mark** — the tour may show again
+  ///   (pair with a short timeout if that is undesirable);
+  /// - [version] is what gets recorded; defaults to `minVersion ?? 'true'`
+  ///   (same convention as the offer dialog's decline keys).
+  ///
+  /// Prefer this over hand-rolled `shouldShow` + listener glue when the
+  /// "shown" definition is *finished* (see best practices §6).
+  Future<bool> startOnce(
+    HintTour tour, {
+    required HintStore store,
+    String? minVersion,
+    String? version,
+  }) async {
+    if (!store.shouldShow(tour.id, minVersion: minVersion)) return false;
+    if (!isIdle) return false;
+    final record = version ?? minVersion ?? 'true';
+    _pendingOnce = (tourId: tour.id, store: store, version: record);
+    await start(tour);
+    if (isIdle) {
+      // start() early-returned (all steps stripped as typos) — nothing
+      // was shown, do not leave a mark armed.
+      _pendingOnce = null;
+      return false;
+    }
     return true;
   }
 
@@ -273,6 +371,9 @@ class HintController implements HintActions {
     _timer?.cancel();
     _registry.removeListener(_onRegistryChanged);
     _builtHost?.dispose();
+    _pendingHooks.clear();
+    _hookedVisit = null;
+    _pendingOnce = null;
     _stateNotifier.dispose();
   }
 
@@ -301,7 +402,10 @@ class HintController implements HintActions {
       _lastKnownIds = const {};
       return;
     }
-    final current = {for (final id in _registry.ids) if (inScope(id)) id};
+    final current = {
+      for (final id in _registry.ids)
+        if (inScope(id)) id
+    };
     final previous = _lastKnownIds;
     for (final id in current.difference(previous)) {
       _dispatch(TargetAppeared(targetId: id));
@@ -320,6 +424,7 @@ class HintController implements HintActions {
     );
     _applyEffects(transition, before);
     _stateNotifier.value = transition.state;
+    _syncStepHooks(transition.state);
     _hostFor(transition.state)?.update(transition.state);
     if (transition.state.isIdle) {
       _timer?.cancel();
@@ -349,13 +454,65 @@ class HintController implements HintActions {
     _builtHost = null;
   }
 
-  void _applyEffects(HintTransition transition, HintState before) {
-    final newState = transition.state;
-    if (newState is HintActive) {
-      final step = newState.tour.steps[newState.stepIndex];
-      step.onBeforeAction?.call();
-      if (before is HintActive) before.tour.steps[before.stepIndex].onAfterAction?.call();
+  /// Brackets a *step visit* — the lifecycle contract of
+  /// [HintStep.onStepEnter]/[HintStep.onStepExit]:
+  ///
+  /// - `onStepEnter` fires once when the step first becomes active;
+  /// - `onStepExit` fires once when that visit ends: a step change,
+  ///   finish, skip or abort. Target vanish (Active → Waiting for the
+  ///   **same** step) keeps the visit open — neither hook re-fires when the
+  ///   target returns;
+  /// - consecutive visits run in order: `old.onStepExit` → `new.onStepEnter`
+  ///   (FIFO via the hook runner, hooks may be async).
+  void _syncStepHooks(HintState after) {
+    final open = _hookedVisit;
+    if (open != null) {
+      final sameStepActive = after is HintActive &&
+          identical(after.tour, open.tour) &&
+          after.stepIndex == open.index;
+      final sameStepWaiting = after is HintWaiting &&
+          identical(after.tour, open.tour) &&
+          after.stepIndex == open.index;
+      if (!sameStepActive && !sameStepWaiting) {
+        _hookedVisit = null;
+        _enqueueHook(open.tour.steps[open.index].onStepExit);
+      }
     }
+    if (after is HintActive) {
+      final already = _hookedVisit != null &&
+          identical(_hookedVisit!.tour, after.tour) &&
+          _hookedVisit!.index == after.stepIndex;
+      if (!already) {
+        _hookedVisit = (tour: after.tour, index: after.stepIndex);
+        _enqueueHook(after.tour.steps[after.stepIndex].onStepEnter);
+      }
+    }
+  }
+
+  void _enqueueHook(Future<void> Function()? hook) {
+    if (hook == null || _disposed) return;
+    _pendingHooks.add(hook);
+    if (!_hooksRunning) _drainHooks();
+  }
+
+  /// Runs queued hooks one at a time; a throwing hook is reported, not
+  /// swallowed into the next one, and never breaks the chain.
+  Future<void> _drainHooks() async {
+    _hooksRunning = true;
+    while (_pendingHooks.isNotEmpty && !_disposed) {
+      final hook = _pendingHooks.removeAt(0);
+      try {
+        await hook();
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('hintful: step lifecycle hook threw: $e\n$st');
+        }
+      }
+    }
+    _hooksRunning = false;
+  }
+
+  void _applyEffects(HintTransition transition, HintState before) {
     for (final effect in transition.effects) {
       switch (effect) {
         case ArmTimeoutEffect(:final timeout):
@@ -366,11 +523,7 @@ class HintController implements HintActions {
           _timer?.cancel();
           _timer = null;
           break;
-        case StepSkippedEffect(
-          :final stepIndex,
-          :final reason,
-          :final detail
-        ):
+        case StepSkippedEffect(:final stepIndex, :final reason, :final detail):
           _reportStepSkipped(before, stepIndex, reason, detail);
           break;
         case AbortEffect(:final reason, :final detail):
@@ -380,11 +533,23 @@ class HintController implements HintActions {
             reason,
             detail,
           );
+          // Abort/skip/timeout: disarm the startOnce mark without writing —
+          // the user did not finish, the tour may show again.
+          final pendingAbort = _pendingOnce;
+          if (pendingAbort != null && before.tour?.id == pendingAbort.tourId) {
+            _pendingOnce = null;
+          }
           break;
         case EnterStepEffect():
-        case FinishedEffect():
+          break;
+        case FinishedEffect(:final tourId):
           // Rendering follows the state (host.update); finish is not
-          // diagnosed.
+          // diagnosed. startOnce marks only on finish of its own tour.
+          final pendingFinish = _pendingOnce;
+          if (pendingFinish != null && pendingFinish.tourId == tourId) {
+            pendingFinish.store.markShown(tourId, pendingFinish.version);
+            _pendingOnce = null;
+          }
           break;
       }
     }
@@ -405,7 +570,13 @@ class HintController implements HintActions {
       HintActive(:final targetId) => targetId,
       _ => '?',
     };
-    _diagnostics?.onHintSkipped(tourId, stepIndex, targetId, reason, detail);
+    _diagnostics?.onHintSkipped(HintSkipEvent(
+      tourId: tourId,
+      stepIndex: stepIndex,
+      targetId: targetId,
+      reason: reason,
+      detail: detail,
+    ));
   }
 
   String _describeTypos(HintTour tour, List<UnknownHintTarget> typos) {
@@ -420,22 +591,19 @@ class HintController implements HintActions {
   /// Release-path typo handling: typo steps are skipped, the tour continues.
   HintTour _withoutTypoSteps(HintTour tour, List<UnknownHintTarget> typos) {
     for (final t in typos) {
-      _diagnostics?.onHintSkipped(
-        tour.id,
-        t.index,
-        t.typoId,
-        HintSkipReason.unknownTarget,
-        'no valid target; closest: ${t.candidates.join(', ')}; step skipped',
-      );
+      _diagnostics?.onHintSkipped(HintSkipEvent(
+        tourId: tour.id,
+        stepIndex: t.index,
+        targetId: t.typoId,
+        reason: HintSkipReason.unknownTarget,
+        detail:
+            'no valid target; closest: ${t.candidates.join(', ')}; step skipped',
+      ));
     }
     final removed = typos.map((t) => t.step).toSet();
     final kept = tour.steps.where((step) => !removed.contains(step)).toList();
-    return HintTour(
-      id: tour.id,
-      steps: kept,
-      stepTimeout: tour.stepTimeout,
-      disableBackButton: tour.disableBackButton,
-      missingTargetPolicy: tour.missingTargetPolicy,
-    );
+    // hintTourWithSteps preserves every tour-level field (autoScroll, …) — a
+    // manual reconstruction here once dropped autoScroll.
+    return hintTourWithSteps(tour, kept);
   }
 }
