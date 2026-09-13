@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/specs.dart';
 
@@ -223,6 +224,104 @@ void main() {
       );
       expect(filtered.steps, hasLength(1));
       expect(filtered.steps.single.targetId, 'a');
+    });
+  });
+
+  group('fromJson structural validation', () {
+    test('empty steps throws FormatException naming the tour', () {
+      expect(
+        () => HintTour.fromJson({'id': 'x', 'steps': []}),
+        throwsA(isA<FormatException>()
+            .having((e) => e.message, 'message', contains('no steps'))),
+      );
+    });
+
+    test('missing steps throws FormatException', () {
+      expect(
+        () => HintTour.fromJson({'id': 'x'}),
+        throwsFormatException,
+      );
+    });
+
+    test('missing id throws FormatException', () {
+      expect(
+        () => HintTour.fromJson({
+          'steps': [
+            {'targetId': 'a', 'title': 'A'},
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('empty id throws FormatException', () {
+      expect(
+        () => HintTour.fromJson({
+          'id': '',
+          'steps': [
+            {'targetId': 'a', 'title': 'A'},
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('step missing targetId throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'title': 'T'}),
+        throwsFormatException,
+      );
+    });
+
+    test('step with empty targetId throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': '', 'title': 'T'}),
+        throwsFormatException,
+      );
+    });
+
+    test('a valid payload still parses', () {
+      final tour = HintTour(
+        id: 't',
+        steps: const [HintStep(targetId: 'a', title: 'A')],
+      );
+
+      final restored = HintTour.fromJson(tour.toJson());
+
+      expect(restored.id, 't');
+      expect(restored.steps, hasLength(1));
+    });
+  });
+
+  group('toJson→fromJson field round-trip', () {
+    test('six never-covered fields + tour-level autoScroll survive', () {
+      final tour = HintTour(
+        id: 't',
+        autoScroll: true,
+        steps: const [
+          HintStep(
+            targetId: 'a',
+            title: 'A',
+            targetRect: Rect.fromLTWH(1, 2, 3, 4),
+            focusShape: FocusShape.circle,
+            focusPadding: 8,
+            autoScroll: true,
+            transitionDuration: Duration(milliseconds: 123),
+            transitionCurve: HintCurve.sprung,
+          ),
+        ],
+      );
+
+      final restored = HintTour.fromJson(tour.toJson());
+      final step = restored.steps.single;
+
+      expect(step.targetRect, const Rect.fromLTWH(1, 2, 3, 4));
+      expect(step.focusShape, FocusShape.circle);
+      expect(step.focusPadding, 8);
+      expect(step.autoScroll, isTrue);
+      expect(step.transitionDuration, const Duration(milliseconds: 123));
+      expect(step.transitionCurve, HintCurve.sprung);
+      expect(restored.autoScroll, isTrue);
     });
   });
 }

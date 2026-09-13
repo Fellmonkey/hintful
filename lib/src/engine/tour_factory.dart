@@ -40,6 +40,12 @@ class FetcherHintTourFactory implements HintTourFactory {
   /// a bad tour means a bad release of your tour content.
   final void Function(String warning)? onWarning;
 
+  /// Fetches the tour payload by [id] and parses it via
+  /// [HintTour.fromJson].
+  ///
+  /// Throws [FormatException] when the payload is structurally invalid
+  /// (missing/empty `id`, `steps` or a step's `targetId`) — keep a bundled
+  /// fallback tour for that case.
   @override
   Future<HintTour> fetch(String id) async {
     final uri = Uri.parse('$baseUrl/$id.json');

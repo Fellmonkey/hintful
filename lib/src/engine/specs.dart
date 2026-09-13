@@ -390,52 +390,59 @@ class HintStep {
   factory HintStep.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
-  }) =>
-      HintStep(
-        targetId: json['targetId'] as String,
-        moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
-        moreTooltips: (json['moreTooltips'] as List?)
-                ?.map((e) => HintTooltip.fromJson(
-                      e as Map<String, dynamic>,
-                      onWarning: onWarning,
-                    ))
-                .toList() ??
-            const [],
-        title: json['title'] as String?,
-        description: json['description'] as String?,
-        position: _enumOrDefault(
-            TooltipPosition.values, json['position'], TooltipPosition.auto,
-            field: 'position', onWarning: onWarning),
-        waitTimeout: json['waitTimeoutMs'] == null
-            ? null
-            : Duration(milliseconds: json['waitTimeoutMs'] as int),
-        showSkip: json['showSkip'] as bool? ?? true,
-        missingTargetPolicy: _enumOrNull(
-            HintMissingTargetPolicy.values, json['missingTargetPolicy'],
-            field: 'missingTargetPolicy', onWarning: onWarning),
-        targetTap: (json['tapOnTarget'] as bool? ?? true)
-            ? const HintTapBehavior.advance()
-            : const HintTapBehavior.ignore(),
-        overlayTap: (json['tapOnOverlay'] as bool? ?? true)
-            ? const HintTapBehavior.advance()
-            : const HintTapBehavior.ignore(),
-        focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
-            field: 'focusShape', onWarning: onWarning),
-        focusPadding: (json['focusPadding'] as num?)?.toDouble(),
-        autoScroll: json['autoScroll'] as bool?,
-        transitionDuration: json['transitionDurationMs'] == null
-            ? null
-            : Duration(milliseconds: json['transitionDurationMs'] as int),
-        transitionCurve: _enumOrNull(HintCurve.values, json['transitionCurve'],
-            field: 'transitionCurve', onWarning: onWarning),
-        targetRect: json['targetRect'] == null
-            ? null
-            : Rect.fromLTWH(
-                (json['targetRect']['left'] as num).toDouble(),
-                (json['targetRect']['top'] as num).toDouble(),
-                (json['targetRect']['width'] as num).toDouble(),
-                (json['targetRect']['height'] as num).toDouble()),
+  }) {
+    final targetId = json['targetId'];
+    if (targetId is! String || targetId.isEmpty) {
+      throw const FormatException(
+        "hintful: step JSON is missing a non-empty 'targetId'",
       );
+    }
+    return HintStep(
+      targetId: targetId,
+      moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
+      moreTooltips: (json['moreTooltips'] as List?)
+              ?.map((e) => HintTooltip.fromJson(
+                    e as Map<String, dynamic>,
+                    onWarning: onWarning,
+                  ))
+              .toList() ??
+          const [],
+      title: json['title'] as String?,
+      description: json['description'] as String?,
+      position: _enumOrDefault(
+          TooltipPosition.values, json['position'], TooltipPosition.auto,
+          field: 'position', onWarning: onWarning),
+      waitTimeout: json['waitTimeoutMs'] == null
+          ? null
+          : Duration(milliseconds: json['waitTimeoutMs'] as int),
+      showSkip: json['showSkip'] as bool? ?? true,
+      missingTargetPolicy: _enumOrNull(
+          HintMissingTargetPolicy.values, json['missingTargetPolicy'],
+          field: 'missingTargetPolicy', onWarning: onWarning),
+      targetTap: (json['tapOnTarget'] as bool? ?? true)
+          ? const HintTapBehavior.advance()
+          : const HintTapBehavior.ignore(),
+      overlayTap: (json['tapOnOverlay'] as bool? ?? true)
+          ? const HintTapBehavior.advance()
+          : const HintTapBehavior.ignore(),
+      focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
+          field: 'focusShape', onWarning: onWarning),
+      focusPadding: (json['focusPadding'] as num?)?.toDouble(),
+      autoScroll: json['autoScroll'] as bool?,
+      transitionDuration: json['transitionDurationMs'] == null
+          ? null
+          : Duration(milliseconds: json['transitionDurationMs'] as int),
+      transitionCurve: _enumOrNull(HintCurve.values, json['transitionCurve'],
+          field: 'transitionCurve', onWarning: onWarning),
+      targetRect: json['targetRect'] == null
+          ? null
+          : Rect.fromLTWH(
+              (json['targetRect']['left'] as num).toDouble(),
+              (json['targetRect']['top'] as num).toDouble(),
+              (json['targetRect']['width'] as num).toDouble(),
+              (json['targetRect']['height'] as num).toDouble()),
+    );
+  }
 }
 
 /// An additional tooltip of a step (multi-content): a slot with its own
@@ -620,24 +627,36 @@ class HintTour {
   factory HintTour.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
-  }) =>
-      HintTour(
-        id: json['id'] as String,
-        steps: (json['steps'] as List)
-            .map((step) => HintStep.fromJson(
-                  step as Map<String, dynamic>,
-                  onWarning: onWarning,
-                ))
-            .toList(),
-        stepTimeout: json['stepTimeoutMs'] == null
-            ? const Duration(seconds: 3)
-            : Duration(milliseconds: json['stepTimeoutMs'] as int),
-        disableBackButton: json['disableBackButton'] as bool? ?? false,
-        autoScroll: json['autoScroll'] as bool? ?? false,
-        missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
-            json['missingTargetPolicy'], HintMissingTargetPolicy.abortTour,
-            field: 'missingTargetPolicy', onWarning: onWarning),
+  }) {
+    final id = json['id'];
+    if (id is! String || id.isEmpty) {
+      throw const FormatException(
+          "hintful: tour JSON is missing a non-empty 'id'");
+    }
+    final rawSteps = json['steps'];
+    if (rawSteps is! List || rawSteps.isEmpty) {
+      throw FormatException(
+        "hintful: tour '$id' has no steps — 'steps' must be a non-empty list",
       );
+    }
+    return HintTour(
+      id: id,
+      steps: rawSteps
+          .map((step) => HintStep.fromJson(
+                step as Map<String, dynamic>,
+                onWarning: onWarning,
+              ))
+          .toList(),
+      stepTimeout: json['stepTimeoutMs'] == null
+          ? const Duration(seconds: 3)
+          : Duration(milliseconds: json['stepTimeoutMs'] as int),
+      disableBackButton: json['disableBackButton'] as bool? ?? false,
+      autoScroll: json['autoScroll'] as bool? ?? false,
+      missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
+          json['missingTargetPolicy'], HintMissingTargetPolicy.abortTour,
+          field: 'missingTargetPolicy', onWarning: onWarning),
+    );
+  }
 }
 
 /// Same tour with a different [steps] list — every other field is preserved

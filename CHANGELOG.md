@@ -93,6 +93,13 @@
   accident. `HintStepContent`, `HintTapBehavior` (+ subclasses) and
   `HintSkipEvent` are in; render internals, the register-path, diagnostics
   helpers and `kHintFocusPadding` are out.
+- **Structural JSON validation:** `HintTour.fromJson`/`HintStep.fromJson`
+  throw a `FormatException` (with the offending tour/step in the message)
+  on missing or empty `id`/`steps`/`targetId` instead of a raw `TypeError`
+  — or, for empty `steps`, a release-only `RangeError` from the machine.
+  Unknown enum names stay tolerant (warn + default, unchanged).
+  `HintController.start` also refuses an empty tour in release (debug keeps
+  the constructor assert).
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

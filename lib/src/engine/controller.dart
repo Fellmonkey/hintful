@@ -241,6 +241,11 @@ class HintController implements HintActions {
       "hintful: tour '${tour.id}' has duplicate step targetIds:"
       ' ${tour.duplicateTargetIds.join(', ')}',
     );
+    // Release defense: the constructor's steps>0 assert is stripped in
+    // release — an empty tour must not reach the machine (`steps[0]` would
+    // RangeError). No HintSkipEvent: HintSkipReason is a closed enum (no new
+    // value before 2.0) and there is no step to describe.
+    if (tour.steps.isEmpty) return;
 
     final classification = classifyStepTargets(
       tour,
