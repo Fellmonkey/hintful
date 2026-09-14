@@ -100,6 +100,13 @@
   Unknown enum names stay tolerant (warn + default, unchanged).
   `HintController.start` also refuses an empty tour in release (debug keeps
   the constructor assert).
+- **Offer records the shown-state:** `showHintTourOffer` now runs the
+  accept path through `startOnce` — an accepted tour is marked shown
+  **on finish** (skip does not record), out of the box. The documented
+  "record via `startOnce` after the offer" composition was impossible
+  (busy controller) and is gone. New parameter `markOnFinish` (default
+  `true`) restores the old hands-off behavior for apps with their own
+  recording policy.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

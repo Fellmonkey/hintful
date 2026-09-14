@@ -201,10 +201,10 @@ await showHintTourOffer(
 
 It skips the dialog when the tour already ran for `minVersion`, remembers a
 decline per page (or globally with the "Apply to all pages" checkbox), and
-counts a barrier dismissal as a decline. Accepting starts the tour; recording the
-shown-state stays yours — on finish via
-[HintController.startOnce](best_practices.md#6-once-per-version--hintstore), or
-with your own listener.
+counts a barrier dismissal as a decline. Accepting starts the tour and records
+the shown-state **on finish** (skip does not record — the tour may offer
+again). Pass `markOnFinish: false` if you want to record it yourself under a
+different policy — see [best practices §6](best_practices.md#6-once-per-version--hintstore).
 
 Offer from one entry point per page, and keep the tour reachable after a decline
 (settings, help menu): that is why the decline keys are namespaced apart from the

@@ -628,6 +628,7 @@ final result = await showHintTourOffer(
   store: store,
   pageId: 'settings',     // the page this offer belongs to
   minVersion: appVersion, // already ran this version → no dialog
+  // markOnFinish: false, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),
 );
 ```
@@ -635,8 +636,9 @@ final result = await showHintTourOffer(
 What it handles for you: no dialog when the tour already ran for `minVersion`, a
 decline remembered per page (and globally when the checkbox is on) under
 namespaced keys, and a barrier dismissal counted as a decline — "not now" must
-not nag. Accepting calls `controller.start(tour)`; recording the shown-state
-stays yours on finish (see §6 / `startOnce`).
+not nag. Accepting runs `startOnce` for you: the shown-state is recorded
+**on finish** (skip does not record — §6 semantics). Pass
+`markOnFinish: false` only when your policy differs (§6 listener pattern).
 
 Two rules: one offer per page entry point (offer from three buttons and the
 dialog appears where the user least expects it), and keep the tour reachable

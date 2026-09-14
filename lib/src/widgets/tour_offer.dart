@@ -63,8 +63,11 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// own shown-state key, so the tour remains reachable through other entry
 /// points (e.g. a settings screen). Dismissing the dialog (barrier tap)
 /// counts as a decline — "not now" should not nag again. On accept the tour
-/// is started; recording the shown-state on **finish** is
-/// [HintController.startOnce] (or your own listener — see best practices §6).
+/// is started and (with [markOnFinish], the default) the shown-state is
+/// recorded **on finish** via [HintController.startOnce] — skip/abort does
+/// not record, the tour may show again (best practices §6). Pass
+/// `markOnFinish: false` to record the shown-state yourself (any other
+/// policy — see best practices §6).
 Future<HintTourOfferResult> showHintTourOffer({
   required BuildContext context,
   required HintController controller,
@@ -72,6 +75,7 @@ Future<HintTourOfferResult> showHintTourOffer({
   required HintStore store,
   String? pageId,
   String? minVersion,
+  bool markOnFinish = true,
   HintTourOfferLabels labels = const HintTourOfferLabels(),
 }) async {
   final page = pageId ?? tour.id;
@@ -119,6 +123,23 @@ Future<HintTourOfferResult> showHintTourOffer({
   );
 
   if (accepted ?? false) {
+    if (markOnFinish) {
+      // startOnce: gate (already passed above) + start + markShown on
+      // finish only; skip/abort leaves the tour re-showable (§6).
+      // The gate above already ran, so a false return here means busy.
+      assert(
+        controller.isIdle,
+        'hintful: offer accepted while a tour is active — '
+        'one tour at a time',
+      );
+      final started = await controller.startOnce(tour,
+          store: store, minVersion: minVersion);
+      return started
+          ? HintTourOfferResult.started
+          : HintTourOfferResult.declined;
+    }
+    // Legacy/custom-policy path: start without recording; the app marks
+    // the shown-state itself (best practices §6 listener pattern).
     // Awaited: start() validates synchronously (typo assert) and must not
     // fail into an unhandled async error after we already reported success.
     await controller.start(tour);

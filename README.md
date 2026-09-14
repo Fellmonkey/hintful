@@ -217,8 +217,9 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
   `startOnce(tour, store:, minVersion:)` (marks on finish) or
   `shouldShow`/`markShown` by hand
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
-  declines persist per page or globally, the tour stays reachable from other
-  entry points
+  declines persist per page or globally, an accepted tour is recorded on
+  finish (opt-out `markOnFinish: false`), the tour stays reachable from
+  other entry points
 - `withHint` sugar (`child.withHint('id')`) and target-level
   `focusShape`/`focusPadding` — the shape lives on the widget, a step
   overrides only the exception

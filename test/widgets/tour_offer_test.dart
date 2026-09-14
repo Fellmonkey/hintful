@@ -10,6 +10,19 @@ HintTour _tour(String id) => HintTour(
       steps: [HintStep(targetId: 'x', title: 'X')],
     );
 
+/// Rect-target tour: the headless machine enters HintActive immediately
+/// (no registry, no wait timer) — the pump/dispose shape stays simple.
+HintTour _rectTour(String id) => HintTour(
+      id: id,
+      steps: [
+        HintStep(
+          targetId: 'x',
+          title: 'X',
+          targetRect: const Rect.fromLTWH(10, 10, 50, 50),
+        ),
+      ],
+    );
+
 /// A MaterialApp + a context under it (the dialog needs a Navigator).
 Future<BuildContext> _pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -227,5 +240,116 @@ void main() {
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
     expect(await again, HintTourOfferResult.declined);
+  });
+
+  // The release busy guard in start() (if (!isIdle) return;) is assert-parity:
+  // unreachable under flutter test by design — covered by code review only.
+  group('markOnFinish (default)', () {
+    testWidgets('accept + finish → marked shown', (tester) async {
+      final store = InMemoryHintStore();
+      final controller = HintController(headless: true);
+      addTearDown(controller.dispose);
+      final context = await _pumpApp(tester);
+
+      final result = showHintTourOffer(
+        context: context,
+        controller: controller,
+        tour: _rectTour('t'),
+        store: store,
+        pageId: 'Home',
+      );
+      await _pumpDialog(tester);
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+
+      expect(await result, HintTourOfferResult.started);
+      expect(controller.currentState.isIdle, isFalse);
+
+      controller.next(); // single step → finish
+      expect(controller.currentState.isIdle, isTrue);
+      expect(store.shouldShow('t'), isFalse,
+          reason: 'finish marks the tour shown');
+    });
+
+    testWidgets('accept + skip → not marked', (tester) async {
+      final store = InMemoryHintStore();
+      final controller = HintController(headless: true);
+      addTearDown(controller.dispose);
+      final context = await _pumpApp(tester);
+
+      final result = showHintTourOffer(
+        context: context,
+        controller: controller,
+        tour: _rectTour('t'),
+        store: store,
+        pageId: 'Home',
+      );
+      await _pumpDialog(tester);
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+
+      expect(await result, HintTourOfferResult.started);
+      controller.skip();
+      expect(controller.currentState.isIdle, isTrue);
+      expect(store.shouldShow('t'), isTrue,
+          reason: 'skip must not record — the tour may show again');
+    });
+
+    testWidgets('markOnFinish: false + finish → not marked',
+        (tester) async {
+      final store = InMemoryHintStore();
+      final controller = HintController(headless: true);
+      addTearDown(controller.dispose);
+      final context = await _pumpApp(tester);
+
+      final result = showHintTourOffer(
+        context: context,
+        controller: controller,
+        tour: _rectTour('t'),
+        store: store,
+        pageId: 'Home',
+        markOnFinish: false,
+      );
+      await _pumpDialog(tester);
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+
+      expect(await result, HintTourOfferResult.started);
+      controller.next();
+      expect(controller.currentState.isIdle, isTrue);
+      expect(store.shouldShow('t'), isTrue,
+          reason: 'opt-out: the app records the shown-state itself');
+    });
+
+    testWidgets('busy controller → the offer accept asserts (debug contract)',
+        (tester) async {
+      final store = InMemoryHintStore();
+      final controller = HintController(headless: true);
+      addTearDown(controller.dispose);
+      final context = await _pumpApp(tester);
+
+      await controller.start(_rectTour('other')); // one tour at a time
+
+      final result = showHintTourOffer(
+        context: context,
+        controller: controller,
+        tour: _rectTour('t'),
+        store: store,
+        pageId: 'Home',
+      );
+      await _pumpDialog(tester);
+      expect(find.text('Want a tour?'), findsOneWidget);
+
+      // Attach the matcher BEFORE the tap: the assert fires in the offer's
+      // async continuation during the pump, and an unlistened future would
+      // report the error as unhandled first.
+      final expectation = expectLater(result, throwsAssertionError);
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+      await expectation;
+
+      expect(store.shouldShow('t'), isTrue,
+          reason: 'the rejected accept must not mark anything');
+    });
   });
 }
