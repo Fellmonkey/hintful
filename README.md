@@ -237,9 +237,15 @@ The only supported import is `package:hintful/hintful.dart`. Deep imports
 the API — implementation lives under `lib/src/` and is reachable only through
 this barrel (explicit `show` lists). The exported surface: tour data
 (`HintStep`/`HintTour`/`HintTooltip`/`HintStepContent`/`HintTapBehavior` +
-enums), registry, machine states, controller + overlay host, diagnostics,
-theme/labels, widgets (`HintTarget`, `DefaultTooltip`, `withHint`,
-`showHintTourOffer`), motion helper, position types, store and tour factories.
+`TooltipPosition`/`FocusShape`/`HintCurve`/`HintMissingTargetPolicy`),
+registry (`HintTargetRegistry`), machine states
+(`HintState`/`HintIdle`/`HintWaiting`/`HintActive`), controller
+(`HintController`, `HintActions`, `HintTooltipContext`), diagnostics
+(`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
+(`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
+`DefaultTooltip`, `showHintTourOffer` + offer labels/result),
+`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore`/
+`compareVersions`) and tour factories (`HintTourFactory` et al.).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
@@ -291,7 +297,7 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
 - [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryStart`,
   `targetRect` without a target, text scale, taps, multi-target vs
   multi-content, testing, server-driven tours and the offer dialog;
-- [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x;
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x → 1.0.0;
 - [`benchmark/README.md`](benchmark/README.md) — how the numbers under
   [Performance](#performance) are recorded.
 

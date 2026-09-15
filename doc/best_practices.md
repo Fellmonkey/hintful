@@ -601,7 +601,7 @@ controller.dispose();
 
 Notes:
 
-- pass your own `HintTargetRegistry` so a test never depends on the app's targets (or pollutes them);
+- pass your own `HintTargetRegistry` so a test never depends on the app's targets (or pollutes them) — and pass that **same instance** to every `HintTarget`/`withHint` in the scene (mismatch = every step diagnoses as `timeout`/`unknownTarget`); the package's `test/helpers/tour_harness.dart` shows the pairing;
 - assert on diagnostics with a recording `HintDiagnosticsHandler`, not by capturing `debugPrint` output;
 - a typo'd `targetId` is designed for `expectLater(controller.start(tour), throwsAssertionError)` — `start` returns a `Future` so the failure surfaces in the test instead of inside someone's build;
 - keep test tours on a short/`Duration.zero` `stepTimeout`, and remember timers must be pumped or a missing target fails after the real 3 s;

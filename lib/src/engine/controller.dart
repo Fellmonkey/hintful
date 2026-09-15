@@ -165,6 +165,13 @@ class HintController implements HintActions {
   /// The registry this controller's wait logic runs over — and the registry
   /// the default overlay host ([defaultOverlayHost]) renders from. Set once
   /// via the constructor; never desynced from the rendering.
+  ///
+  /// Pairing rule: when you pass a custom [registry] here, every
+  /// `HintTarget` (or `withHint`) in the scene must receive
+  /// the same instance — a controller watching a registry the
+  /// targets do not register into diagnoses every step as
+  /// `timeout`/`unknownTarget`. Omit the parameter on both sides to
+  /// share [HintTargetRegistry.defaultInstance] (zero-config).
   HintTargetRegistry get registry => _registry;
 
   /// The handler this controller reports failed shows to (wait timeouts,

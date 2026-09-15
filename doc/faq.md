@@ -147,6 +147,10 @@ expect(recorder.reasons, [HintSkipReason.timeout]);
 controller.dispose();
 ```
 
+A custom `registry:` must be shared: hand the same instance to every
+`HintTarget` in the scene, or the controller watches an empty registry
+and every step dies as `timeout`.
+
 A typo'd `targetId` is an **assert in debug** — catch it with
 `expectLater(controller.start(tour), throwsAssertionError)`.
 
