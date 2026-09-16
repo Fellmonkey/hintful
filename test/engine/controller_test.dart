@@ -946,6 +946,62 @@ void main() {
       expect(log, ['enter0', 'exit0', 'enter1'],
           reason: 'exit/enter still run after a throwing enter');
     });
+
+    // The release busy guard (`if (!isIdle) return;` in start) is covered by
+    // code review only: the debug assert fires first under `flutter test`
+    // (assert-parity) — same treatment as the repo's other release-only
+    // branches.
+    testWidgets(
+        'a throwing hook is logged through debugPrint (release contract)',
+        (tester) async {
+      final lines = <String>[];
+      final old = debugPrint;
+      debugPrint = (msg, {wrapWidth}) => lines.add(msg ?? '');
+
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final log = <String>[];
+      final controller = HintController(registry: registry, headless: true);
+      addTearDown(controller.dispose);
+
+      for (final id in ['target0', 'target1']) {
+        registry.register(HintTargetRegistration(
+          id: id,
+          link: LayerLink(),
+          context: ctx,
+        ));
+      }
+
+      final tour = hookTour(
+        log,
+        enter0: () async {
+          log.add('enter0');
+          throw StateError('boom');
+        },
+        exit0: () async => log.add('exit0'),
+        enter1: () async => log.add('enter1'),
+      );
+
+      try {
+        await controller.start(tour);
+        await tester.pump();
+        controller.next();
+        await tester.pump();
+      } finally {
+        // Restore inline (not addTearDown): the test binding verifies
+        // foundation debug vars are unset before teardown callbacks run.
+        debugPrint = old;
+      }
+
+      expect(log, ['enter0', 'exit0', 'enter1'],
+          reason: 'the chain still continues after the logged throw');
+      expect(
+        lines.where((l) =>
+            l.contains('step lifecycle hook threw') && l.contains('boom')),
+        isNotEmpty,
+        reason: 'the hook failure must be logged, not swallowed',
+      );
+    });
   });
 
   group('skipStep policy (controller integration)', () {

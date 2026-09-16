@@ -254,6 +254,12 @@ class HintController implements HintActions {
     // value before 2.0) and there is no step to describe.
     if (tour.steps.isEmpty) return;
 
+    // Release: the busy assert above is stripped — return before typo
+    // classification, otherwise _withoutTypoSteps emits unknownTarget
+    // diagnostics for a tour that never starts and the seed loop below
+    // clobbers the running tour's registry diff.
+    if (!isIdle) return;
+
     final classification = classifyStepTargets(
       tour,
       {
@@ -516,9 +522,11 @@ class HintController implements HintActions {
       try {
         await hook();
       } catch (e, st) {
-        if (kDebugMode) {
-          debugPrint('hintful: step lifecycle hook threw: $e\n$st');
-        }
+        // Unconditional: CHANGELOG 1.0.0 promises a throwing hook is logged —
+        // release builds must not swallow failures of app-side analytics hooks.
+        // Not routed to HintDiagnosticsHandler: HintSkipReason is closed and a
+        // hook error is not a "step was not shown" event.
+        debugPrint('hintful: step lifecycle hook threw: $e\n$st');
       }
     }
     _hooksRunning = false;

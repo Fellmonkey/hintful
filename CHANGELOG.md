@@ -105,8 +105,13 @@
   **on finish** (skip does not record), out of the box. The documented
   "record via `startOnce` after the offer" composition was impossible
   (busy controller) and is gone. New parameter `markOnFinish` (default
-  `true`) restores the old hands-off behavior for apps with their own
-  recording policy.
+   `true`) restores the old hands-off behavior for apps with their own
+   recording policy.
+- **Honest diagnostics:** a busy `start` in release now no-ops *before*
+  typo classification — it no longer emits `unknownTarget` skip events for
+  a tour that never ran, nor clobbers the running tour's registry diff;
+  and a throwing `onStepEnter`/`onStepExit` hook is logged unconditionally
+  (was debug-only), honoring the "a throwing hook is logged" contract.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 
