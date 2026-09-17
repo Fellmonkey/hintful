@@ -105,6 +105,13 @@ void main() {
       );
       expect(diag.events.single.tourId, 't');
       expect(diag.events.single.targetId, 'stats');
+
+      // A persistent condition must report once per tour (host lifetime):
+      // a second state change used to emit another overlayUnavailable event.
+      host.update(HintActive(tour: tour, stepIndex: 0));
+      host.update(HintWaiting(tour: tour, stepIndex: 0));
+
+      expect(diag.events, hasLength(1));
     });
 
     testWidgets('start with a mounted target — immediately active step',

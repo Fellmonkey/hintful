@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -93,6 +94,7 @@ class HintOverlayEngine implements HintOverlayHost {
   OverlayEntry? _entry;
   HintState? _pendingState;
   bool _disposed = false;
+  bool _overlayUnavailableReported = false;
 
   @override
   void update(HintState state) {
@@ -148,6 +150,11 @@ class HintOverlayEngine implements HintOverlayHost {
   }
 
   void _reportOverlayUnavailable() {
+    // Once per host (the host lives for one tour): a persistent
+    // condition must not double-count in consumer analytics — every
+    // waiting→timeout or step change used to emit another full event.
+    if (_overlayUnavailableReported) return;
+    _overlayUnavailableReported = true;
     final state = _pendingState;
     final stepIndex = state?.stepIndex ?? 0;
     final targetId = switch (state) {
@@ -526,7 +533,16 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       }
       Scrollable.ensureVisible(ctx,
           duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
-    } catch (_) {}
+    } catch (e) {
+      // The no-scrollable case is handled above (Scrollable.maybeOf);
+      // anything reaching here is a real failure (e.g. a detached render
+      // object mid-animation) and must stay diagnosable — debug only, this
+      // is a dev aid, not a shipped contract.
+      if (kDebugMode) {
+        debugPrint('hintful: autoScroll failed for target '
+            '${widget.step.targetId}: $e');
+      }
+    }
   }
 
   /// The primary hole's top-left, published to the tooltip placement

@@ -112,6 +112,11 @@
   a tour that never ran, nor clobbers the running tour's registry diff;
   and a throwing `onStepEnter`/`onStepExit` hook is logged unconditionally
   (was debug-only), honoring the "a throwing hook is logged" contract.
+- **One `overlayUnavailable` per tour:** a persistent "nowhere to draw"
+  condition now reports a single skip event per tour (was: one per state
+  change) — consumer analytics no longer double-count it. Failures inside
+  the opt-in `autoScroll` path are logged in debug instead of being
+  swallowed by a blanket catch.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 
