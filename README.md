@@ -244,8 +244,8 @@ registry (`HintTargetRegistry`), machine states
 (`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
 (`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
 `DefaultTooltip`, `showHintTourOffer` + offer labels/result),
-`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore`/
-`compareVersions`) and tour factories (`HintTourFactory` et al.).
+`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore` +
+`HintStore.compareVersions`).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
@@ -255,15 +255,15 @@ server-driven tours (§19), testing (§20).
 
 ## Server-driven tours
 
-No extra dependency — `HintTour.fromJson/toJson` + `FetcherHintTourFactory` (bring your own `http`/`dio`):
+No extra dependency — `HintTour.fromJson`/`toJson` with your own HTTP client:
 ```dart
-final factory = FetcherHintTourFactory(
-  baseUrl: 'https://cdn.example.com/tours',
-  fetcher: (uri) async => (await http.get(uri)).body, // your client
-);
-final tour = await factory.fetch('onboarding');
+final body = await http.get(
+  Uri.parse('https://cdn.example.com/tours/onboarding'),
+); // your client — http, dio, HttpClient, …
+final tour = HintTour.fromJson(jsonDecode(body.body) as Map<String, dynamic>);
 await controller.start(tour);
 ```
+Keep a bundled fallback tour for the offline / failed-fetch case.
 
 The wire format carries copy, order, timing and layout of **known** targets —
 builders and callbacks stay in code, so a server cannot introduce a target that

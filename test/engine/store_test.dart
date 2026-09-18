@@ -4,23 +4,23 @@ import 'package:hintful/src/engine/store.dart';
 void main() {
   group('compareVersions', () {
     test('numeric segments', () {
-      expect(compareVersions('2.3.0', '2.3.1'), lessThan(0));
-      expect(compareVersions('2.3.1', '2.3.0'), greaterThan(0));
-      expect(compareVersions('2.3.0', '2.3.0'), 0);
+      expect(HintStore.compareVersions('2.3.0', '2.3.1'), lessThan(0));
+      expect(HintStore.compareVersions('2.3.1', '2.3.0'), greaterThan(0));
+      expect(HintStore.compareVersions('2.3.0', '2.3.0'), 0);
     });
 
     test('multi-digit segments compare numerically (2.10 > 2.9)', () {
-      expect(compareVersions('2.10.0', '2.9.0'), greaterThan(0));
+      expect(HintStore.compareVersions('2.10.0', '2.9.0'), greaterThan(0));
     });
 
     test('missing segments are zero (2.3 == 2.3.0)', () {
-      expect(compareVersions('2.3', '2.3.0'), 0);
-      expect(compareVersions('2', '2.0.0'), 0);
+      expect(HintStore.compareVersions('2.3', '2.3.0'), 0);
+      expect(HintStore.compareVersions('2', '2.0.0'), 0);
     });
 
     test('non-numeric segments compare lexically', () {
-      expect(compareVersions('1.0.0+1', '1.0.0+2'), lessThan(0));
-      expect(compareVersions('1.0.0', '1.0.0+1'), lessThan(0));
+      expect(HintStore.compareVersions('1.0.0+1', '1.0.0+2'), lessThan(0));
+      expect(HintStore.compareVersions('1.0.0', '1.0.0+1'), lessThan(0));
     });
   });
 

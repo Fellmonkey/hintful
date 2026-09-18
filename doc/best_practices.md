@@ -231,7 +231,7 @@ Key and version rules:
 
 - the key is yours; the hintful convention is `tour.id`, and renaming the tour starts its shown-history from zero;
 - the offer dialog keeps its own namespaced decline keys (`offer:<tourId>`, `offer:<tourId>@<pageId>`) — a decline does not suppress the tour from other entry points;
-- `minVersion` is the version the hint targets ("new in 1.2.0") and `compareVersions` orders `1.10.0 > 1.9.0` correctly; `clear()` is a debug/test tool — the production "show again" is a version bump.
+- `minVersion` is the version the hint targets ("new in 1.2.0") and `HintStore.compareVersions` orders `1.10.0 > 1.9.0` correctly; `clear()` is a debug/test tool — the production "show again" is a version bump.
 
 `InMemoryHintStore` ships in core: the right store for tests and the reference
 implementation of the rules above. A persistent store — `SharedPreferences`, a
@@ -535,19 +535,16 @@ difference is the diagnosis (`user-skipped` vs no diagnostic at all), so use
 
 ## 19. Server-driven tours — what JSON can and cannot carry
 
-`HintTour.fromJson`/`toJson` plus `FetcherHintTourFactory` (your own client, no
-HTTP dependency in the package) let a server reword, reorder and restyle a tour
-you already shipped:
+`HintTour.fromJson`/`toJson` (your own client, no HTTP dependency in the
+package) let a server reword, reorder and restyle a tour you already shipped:
 
 ```dart
-final factory = FetcherHintTourFactory(
-  baseUrl: 'https://cdn.example.com/tours',
-  fetcher: (uri) async => (await http.get(uri)).body,
-);
-
 HintTour tour;
 try {
-  tour = await factory.fetch('onboarding');
+  final body = await http.get(
+    Uri.parse('https://cdn.example.com/tours/onboarding'),
+  );
+  tour = HintTour.fromJson(jsonDecode(body.body) as Map<String, dynamic>);
 } catch (_) {
   tour = AppTours.onboarding(); // bundled fallback — never strand the user
 }
@@ -571,11 +568,11 @@ Practical rules:
 - treat the payload as untrusted: an unknown enum value (`position: "middle"`)
   falls back to the field's default and is reported (a debug print plus the
   `onWarning` callback on `HintTour.fromJson` / `HintStep.fromJson` /
-  `HintTooltip.fromJson` / `FetcherHintTourFactory`), and an unknown `targetId`
+  `HintTooltip.fromJson`), and an unknown `targetId`
   is a typo assert in debug / a skipped step in release;
 - always keep a bundled fallback — never strand the user on a failed fetch.
 
-`InMemoryHintTourFactory` is the same interface for tests and previews.
+For tests and previews, build the tour in Dart (or `HintTour.fromJson(fixture)`).
 
 ---
 

@@ -51,9 +51,9 @@ void main() {
     const targetTap = HintTapBehavior.ignore();
     const overlayTap = HintTapBehavior.advance();
     final customTap = HintTapBehavior.custom((ctx, details) {});
-    expect(targetTap, isA<HintTapIgnore>());
-    expect(overlayTap, isA<HintTapAdvance>());
-    expect(customTap, isA<HintTapCustom>());
+    expect(targetTap, const HintTapBehavior.ignore());
+    expect(overlayTap, const HintTapBehavior.advance());
+    expect(customTap, isA<HintTapBehavior>()); // custom carries a closure
 
     // Registry + controller (headless: no overlay host).
     final registry = HintTargetRegistry();
@@ -124,17 +124,12 @@ void main() {
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
     store.markShown('intro', '1.0.0');
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
-    expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
+    expect(HintStore.compareVersions('1.10.0', '1.9.0'), greaterThan(0));
     expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
 
-    // Server-driven tours — one interface, two implementations.
-    final HintTourFactory inMemory = InMemoryHintTourFactory({'intro': tour});
-    expect(await inMemory.fetch('intro'), same(tour));
-    final FetcherHintTourFactory fetcher = FetcherHintTourFactory(
-      baseUrl: 'https://cdn.example.com/tours',
-      fetcher: (uri) async => '{}',
-    );
-    expect(fetcher, isA<HintTourFactory>());
+    // Server-driven tours — fromJson + toJson round-trip (bring your own HTTP).
+    final wireTour = HintTour.fromJson(richTour.toJson());
+    expect(wireTour.id, richTour.id);
 
     // Offer dialog — labels and result types (the call itself needs a context).
     expect(const HintTourOfferLabels().acceptLabel, 'Start');

@@ -132,10 +132,10 @@ class HintController implements HintActions {
     _init();
   }
 
-  /// Test-only seam: inject a custom [HintOverlayHost] without going through
-  /// the public constructor (the render contract is deliberately not part of
-  /// the public API — see the barrel).
-  @visibleForTesting
+  /// Implementation seam for engine tests — not part of the public
+  /// contract; use `headless:` + registry instead. Injects a custom
+  /// [HintOverlayHost] without going through the public constructor.
+  @internal
   HintController.withHost(
     HintOverlayHost Function(HintController) host, {
     HintTargetRegistry? registry,

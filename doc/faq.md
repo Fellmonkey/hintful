@@ -167,11 +167,10 @@ More: [best practices §20](best_practices.md#20-testing--headless-first).
 Yes, with no HTTP dependency added to the package:
 
 ```dart
-final factory = FetcherHintTourFactory(
-  baseUrl: 'https://cdn.example.com/tours',
-  fetcher: (uri) async => (await http.get(uri)).body, // your client
-);
-final tour = await factory.fetch('onboarding');
+final body = await http.get(
+  Uri.parse('https://cdn.example.com/tours/onboarding'),
+); // your client — http, dio, HttpClient, …
+final tour = HintTour.fromJson(jsonDecode(body.body) as Map<String, dynamic>);
 ```
 
 The payload can reword, reorder, retime and restyle a tour. It **cannot** carry

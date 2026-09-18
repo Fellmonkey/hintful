@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, internal, kDebugMode;
 import 'package:flutter/widgets.dart';
 
 /// Preferred side of the tooltip relative to its target.
@@ -170,16 +170,28 @@ sealed class HintTapBehavior {
 }
 
 /// Tap in the region advances the tour (the historical default).
+///
+/// Engine-internal variant — construct through
+/// [HintTapBehavior.advance].
+@internal
 final class HintTapAdvance extends HintTapBehavior {
   const HintTapAdvance();
 }
 
 /// Tap in the region is ignored.
+///
+/// Engine-internal variant — construct through
+/// [HintTapBehavior.ignore].
+@internal
 final class HintTapIgnore extends HintTapBehavior {
   const HintTapIgnore();
 }
 
 /// Tap in the region runs a custom handler instead of advancing.
+///
+/// Engine-internal variant — construct through
+/// [HintTapBehavior.custom].
+@internal
 final class HintTapCustom extends HintTapBehavior {
   const HintTapCustom(this.onTap);
 
@@ -387,6 +399,10 @@ class HintStep {
           },
       };
 
+  /// Parses a step payload.
+  ///
+  /// Throws [FormatException] when `targetId` is missing or empty — treat
+  /// the payload as untrusted and keep a bundled fallback tour.
   factory HintStep.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -624,6 +640,12 @@ class HintTour {
         if (autoScroll) 'autoScroll': true,
       };
 
+  /// Parses a tour payload.
+  ///
+  /// Throws [FormatException] when the payload is structurally invalid
+  /// (missing/empty `id`, `steps`, or a step's `targetId`) — keep a bundled
+  /// fallback tour for that case. Unknown enum names fall back to their
+  /// defaults (reported through [onWarning]).
   factory HintTour.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,

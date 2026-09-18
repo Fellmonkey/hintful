@@ -20,7 +20,7 @@ class SharedPrefsHintStore implements HintStore {
     final last = _prefs.getString(_prefix + key);
     if (last == null) return true;
     if (minVersion == null) return false;
-    return compareVersions(last, minVersion) < 0;
+    return HintStore.compareVersions(last, minVersion) < 0;
   }
 
   @override

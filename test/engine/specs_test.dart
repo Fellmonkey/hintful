@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/specs.dart';
@@ -155,20 +157,20 @@ void main() {
 
       expect(
         restored.steps[0].targetTap,
-        isA<HintTapIgnore>(),
+        const HintTapBehavior.ignore(),
       );
       expect(
         restored.steps[0].overlayTap,
-        isA<HintTapAdvance>(),
+        const HintTapBehavior.advance(),
       );
       // Absent keys default to advance (the historical default).
       expect(
         restored.steps[1].targetTap,
-        isA<HintTapAdvance>(),
+        const HintTapBehavior.advance(),
       );
       expect(
         restored.steps[1].overlayTap,
-        isA<HintTapAdvance>(),
+        const HintTapBehavior.advance(),
       );
 
       // Round-trip keeps the historical bool keys (same wire shape).
@@ -322,6 +324,117 @@ void main() {
       expect(step.transitionDuration, const Duration(milliseconds: 123));
       expect(step.transitionCurve, HintCurve.sprung);
       expect(restored.autoScroll, isTrue);
+    });
+  });
+
+  group('HintTour JSON round-trip', () {
+    test('toJson/fromJson preserves id, steps, timeout, disableBackButton', () {
+      final tour = HintTour(
+        id: 'server',
+        steps: [
+          HintStep(
+              targetId: 'a',
+              title: 'Hello',
+              description: 'World',
+              position: TooltipPosition.bottom),
+          HintStep(
+            targetId: 'b',
+            title: 'Second',
+            moreTargets: ['c'],
+            moreTooltips: [
+              HintTooltip(position: TooltipPosition.top, title: 'Extra')
+            ],
+            position: TooltipPosition.top,
+            waitTimeout: const Duration(milliseconds: 500),
+            showSkip: false,
+          ),
+        ],
+        stepTimeout: const Duration(seconds: 5),
+        disableBackButton: true,
+      );
+      final json = tour.toJson();
+      final back = HintTour.fromJson(json);
+      expect(back.id, tour.id);
+      expect(back.steps.length, tour.steps.length);
+      expect(back.steps[0].targetId, 'a');
+      expect(back.steps[0].title, 'Hello');
+      expect(back.steps[0].position, TooltipPosition.bottom);
+      expect(back.steps[1].moreTargets, ['c']);
+      expect(back.steps[1].moreTooltips.first.position, TooltipPosition.top);
+      expect(back.steps[1].waitTimeout, const Duration(milliseconds: 500));
+      expect(back.steps[1].showSkip, false);
+      expect(back.stepTimeout, const Duration(seconds: 5));
+      expect(back.disableBackButton, true);
+      // json string round-trip
+      final s = jsonEncode(json);
+      final back2 = HintTour.fromJson(jsonDecode(s) as Map<String, dynamic>);
+      expect(back2.id, 'server');
+    });
+
+    test('HintTooltip toJson/fromJson', () {
+      final t = HintTooltip(
+          position: TooltipPosition.left, title: 'T', description: 'D');
+      final back = HintTooltip.fromJson(t.toJson());
+      expect(back.position, TooltipPosition.left);
+      expect(back.title, 'T');
+    });
+  });
+
+  group('unknown payload values fall back instead of throwing', () {
+    test('every enum field falls back to its default and warns', () {
+      final warnings = <String>[];
+      final tour = HintTour.fromJson(
+        {
+          'id': 'server',
+          'missingTargetPolicy': 'explode',
+          'steps': [
+            {
+              'targetId': 'a',
+              'title': 'Hello',
+              'position': 'middle',
+              'focusShape': 'hexagon',
+              'transitionCurve': 'wobble',
+              'missingTargetPolicy': 'explode-too',
+              'moreTooltips': [
+                {'position': 'sideways', 'title': 'Extra'},
+              ],
+            },
+          ],
+        },
+        onWarning: warnings.add,
+      );
+
+      final step = tour.steps.single;
+      expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
+      expect(step.position, TooltipPosition.auto);
+      expect(step.focusShape, isNull); // unknown → inherit the target's
+      expect(step.transitionCurve, isNull); // unknown → no entry animation
+      expect(step.missingTargetPolicy, isNull); // unknown → inherit the tour's
+      expect(step.moreTooltips.single.position, TooltipPosition.auto);
+      expect(step.moreTooltips.single.title, 'Extra'); // the rest survives
+      expect(warnings, hasLength(6));
+      expect(warnings.every((w) => w.startsWith('hintful: unknown ')), isTrue);
+      // The order follows argument evaluation — assert membership, not order.
+      expect(warnings.any((w) => w.contains("missingTargetPolicy 'explode'")),
+          isTrue);
+      expect(
+          warnings.any((w) => w.contains("transitionCurve 'wobble'")), isTrue);
+    });
+
+    test('an absent field is not a warning', () {
+      final warnings = <String>[];
+      final tour = HintTour.fromJson(
+        {
+          'id': 'minimal',
+          'steps': [
+            {'targetId': 'a', 'title': 'A'},
+          ],
+        },
+        onWarning: warnings.add,
+      );
+      expect(tour.steps.single.position, TooltipPosition.auto);
+      expect(tour.steps.single.transitionCurve, isNull);
+      expect(warnings, isEmpty);
     });
   });
 }

@@ -4,7 +4,8 @@
 /// surface is exported:
 ///
 /// - tour data contracts ([HintStep], [HintTour]) — widget-free, serializable
-///   1-to-1 to JSON (server-driven tours via `fromJson`);
+///   1-to-1 to JSON ([HintTour.fromJson] / [HintTour.toJson] — bring your
+///   own HTTP client);
 /// - target registry ([HintTargetRegistry]) — the "no GlobalKey" model
 ///   (the register-path and [HintTargetRegistration] are internal — drive
 ///   targets through [HintTarget]);
@@ -21,7 +22,7 @@
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [compareVersions]) — the "show once per app version" service.
+///   [HintStore.compareVersions]) — the "show once per app version" service.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, position value types
@@ -56,19 +57,13 @@ export 'src/engine/specs.dart'
         HintMissingTargetPolicy,
         HintStep,
         HintStepContent,
-        HintTapAdvance,
         HintTapBehavior,
-        HintTapCustom,
-        HintTapIgnore,
         HintTooltip,
         HintTooltipContext,
         HintTour,
         TooltipPosition;
-export 'src/engine/store.dart'
-    show HintStore, InMemoryHintStore, compareVersions;
+export 'src/engine/store.dart' show HintStore, InMemoryHintStore;
 export 'src/engine/theme/hint_theme.dart' show HintTheme, HintThemeX;
-export 'src/engine/tour_factory.dart'
-    show FetcherHintTourFactory, HintTourFactory, InMemoryHintTourFactory;
 export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
 export 'src/widgets/hint_target.dart' show HintTarget;
 export 'src/widgets/hint_target_ext.dart' show HintTargetX;

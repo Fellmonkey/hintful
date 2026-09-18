@@ -12,7 +12,7 @@
   `HintPositionResolver` leave the public barrel. The constructor's
   `overlayHostBuilder:` parameter is replaced by the narrow
   `overlay: OverlayState? Function()?` provider (zero-target `targetRect`
-  tours); test seams use `@visibleForTesting HintController.withHost`.
+  tours); test seams use `@internal HintController.withHost`.
 - **Register-path is internal:** **Breaking** — `HintTargetRegistration` and
   `register`/`unregister`/`lookup` leave the barrel (an internal extension).
   Drive targets through `HintTarget`; the public registry exposes
@@ -90,9 +90,10 @@
   (`ValueListenable<HintState>`) in your app; see README/`doc/`.
 - **Explicit barrel `show` lists:** every export names its symbols — a new
   public class in an existing file can no longer leak into the API by
-  accident. `HintStepContent`, `HintTapBehavior` (+ subclasses) and
-  `HintSkipEvent` are in; render internals, the register-path, diagnostics
-  helpers and `kHintFocusPadding` are out.
+  accident. `HintStepContent`, `HintTapBehavior` (the `advance()` /
+  `ignore()` / `custom()` factories — the concrete subclasses are internal)
+  and `HintSkipEvent` are in; render internals, the register-path,
+  diagnostics helpers and `kHintFocusPadding` are out.
 - **Structural JSON validation:** `HintTour.fromJson`/`HintStep.fromJson`
   throw a `FormatException` (with the offending tour/step in the message)
   on missing or empty `id`/`steps`/`targetId` instead of a raw `TypeError`
@@ -117,6 +118,13 @@
   change) — consumer analytics no longer double-count it. Failures inside
   the opt-in `autoScroll` path are logged in debug instead of being
   swallowed by a blanket catch.
+- **Slimmer barrel:** **Breaking** — the factory trio (`HintTourFactory`,
+  `InMemoryHintTourFactory`, `FetcherHintTourFactory`) is removed; the
+  server-driven path is `HintTour.fromJson` + your HTTP client. Top-level
+  `compareVersions` moves to `HintStore.compareVersions`. The concrete tap
+  subclasses (`HintTapAdvance`/`HintTapIgnore`/`HintTapCustom`) and
+  `HintController.withHost` are internal — use the `HintTapBehavior.*`
+  factories and `headless:` + registry instead.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

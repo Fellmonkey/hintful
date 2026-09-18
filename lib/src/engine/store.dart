@@ -23,7 +23,20 @@ import 'dart:math' as math;
 /// Typical use: [HintController.startOnce] (`shouldShow` → start →
 /// `markShown` on finish), or the manual gate `shouldShow` before start +
 /// `markShown` on the exit you choose.
+///
+/// Version ordering lives on the class: [HintStore.compareVersions] is the
+/// shared dotted-version comparator (reusable by app-side stores).
 abstract class HintStore {
+  /// Compare dotted versions (`"2.3.0"` vs `"2.10.0"`) segment-wise,
+  /// numerically; missing segments count as `"0"` (`"2.3"` == `"2.3.0"`);
+  /// non-numeric segments (build labels etc.) compare lexically — plain
+  /// semver-prerelease ordering (`2.0.0-dev` < `2.0.0`) is intentionally out
+  /// of scope. Returns negative/zero/positive.
+  ///
+  /// Shared by [shouldShow] implementations; kept public so app-side
+  /// stores can reuse it.
+  static int compareVersions(String a, String b) => _compareVersions(a, b);
+
   /// Whether the hint should show (see class doc). [minVersion] — the app
   /// version the hint targets; null — "show once ever".
   bool shouldShow(String key, {String? minVersion});
@@ -36,12 +49,7 @@ abstract class HintStore {
   void clear();
 }
 
-/// Compare dotted versions (`"2.3.0"` vs `"2.10.0"`) segment-wise,
-/// numerically; missing segments count as `"0"` (`"2.3"` == `"2.3.0"`);
-/// non-numeric segments (build labels etc.) compare lexically — plain
-/// semver-prerelease ordering (`2.0.0-dev` < `2.0.0`) is intentionally out
-/// of scope. Returns negative/zero/positive.
-int compareVersions(String a, String b) {
+int _compareVersions(String a, String b) {
   final pa = a.split('.');
   final pb = b.split('.');
   final n = math.max(pa.length, pb.length);
@@ -69,7 +77,7 @@ class InMemoryHintStore implements HintStore {
     final last = _shown[key];
     if (last == null) return true;
     if (minVersion == null) return false;
-    return compareVersions(last, minVersion) < 0;
+    return _compareVersions(last, minVersion) < 0;
   }
 
   @override
