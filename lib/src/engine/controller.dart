@@ -303,11 +303,13 @@ class HintController implements HintActions {
   /// [HintStore.markShown] **on finish** (normal completion).
   ///
   /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
+  ///   the version gate comes from [HintTour.minShowVersion];
   /// - started → arms a one-shot mark for `tour.id`; when that tour emits
   ///   [FinishedEffect] (Done / last step), `store.markShown` runs once;
   /// - **skip / timeout / abort do not mark** — the tour may show again
   ///   (pair with a short timeout if that is undesirable);
-  /// - [version] is what gets recorded; defaults to `minVersion ?? 'true'`
+  /// - [version] is what gets recorded; defaults to
+  ///   `tour.minShowVersion ?? 'true'`
   ///   (same convention as the offer dialog's decline keys).
   ///
   /// Prefer this over hand-rolled `shouldShow` + listener glue when the
@@ -315,12 +317,13 @@ class HintController implements HintActions {
   Future<bool> startOnce(
     HintTour tour, {
     required HintStore store,
-    String? minVersion,
     String? version,
   }) async {
-    if (!store.shouldShow(tour.id, minVersion: minVersion)) return false;
+    if (!store.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
+      return false;
+    }
     if (!isIdle) return false;
-    final record = version ?? minVersion ?? 'true';
+    final record = version ?? tour.minShowVersion ?? 'true';
     _pendingOnce = (tourId: tour.id, store: store, version: record);
     await start(tour);
     if (isIdle) {

@@ -133,7 +133,7 @@ enum OfferStep { fab, filters }
 /// value breaks the build, so the tour can never silently drift from the
 /// enum. Used by the "Offer tour" demo, which first asks "Want a tour?"
 /// (see `showHintTourOffer`).
-HintTour offerTour() => HintTour.fromEnum(
+HintTour offerTour({String? minShowVersion}) => HintTour.fromEnum(
       id: 'offer',
       values: OfferStep.values,
       stepFor: (step) => switch (step) {
@@ -149,6 +149,7 @@ HintTour offerTour() => HintTour.fromEnum(
             description: 'Declared order of the enum = order of the steps.',
           ),
       },
+      minShowVersion: minShowVersion,
     );
 
 /// New 51-feature demos — Visual demos card.
@@ -182,7 +183,7 @@ HintTour rectTargetTour() => HintTour(
 
 HintTour sprungTour() => HintTour(
       id: 'feat-sprung',
-      steps: [HintStep(targetId: 'fab', title: 'Sprung', description: 'Sprung curve — bouncy', transitionCurve: HintCurve.sprung, transitionDuration: const Duration(milliseconds: 350))],
+      steps: [HintStep(targetId: 'fab', title: 'Sprung', description: 'Sprung curve — bouncy', transition: HintEntryAnimation.sprung, transitionDuration: const Duration(milliseconds: 350))],
     );
 
 HintTour hooksTour(void Function(String m) notify) => HintTour(

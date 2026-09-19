@@ -208,6 +208,7 @@ void main() {
         disableBackButton: true,
         stepTimeout: const Duration(seconds: 7),
         missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+        minShowVersion: '1.2.0',
         steps: const [
           HintStep(targetId: 'a', title: 'A'),
           HintStep(targetId: 'b', title: 'B'),
@@ -224,8 +225,35 @@ void main() {
         filtered.missingTargetPolicy,
         HintMissingTargetPolicy.skipStep,
       );
+      expect(filtered.minShowVersion, '1.2.0');
       expect(filtered.steps, hasLength(1));
       expect(filtered.steps.single.targetId, 'a');
+    });
+  });
+
+  group('minShowVersion', () {
+    test('survives toJson/fromJson', () {
+      final tour = HintTour(
+        id: 't',
+        minShowVersion: '1.2.0',
+        steps: const [HintStep(targetId: 'a', title: 'A')],
+      );
+
+      final restored = HintTour.fromJson(tour.toJson());
+
+      expect(restored.minShowVersion, '1.2.0');
+    });
+
+    test('absent key stays null (old payloads)', () {
+      final restored = HintTour.fromJson({
+        'id': 't',
+        'steps': [
+          {'targetId': 'a', 'title': 'A'},
+        ],
+      });
+
+      expect(restored.minShowVersion, isNull);
+      expect(restored.toJson().containsKey('minShowVersion'), isFalse);
     });
   });
 
@@ -309,7 +337,7 @@ void main() {
             focusPadding: 8,
             autoScroll: true,
             transitionDuration: Duration(milliseconds: 123),
-            transitionCurve: HintCurve.sprung,
+            transition: HintEntryAnimation.sprung,
           ),
         ],
       );
@@ -322,7 +350,7 @@ void main() {
       expect(step.focusPadding, 8);
       expect(step.autoScroll, isTrue);
       expect(step.transitionDuration, const Duration(milliseconds: 123));
-      expect(step.transitionCurve, HintCurve.sprung);
+      expect(step.transition, HintEntryAnimation.sprung);
       expect(restored.autoScroll, isTrue);
     });
   });
@@ -345,7 +373,7 @@ void main() {
               HintTooltip(position: TooltipPosition.top, title: 'Extra')
             ],
             position: TooltipPosition.top,
-            waitTimeout: const Duration(milliseconds: 500),
+            stepTimeout: const Duration(milliseconds: 500),
             showSkip: false,
           ),
         ],
@@ -361,7 +389,7 @@ void main() {
       expect(back.steps[0].position, TooltipPosition.bottom);
       expect(back.steps[1].moreTargets, ['c']);
       expect(back.steps[1].moreTooltips.first.position, TooltipPosition.top);
-      expect(back.steps[1].waitTimeout, const Duration(milliseconds: 500));
+      expect(back.steps[1].stepTimeout, const Duration(milliseconds: 500));
       expect(back.steps[1].showSkip, false);
       expect(back.stepTimeout, const Duration(seconds: 5));
       expect(back.disableBackButton, true);
@@ -408,7 +436,7 @@ void main() {
       expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
       expect(step.position, TooltipPosition.auto);
       expect(step.focusShape, isNull); // unknown → inherit the target's
-      expect(step.transitionCurve, isNull); // unknown → no entry animation
+      expect(step.transition, isNull); // unknown → no entry animation
       expect(step.missingTargetPolicy, isNull); // unknown → inherit the tour's
       expect(step.moreTooltips.single.position, TooltipPosition.auto);
       expect(step.moreTooltips.single.title, 'Extra'); // the rest survives
@@ -433,7 +461,7 @@ void main() {
         onWarning: warnings.add,
       );
       expect(tour.steps.single.position, TooltipPosition.auto);
-      expect(tour.steps.single.transitionCurve, isNull);
+      expect(tour.steps.single.transition, isNull);
       expect(warnings, isEmpty);
     });
   });

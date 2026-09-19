@@ -264,7 +264,7 @@ void main() {
 
       // In the test body, not in addTearDown: the "no pending timers" check
       // runs before teardown callbacks, and waiting holds a Timer for
-      // waitTimeout.
+      // stepTimeout.
       controller.dispose();
     });
     testWidgets('previous: next → previous returns to the previous step',
@@ -504,9 +504,10 @@ void main() {
   });
 
   group('startOnce (show-once: mark only on finish)', () {
-    HintTour oneStep() => HintTour(
+    HintTour oneStep({String? minShowVersion}) => HintTour(
           id: 'intro',
           steps: const [HintStep(targetId: 'target0', title: 'A')],
+          minShowVersion: minShowVersion,
         );
 
     testWidgets('gate closed — false, stays idle, no mark', (tester) async {
@@ -517,9 +518,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isFalse,
       );
@@ -541,9 +541,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isTrue,
       );
@@ -570,9 +569,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isTrue,
       );
@@ -590,9 +588,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isTrue,
       );
@@ -617,9 +614,8 @@ void main() {
       expect(await controller.tryStart(_tour2()), isTrue);
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isFalse,
       );
@@ -646,9 +642,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.0.0'),
           store: store,
-          minVersion: '1.0.0',
         ),
         isTrue,
       );
@@ -676,9 +671,8 @@ void main() {
       ));
 
       await controller.startOnce(
-        oneStep(),
+        oneStep(minShowVersion: '1.0.0'),
         store: store,
-        minVersion: '1.0.0',
         version: '1.0.0',
       );
       controller.finish();
@@ -686,9 +680,8 @@ void main() {
 
       expect(
         await controller.startOnce(
-          oneStep(),
+          oneStep(minShowVersion: '1.1.0'),
           store: store,
-          minVersion: '1.1.0',
           version: '1.1.0',
         ),
         isTrue,
@@ -1036,7 +1029,7 @@ void main() {
           HintStep(
             targetId: 'target0',
             title: 'Missing',
-            waitTimeout: const Duration(milliseconds: 10),
+            stepTimeout: const Duration(milliseconds: 10),
           ),
           HintStep(targetId: 'target1', title: 'Present'),
         ],

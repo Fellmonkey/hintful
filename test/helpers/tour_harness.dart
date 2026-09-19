@@ -103,7 +103,7 @@ class TourHarness {
   }
 
   /// Release the controller inside a test body. Needed by tests that end in
-  /// a waiting state: it holds a Timer for waitTimeout, and the "no pending
+  /// a waiting state: it holds a Timer for stepTimeout, and the "no pending
   /// timers" check runs BEFORE teardown callbacks (same reason as in
   /// controller_test). Idempotent — a teardown call after [disposeNow] is
   /// safe.

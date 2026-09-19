@@ -53,7 +53,7 @@ export 'src/engine/specs.dart'
     show
         FocusShape,
         HintActions,
-        HintCurve,
+        HintEntryAnimation,
         HintMissingTargetPolicy,
         HintStep,
         HintStepContent,

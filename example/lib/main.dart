@@ -227,10 +227,9 @@ class _ExampleAppState extends State<ExampleApp> {
     showHintTourOffer(
       context: context,
       controller: _controller,
-      tour: offerTour(),
+      tour: offerTour(minShowVersion: _appVersion),
       store: store,
       pageId: 'HomePage',
-      minVersion: _appVersion,
     ).then((result) {
       if (result == HintTourOfferResult.started) {
         _activeTourId = 'offer'; // marked shown on exit — no re-offer

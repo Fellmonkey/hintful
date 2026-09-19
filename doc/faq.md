@@ -11,7 +11,7 @@ Check the debug log:
 [hintful] intro step 1 not shown: unknown-target (target 'statz') — closest: stats
 ```
 
-- **`timeout`** — the target never appeared within `stepTimeout` (default 3s). Check the `targetId` and that the widget is mounted. For conditional widgets, use `waitTimeout: Duration.zero` + `skipStep`.
+- **`timeout`** — the target never appeared within `stepTimeout` (default 3s). Check the `targetId` and that the widget is mounted. For conditional widgets, use `stepTimeout: Duration.zero` + `skipStep`.
 - **`unknown-target`** — typo. The log shows the closest `targetId`s.
 - **`user-skipped`** — the user tapped Skip or pressed Esc.
 - **`overlay-unavailable`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens on zero-target tours (`targetRect` only) — pass `overlay:` to `HintController`.
@@ -195,16 +195,15 @@ Offer it when the tour is optional and the screen has other jobs:
 await showHintTourOffer(
   context: context,
   controller: controller,
-  tour: AppTours.settings(),
+  tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
   store: store,
   pageId: 'settings',
-  minVersion: appVersion,
 );
 ```
 
-It skips the dialog when the tour already ran for `minVersion`, remembers a
-decline per page (or globally with the "Apply to all pages" checkbox), and
-counts a barrier dismissal as a decline. Accepting starts the tour and records
+It skips the dialog when the tour already ran for `tour.minShowVersion`,
+remembers a decline per page (or globally with the "Apply to all pages"
+checkbox), and counts a barrier dismissal as a decline. Accepting starts the tour and records
 the shown-state **on finish** (skip does not record — the tour may offer
 again). Pass `markOnFinish: false` if you want to record it yourself under a
 different policy — see [best practices §6](best_practices.md#6-once-per-version--hintstore).

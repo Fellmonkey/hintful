@@ -178,7 +178,7 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
 - Missing targets: `HintMissingTargetPolicy.skipStep` (tour default or per-step)
   skips an absent target with a `timeout` diagnosis and continues the tour;
-  short/`Duration.zero` `waitTimeout` for conditionally-absent targets
+  short/`Duration.zero` per-step `stepTimeout` for conditionally-absent targets
 - Scoped controllers: `scopePrefix` isolates tabs/split-view sharing one
   registry (foreign ids neither activate steps nor false-fire typo candidates)
 - `disableBackButton` owns the Android back button while a tour is active;
@@ -201,7 +201,7 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
   shrink), static rect spotlights (`targetRect` — no widget needed), and
   scroll-into-view: an offscreen target is brought on screen with its step
 - Entry animation in three rungs: none by default; the `easeOut` quiet fade
-  (200 ms) or the `sprung` bounce (800 ms) per step via `transitionCurve`
+  (200 ms) or the `sprung` bounce (800 ms) per step via `transition`
   (+ `transitionDuration`); anything custom through `tooltipBuilder` (the
   engine still places it) — all skipped under the system reduce-motion
   setting, and `hintTransitionDuration` is the shared helper for your own
@@ -214,8 +214,8 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - Enum-typed tours: `HintTour.fromEnum` — the exhaustive `stepFor` switch
   makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
-  `startOnce(tour, store:, minVersion:)` (marks on finish) or
-  `shouldShow`/`markShown` by hand
+  `startOnce(tour, store:, version:)` (marks on finish; the version gate
+  lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by hand
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   declines persist per page or globally, an accepted tour is recorded on
   finish (opt-out `markOnFinish: false`), the tour stays reachable from
@@ -237,7 +237,7 @@ The only supported import is `package:hintful/hintful.dart`. Deep imports
 the API — implementation lives under `lib/src/` and is reachable only through
 this barrel (explicit `show` lists). The exported surface: tour data
 (`HintStep`/`HintTour`/`HintTooltip`/`HintStepContent`/`HintTapBehavior` +
-`TooltipPosition`/`FocusShape`/`HintCurve`/`HintMissingTargetPolicy`),
+`TooltipPosition`/`FocusShape`/`HintEntryAnimation`/`HintMissingTargetPolicy`),
 registry (`HintTargetRegistry`), machine states
 (`HintState`/`HintIdle`/`HintWaiting`/`HintActive`), controller
 (`HintController`, `HintActions`, `HintTooltipContext`), diagnostics

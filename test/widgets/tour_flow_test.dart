@@ -197,7 +197,7 @@ void main() {
         HintWaiting(tour: tour, stepIndex: 1),
         reason: 'the next step (not an abort/skip)',
       );
-      // The test ends in waiting: the waitTimeout timer is still pending at
+      // The test ends in waiting: the stepTimeout timer is still pending at
       // the invariant check (before teardown) — release in the body.
       h.disposeNow();
     });
@@ -441,7 +441,7 @@ void main() {
           HintStep(
             targetId: 'stats',
             title: 'Statistics',
-            transitionCurve: HintCurve.sprung,
+            transition: HintEntryAnimation.sprung,
           ),
         ],
       );
@@ -466,7 +466,7 @@ void main() {
           HintStep(
             targetId: 'stats',
             title: 'Statistics',
-            transitionCurve: HintCurve.easeOut,
+            transition: HintEntryAnimation.easeOut,
           ),
         ],
       );

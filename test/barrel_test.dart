@@ -35,7 +35,7 @@ void main() {
     expect(restored.steps.single.moreTooltips.single.position,
         TooltipPosition.left);
     expect(FocusShape.values, contains(FocusShape.circle));
-    expect(HintCurve.values, contains(HintCurve.sprung));
+    expect(HintEntryAnimation.values, contains(HintEntryAnimation.sprung));
 
     // Content slot type + tap behaviors (1.0 merge of overlapping knobs).
     const content = HintStepContent(title: 'T', description: 'D');

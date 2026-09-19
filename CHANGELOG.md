@@ -55,14 +55,16 @@
   JSON wire keeps the flat `title`/`description` keys. The XOR assert
   (`content:` vs sugar) disappears with the parameter.
 - **`startOnce` — show-once from the box:** `HintController.startOnce(tour,
-  store:, minVersion:, version:)` runs `shouldShow` → `start` →
+  store:, version:)` runs `shouldShow` → `start` →
   `markShown` **on finish only** (skip/timeout abort without marking — the
-  tour may show again). Replaces the hand-rolled gate + idle-listener glue.
+  tour may show again). The version gate comes from
+  `HintTour.minShowVersion` (new optional wire key). Replaces the
+  hand-rolled gate + idle-listener glue.
 - **Offer `pageId` is optional:** `showHintTourOffer(pageId:)` defaults to
   `tour.id` (per-page decline key `offer:<tourId>@<tourId>`). Explicit
   call sites are unchanged.
 - **Enums closed in 1.x:** dartdoc on `HintSkipReason`, `TooltipPosition`,
-  `FocusShape`, `HintCurve`, `HintMissingTargetPolicy` and
+  `FocusShape`, `HintEntryAnimation`, `HintMissingTargetPolicy` and
   `HintTourOfferResult` — no new values before 2.0; exhaustive app-side
   `switch`es are safe. (`HintSkipEvent` fields stay extensible.)
 - **Tap behaviors (`HintTapBehavior`):** **Breaking** — `tapOnTarget: bool` +
@@ -107,7 +109,9 @@
   "record via `startOnce` after the offer" composition was impossible
   (busy controller) and is gone. New parameter `markOnFinish` (default
    `true`) restores the old hands-off behavior for apps with their own
-   recording policy.
+   recording policy. The `minVersion:` parameter is gone — declare
+   `HintTour.minShowVersion` on the tour instead (both the offer gate and
+   `startOnce` read it).
 - **Honest diagnostics:** a busy `start` in release now no-ops *before*
   typo classification — it no longer emits `unknownTarget` skip events for
   a tour that never ran, nor clobbers the running tour's registry diff;
@@ -125,6 +129,13 @@
   subclasses (`HintTapAdvance`/`HintTapIgnore`/`HintTapCustom`) and
   `HintController.withHost` are internal — use the `HintTapBehavior.*`
   factories and `headless:` + registry instead.
+- **Naming freeze (pre-tag):** **Breaking** — `HintCurve` →
+  `HintEntryAnimation`, `HintStep.transitionCurve` → `transition`,
+  `HintStep.waitTimeout` → `stepTimeout` (symmetric with the tour-level
+  `stepTimeout`), `HintTooltip.position` now defaults to
+  `TooltipPosition.auto` (was required). JSON wire keys `transitionCurve`
+  / `waitTimeoutMs` and enum value names are unchanged — old payloads
+  keep parsing.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

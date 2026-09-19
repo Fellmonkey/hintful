@@ -22,9 +22,9 @@ enum FocusShape { rectangle, circle, roundedRect }
 /// ladder.
 ///
 /// - null — no entry animation: the tooltip simply appears (the default);
-/// - [HintCurve.easeOut] — the quiet preset: fade + a whisper of scale
+/// - [HintEntryAnimation.easeOut] — the quiet preset: fade + a whisper of scale
 ///   (0.96 → 1) on `Curves.easeOut`, 200 ms;
-/// - [HintCurve.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
+/// - [HintEntryAnimation.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
 ///   (the overshoot is the bounce), 800 ms.
 ///
 /// Each preset's length is overridable per step with
@@ -36,7 +36,7 @@ enum FocusShape { rectangle, circle, roundedRect }
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
-enum HintCurve { easeOut, sprung }
+enum HintEntryAnimation { easeOut, sprung }
 
 /// Actions available to a step's content (custom tooltips).
 ///
@@ -88,8 +88,8 @@ class HintTooltipContext {
 /// - [abortTour] (default) — the tour ends with a `timeout` diagnosis.
 /// - [skipStep] — the step is diagnosed and the tour continues with the next
 ///   one; skipping the last step finishes the tour. For conditionally-absent
-///   targets pair with a short `waitTimeout` (`Duration.zero` skips instantly,
-///   no waiting flash).
+///   targets pair with a short per-step `stepTimeout` (`Duration.zero` skips
+///   instantly, no waiting flash).
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
@@ -216,7 +216,7 @@ class HintStep {
     String Function(BuildContext)? titleBuilder,
     String Function(BuildContext)? descriptionBuilder,
     this.position = TooltipPosition.auto,
-    this.waitTimeout,
+    this.stepTimeout,
     this.showSkip = true,
     this.missingTargetPolicy,
     this.targetTap = const HintTapBehavior.advance(),
@@ -226,7 +226,7 @@ class HintStep {
     this.focusPadding,
     this.autoScroll,
     this.transitionDuration,
-    this.transitionCurve,
+    this.transition,
     this.targetRect,
     this.onStepEnter,
     this.onStepExit,
@@ -286,7 +286,7 @@ class HintStep {
   final TooltipPosition position;
 
   /// Wait-for-target timeout for this step; null — inherits [HintTour.stepTimeout].
-  final Duration? waitTimeout;
+  final Duration? stepTimeout;
 
   /// Whether the default tooltip shows a "Skip" button on this step.
   /// Ignored on the last step of a tour (and on a single-step tour/hint):
@@ -334,15 +334,16 @@ class HintStep {
   String? effectiveDescription(BuildContext context) =>
       content.effectiveDescription(context);
 
-  /// Entry-animation length for [transitionCurve]; null — the preset's own
-  /// default (200 ms for [HintCurve.easeOut], 800 ms for [HintCurve.sprung]).
+  /// Entry-animation length for [transition]; null — the preset's own
+  /// default (200 ms for [HintEntryAnimation.easeOut], 800 ms for
+  /// [HintEntryAnimation.sprung]).
   /// Ignored without a curve.
   final Duration? transitionDuration;
 
-  /// Entry-animation preset, see [HintCurve] (rung 2 of the animation
+  /// Entry-animation preset, see [HintEntryAnimation] (rung 2 of the animation
   /// ladder); null — no animation. Rung 3 (anything custom) is a
   /// [tooltipBuilder] with its own animation widgets.
-  final HintCurve? transitionCurve;
+  final HintEntryAnimation? transition;
   final Rect? targetRect;
 
   /// Lifecycle: fires once when this step first becomes active — the start
@@ -360,7 +361,7 @@ class HintStep {
   bool get hasRectTarget => targetRect != null;
 
   /// The step's timeout, honoring inheritance.
-  Duration resolveTimeout(Duration fallback) => waitTimeout ?? fallback;
+  Duration resolveTimeout(Duration fallback) => stepTimeout ?? fallback;
 
   /// The step's missing-target policy, honoring inheritance.
   HintMissingTargetPolicy resolveMissingPolicy(
@@ -376,7 +377,7 @@ class HintStep {
         if (content.title != null) 'title': content.title,
         if (content.description != null) 'description': content.description,
         'position': position.name,
-        if (waitTimeout != null) 'waitTimeoutMs': waitTimeout!.inMilliseconds,
+        if (stepTimeout != null) 'waitTimeoutMs': stepTimeout!.inMilliseconds,
         'showSkip': showSkip,
         if (missingTargetPolicy != null)
           'missingTargetPolicy': missingTargetPolicy!.name,
@@ -389,7 +390,7 @@ class HintStep {
         if (autoScroll != null) 'autoScroll': autoScroll,
         if (transitionDuration != null)
           'transitionDurationMs': transitionDuration!.inMilliseconds,
-        if (transitionCurve != null) 'transitionCurve': transitionCurve!.name,
+        if (transition != null) 'transitionCurve': transition!.name,
         if (targetRect != null)
           'targetRect': {
             'left': targetRect!.left,
@@ -428,7 +429,7 @@ class HintStep {
       position: _enumOrDefault(
           TooltipPosition.values, json['position'], TooltipPosition.auto,
           field: 'position', onWarning: onWarning),
-      waitTimeout: json['waitTimeoutMs'] == null
+      stepTimeout: json['waitTimeoutMs'] == null
           ? null
           : Duration(milliseconds: json['waitTimeoutMs'] as int),
       showSkip: json['showSkip'] as bool? ?? true,
@@ -448,7 +449,8 @@ class HintStep {
       transitionDuration: json['transitionDurationMs'] == null
           ? null
           : Duration(milliseconds: json['transitionDurationMs'] as int),
-      transitionCurve: _enumOrNull(HintCurve.values, json['transitionCurve'],
+      transition: _enumOrNull(HintEntryAnimation.values,
+          json['transitionCurve'],
           field: 'transitionCurve', onWarning: onWarning),
       targetRect: json['targetRect'] == null
           ? null
@@ -469,7 +471,7 @@ class HintStep {
 @immutable
 class HintTooltip {
   const HintTooltip({
-    required this.position,
+    this.position = TooltipPosition.auto,
     String? title,
     String? description,
     String Function(BuildContext)? titleBuilder,
@@ -558,6 +560,7 @@ class HintTour {
     this.disableBackButton = false,
     this.missingTargetPolicy = HintMissingTargetPolicy.abortTour,
     this.autoScroll = false,
+    this.minShowVersion,
   })  : assert(id != '', 'HintTour.id must not be empty'),
         assert(steps.length > 0, 'HintTour.steps must not be empty');
 
@@ -566,6 +569,12 @@ class HintTour {
 
   /// Default wait-for-target timeout for all steps of the tour.
   final Duration stepTimeout;
+
+  /// When set, the tour is gated by [HintStore.shouldShow] against this
+  /// version: it shows only if it was never shown or last shown before
+  /// `minShowVersion`. Read by [HintController.startOnce] and
+  /// `showHintTourOffer` — the one place to declare "targets version X".
+  final String? minShowVersion;
 
   /// Default missing-target policy for all steps ([HintStep.missingTargetPolicy]
   /// overrides per step): abort the tour, or show every step whose target
@@ -602,6 +611,7 @@ class HintTour {
     HintMissingTargetPolicy missingTargetPolicy =
         HintMissingTargetPolicy.abortTour,
     bool autoScroll = false,
+    String? minShowVersion,
   }) {
     return HintTour(
       id: id,
@@ -610,6 +620,7 @@ class HintTour {
       disableBackButton: disableBackButton,
       missingTargetPolicy: missingTargetPolicy,
       autoScroll: autoScroll,
+      minShowVersion: minShowVersion,
     );
   }
 
@@ -638,6 +649,7 @@ class HintTour {
         'disableBackButton': disableBackButton,
         'missingTargetPolicy': missingTargetPolicy.name,
         if (autoScroll) 'autoScroll': true,
+        if (minShowVersion != null) 'minShowVersion': minShowVersion,
       };
 
   /// Parses a tour payload.
@@ -677,6 +689,7 @@ class HintTour {
       missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
           json['missingTargetPolicy'], HintMissingTargetPolicy.abortTour,
           field: 'missingTargetPolicy', onWarning: onWarning),
+      minShowVersion: json['minShowVersion'] as String?,
     );
   }
 }
@@ -694,6 +707,7 @@ HintTour hintTourWithSteps(HintTour tour, List<HintStep> steps) => HintTour(
       disableBackButton: tour.disableBackButton,
       missingTargetPolicy: tour.missingTargetPolicy,
       autoScroll: tour.autoScroll,
+      minShowVersion: tour.minShowVersion,
     );
 
 /// Enum value from a JSON [name]: null when the field is absent, null + a

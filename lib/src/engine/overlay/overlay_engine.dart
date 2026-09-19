@@ -1250,17 +1250,17 @@ Widget _placedPrimaryTooltip({
 }
 
 /// Entry transition (`D5`/`22`) for a step's tooltip — rung 2 of the
-/// animation ladder, one arm per [HintCurve] preset:
+/// animation ladder, one arm per [HintEntryAnimation] preset:
 ///
-/// - [HintCurve.easeOut] — the quiet preset: a plain fade with a whisper of
+/// - [HintEntryAnimation.easeOut] — the quiet preset: a plain fade with a whisper of
 ///   scale (0.96 → 1) on `Curves.easeOut`;
-/// - [HintCurve.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
+/// - [HintEntryAnimation.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
 ///   (the overshoot is the bounce).
 ///
 /// Each preset has its own default length ([_presetDuration]), overridable per
 /// step with [HintStep.transitionDuration], and all of them are skipped
 /// (instant) under the system reduce-motion setting. Adding a preset is one
-/// [HintCurve] value, one arm here and its default in [_presetDuration];
+/// [HintEntryAnimation] value, one arm here and its default in [_presetDuration];
 /// anything richer stays rung 3 (`tooltipBuilder`).
 Widget _tooltipEntry({
   required BuildContext context,
@@ -1268,7 +1268,7 @@ Widget _tooltipEntry({
   required int stepIndex,
   required Widget child,
 }) {
-  final preset = step.transitionCurve;
+  final preset = step.transition;
   if (preset == null) return child; // rung 1: the tooltip simply appears
   final duration = hintTransitionDuration(
     MediaQuery.of(context),
@@ -1278,7 +1278,7 @@ Widget _tooltipEntry({
 
   final key = ValueKey('$stepIndex-${step.hashCode}');
   return switch (preset) {
-    HintCurve.easeOut => TweenAnimationBuilder<double>(
+    HintEntryAnimation.easeOut => TweenAnimationBuilder<double>(
         key: key,
         tween: Tween(begin: 0.0, end: 1.0),
         duration: duration,
@@ -1293,7 +1293,7 @@ Widget _tooltipEntry({
         ),
         child: child,
       ),
-    HintCurve.sprung => TweenAnimationBuilder<double>(
+    HintEntryAnimation.sprung => TweenAnimationBuilder<double>(
         key: key,
         tween: Tween(begin: 0.8, end: 1.0),
         duration: duration,
@@ -1310,9 +1310,9 @@ Widget _tooltipEntry({
 
 /// Default length of each preset — the preset's own timing, overridable per
 /// step with [HintStep.transitionDuration].
-Duration _presetDuration(HintCurve preset) => switch (preset) {
-      HintCurve.easeOut => const Duration(milliseconds: 200),
-      HintCurve.sprung => const Duration(milliseconds: 800),
+Duration _presetDuration(HintEntryAnimation preset) => switch (preset) {
+      HintEntryAnimation.easeOut => const Duration(milliseconds: 200),
+      HintEntryAnimation.sprung => const Duration(milliseconds: 800),
     };
 
 /// Rect-anchored step content ([HintStep.targetRect]): a static spotlight at

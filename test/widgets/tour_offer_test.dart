@@ -5,9 +5,10 @@ import 'package:hintful/src/engine/specs.dart';
 import 'package:hintful/src/engine/store.dart';
 import 'package:hintful/src/widgets/tour_offer.dart';
 
-HintTour _tour(String id) => HintTour(
+HintTour _tour(String id, {String? minShowVersion}) => HintTour(
       id: id,
       steps: [HintStep(targetId: 'x', title: 'X')],
+      minShowVersion: minShowVersion,
     );
 
 /// Rect-target tour: the headless machine enters HintActive immediately
@@ -72,7 +73,7 @@ void main() {
     final controller = HintController(headless: true);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
-    final tour = _tour('t');
+    final tour = _tour('t', minShowVersion: '1.0.0');
     store.markShown('t', '1.0.0');
 
     final result = showHintTourOffer(
@@ -81,7 +82,6 @@ void main() {
       tour: tour,
       store: store,
       pageId: 'Home',
-      minVersion: '1.0.0',
     );
     await _pumpDialog(tester);
 

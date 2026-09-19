@@ -52,9 +52,10 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// "Apply to all pages" checkbox — and start [tour] on accept.
 ///
 /// Two gates skip the dialog entirely (returns [HintTourOfferResult.declined]):
-/// the tour itself should not show ([HintStore.shouldShow] with [minVersion]
-/// — it already ran for this version), or the user declined before (for
-/// [pageId], or for all pages when they checked the checkbox).
+/// the tour itself should not show ([HintStore.shouldShow] with
+/// [HintTour.minShowVersion] — it already ran for this version), or the user
+/// declined before (for [pageId], or for all pages when they checked the
+/// checkbox).
 ///
 /// [pageId] identifies the screen this offer belongs to (per-page decline
 /// key); omitted — defaults to `tour.id` (single entry point per tour).
@@ -74,12 +75,11 @@ Future<HintTourOfferResult> showHintTourOffer({
   required HintTour tour,
   required HintStore store,
   String? pageId,
-  String? minVersion,
   bool markOnFinish = true,
   HintTourOfferLabels labels = const HintTourOfferLabels(),
 }) async {
   final page = pageId ?? tour.id;
-  if (!store.shouldShow(tour.id, minVersion: minVersion)) {
+  if (!store.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
     return HintTourOfferResult.declined; // already ran for this version
   }
   if (!store.shouldShow(_pageDeclineKey(tour.id, page)) ||
@@ -124,16 +124,16 @@ Future<HintTourOfferResult> showHintTourOffer({
 
   if (accepted ?? false) {
     if (markOnFinish) {
-      // startOnce: gate (already passed above) + start + markShown on
-      // finish only; skip/abort leaves the tour re-showable (§6).
-      // The gate above already ran, so a false return here means busy.
+      // startOnce: gate (already passed above, from tour.minShowVersion)
+      // + start + markShown on finish only; skip/abort leaves the tour
+      // re-showable (§6). The gate above already ran, so a false return
+      // here means busy.
       assert(
         controller.isIdle,
         'hintful: offer accepted while a tour is active — '
         'one tour at a time',
       );
-      final started = await controller.startOnce(tour,
-          store: store, minVersion: minVersion);
+      final started = await controller.startOnce(tour, store: store);
       return started
           ? HintTourOfferResult.started
           : HintTourOfferResult.declined;

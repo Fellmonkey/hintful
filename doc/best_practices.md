@@ -102,7 +102,7 @@ Add a value to `IntroStep` without updating `stepFor` → compile error, not a s
 `fromEnum` guards the step list; the rest of the tour contract is worth setting
 deliberately:
 
-- `stepTimeout` (default 3 s) — how long a step waits for its target; per-step `waitTimeout` and `missingTargetPolicy: skipStep` for targets that exist only sometimes (pair it with a short or `Duration.zero` timeout).
+- `stepTimeout` (default 3 s) — how long a step waits for its target; per-step `stepTimeout` and `missingTargetPolicy: skipStep` for targets that exist only sometimes (pair it with a short or `Duration.zero` timeout).
 - `disableBackButton` — the tour owns Android back while it runs.
 - `tour.id` is not decoration: it is the `HintStore` key and the id in every diagnostics line, so renaming a tour resets its "already shown" history.
 
@@ -191,10 +191,9 @@ if (!await controller.tryStart(tour)) return; // busy
 
 ```dart
 final started = await controller.startOnce(
-  intro,
+  AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
   store: store,
-  minVersion: appVersion, // re-show when the app version passes this
-  version: appVersion,    // what gets recorded (defaults to minVersion)
+  version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
 if (!started) return; // already shown for this version, or busy
 ```
@@ -383,7 +382,7 @@ a screenshot. What this mode is and is not:
 
 - it is **static** — no follower, no position watching: the hole does not follow scroll or layout changes, so the app must not move the content under it;
 - `moreTooltips` and the pulse ring are not rendered (they need live targets); the primary tooltip, the tail, `focusShape`/`focusPadding` and tap regions all work;
-- the step enters `Active` immediately — there is nothing to wait for, so `waitTimeout` and `missingTargetPolicy` are irrelevant here.
+- the step enters `Active` immediately — there is nothing to wait for, so `stepTimeout` and `missingTargetPolicy` are irrelevant here.
 
 Needs an explicit overlay provider when no targets are mounted — there is
 nothing to capture the root overlay from:
@@ -484,8 +483,8 @@ When to deviate:
 
 The animation ladder, from cheapest to richest:
 
-1. **none** (default): leave `transitionCurve` unset — the tooltip appears. Right for most product hints;
-2. **a preset**: `HintCurve.easeOut` — the quiet one (fade + scale 0.96 → 1, `easeOut`, 200 ms); `HintCurve.sprung` — the bounce (scale 0.8 → 1, `elasticOut`, 800 ms) for a step meant to delight. Both take `transitionDuration` as an override;
+1. **none** (default): leave `transition` unset — the tooltip appears. Right for most product hints;
+2. **a preset**: `HintEntryAnimation.easeOut` — the quiet one (fade + scale 0.96 → 1, `easeOut`, 200 ms); `HintEntryAnimation.sprung` — the bounce (scale 0.8 → 1, `elasticOut`, 800 ms) for a step meant to delight. Both take `transitionDuration` as an override;
 3. **your builder**: anything else lives in `tooltipBuilder` (§11).
 
 The duty: the engine honors the system reduce-motion setting for its presets, and
@@ -621,19 +620,18 @@ pages" checkbox that starts the tour on accept.
 final result = await showHintTourOffer(
   context: context,
   controller: controller,
-  tour: AppTours.settings(),
+  tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
   store: store,
   pageId: 'settings',     // the page this offer belongs to
-  minVersion: appVersion, // already ran this version → no dialog
   // markOnFinish: false, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),
 );
 ```
 
-What it handles for you: no dialog when the tour already ran for `minVersion`, a
-decline remembered per page (and globally when the checkbox is on) under
-namespaced keys, and a barrier dismissal counted as a decline — "not now" must
-not nag. Accepting runs `startOnce` for you: the shown-state is recorded
+What it handles for you: no dialog when the tour already ran for
+`tour.minShowVersion`, a decline remembered per page (and globally when the
+checkbox is on) under namespaced keys, and a barrier dismissal counted as a
+decline — "not now" must not nag. Accepting runs `startOnce` for you: the shown-state is recorded
 **on finish** (skip does not record — §6 semantics). Pass
 `markOnFinish: false` only when your policy differs (§6 listener pattern).
 

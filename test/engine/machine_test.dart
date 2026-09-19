@@ -341,7 +341,7 @@ void main() {
   });
 
   group('wait-for-target on every step', () {
-    test('per-step waitTimeout overrides the tour stepTimeout', () {
+    test('per-step stepTimeout overrides the tour stepTimeout', () {
       final tour = HintTour(
         id: 't',
         stepTimeout: const Duration(seconds: 3),
@@ -349,7 +349,7 @@ void main() {
           HintStep(
             targetId: 'a',
             title: 'A',
-            waitTimeout: const Duration(seconds: 7),
+            stepTimeout: const Duration(seconds: 7),
           ),
           HintStep(targetId: 'b', title: 'B'),
         ],
