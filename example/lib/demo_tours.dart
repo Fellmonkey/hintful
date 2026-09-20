@@ -156,17 +156,33 @@ HintTour offerTour({String? minShowVersion}) => HintTour.fromEnum(
 
 HintTour circleHoleTour() => HintTour(
       id: 'feat-circle',
-      steps: [HintStep(targetId: 'fab', title: 'Circle hole', focusShape: FocusShape.circle)],
+      steps: [
+        HintStep(
+            targetId: 'fab',
+            title: 'Circle hole',
+            focusShape: FocusShape.circle)
+      ],
     );
 
 HintTour roundedHoleTour() => HintTour(
       id: 'feat-rounded',
-      steps: [HintStep(targetId: 'filter-all', title: 'Rounded hole', focusShape: FocusShape.roundedRect)],
+      steps: [
+        HintStep(
+            targetId: 'filter-all',
+            title: 'Rounded hole',
+            focusShape: FocusShape.roundedRect)
+      ],
     );
 
 HintTour negativePaddingTour() => HintTour(
       id: 'feat-neg-pad',
-      steps: [HintStep(targetId: 'fab', title: 'Shrink', description: 'focusPadding -8', focusPadding: -8)],
+      steps: [
+        HintStep(
+            targetId: 'fab',
+            title: 'Shrink',
+            description: 'focusPadding -8',
+            focusPadding: -8)
+      ],
     );
 
 HintTour rectTargetTour() => HintTour(
@@ -183,7 +199,14 @@ HintTour rectTargetTour() => HintTour(
 
 HintTour sprungTour() => HintTour(
       id: 'feat-sprung',
-      steps: [HintStep(targetId: 'fab', title: 'Sprung', description: 'Sprung curve — bouncy', transition: HintEntryAnimation.sprung, transitionDuration: const Duration(milliseconds: 350))],
+      steps: [
+        HintStep(
+            targetId: 'fab',
+            title: 'Sprung',
+            description: 'Sprung curve — bouncy',
+            transition: HintEntryAnimation.sprung,
+            transitionDuration: const Duration(milliseconds: 350))
+      ],
     );
 
 HintTour hooksTour(void Function(String m) notify) => HintTour(
@@ -346,8 +369,14 @@ HintTour l10nTour(BuildContext context) => HintTour(
 HintTour autoScrollStepTour() => HintTour(
       id: 'feat-autoscroll-step',
       steps: [
-        HintStep(targetId: 'fab', title: 'No scroll', description: 'Already visible.'),
-        HintStep(targetId: 'entry-5', title: 'Scroll here', description: 'This step autoScrolls.', autoScroll: true),
+        HintStep(
+            targetId: 'fab',
+            title: 'No scroll',
+            description: 'Already visible.'),
+        HintStep(
+            targetId: 'entry-5',
+            title: 'Scroll here',
+            description: 'This step autoScrolls.',
+            autoScroll: true),
       ],
     );
-

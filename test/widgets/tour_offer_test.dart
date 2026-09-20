@@ -295,8 +295,7 @@ void main() {
           reason: 'skip must not record — the tour may show again');
     });
 
-    testWidgets('markOnFinish: false + finish → not marked',
-        (tester) async {
+    testWidgets('markOnFinish: false + finish → not marked', (tester) async {
       final store = InMemoryHintStore();
       final controller = HintController(headless: true);
       addTearDown(controller.dispose);

@@ -410,7 +410,8 @@ class _MotionNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(10),
@@ -423,7 +424,9 @@ class _MotionNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            reduceMotion ? Icons.motion_photos_off_outlined : Icons.motion_photos_on_outlined,
+            reduceMotion
+                ? Icons.motion_photos_off_outlined
+                : Icons.motion_photos_on_outlined,
             size: 18,
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -502,9 +505,3 @@ class _Stat extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-

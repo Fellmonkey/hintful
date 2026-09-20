@@ -59,7 +59,8 @@ void main() {
     for (final def in kDeviceMetricDefs) {
       for (final library in kLibraryRefs.keys) {
         final ref = kLibraryRefs[library]!;
-        final value = store.load(def.key, preferRefs: [ref], fallbackAny: false);
+        final value =
+            store.load(def.key, preferRefs: [ref], fallbackAny: false);
         expect(value, isNotNull,
             reason: '${def.key} (${def.label}) has no golden under ref $ref '
                 '($library column) — re-run that solution\'s device record.');

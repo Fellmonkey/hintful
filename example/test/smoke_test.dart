@@ -357,8 +357,7 @@ void main() {
     expect(find.text('Fade and rise'), findsNothing);
   });
 
-  testWidgets('json tour: parsed steps run like declared ones',
-      (tester) async {
+  testWidgets('json tour: parsed steps run like declared ones', (tester) async {
     await pumpApp(tester);
 
     await tester.ensureVisible(find.text('JSON'));

@@ -58,7 +58,9 @@ class TcmDriver implements LibraryDriver {
         }
         return row;
       },
-      wrapHome: withLibrary ? (home) => _ContextCapture(driver: this, child: home) : null,
+      wrapHome: withLibrary
+          ? (home) => _ContextCapture(driver: this, child: home)
+          : null,
     );
   }
 

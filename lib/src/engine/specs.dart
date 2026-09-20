@@ -449,8 +449,8 @@ class HintStep {
       transitionDuration: json['transitionDurationMs'] == null
           ? null
           : Duration(milliseconds: json['transitionDurationMs'] as int),
-      transition: _enumOrNull(HintEntryAnimation.values,
-          json['transitionCurve'],
+      transition: _enumOrNull(
+          HintEntryAnimation.values, json['transitionCurve'],
           field: 'transitionCurve', onWarning: onWarning),
       targetRect: json['targetRect'] == null
           ? null
