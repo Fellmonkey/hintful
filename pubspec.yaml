@@ -17,35 +17,6 @@ environment:
   # Verified against the git history of a local Flutter 3.47.0 checkout.
   sdk: '>=3.0.0 <4.0.0'
   flutter: '>=3.10.0'
-keywords:
-  - hint
-  - hints
-  - tips
-  - tooltip
-  - tooltips
-  - onboarding
-  - tour
-  - tours
-  - tutorial
-  - coach_marks
-  - coachmark
-  - walkthrough
-  - spotlight
-  - spotlight_tour
-  - guidance
-  - guide
-  - guided_tour
-  - interactive
-  - tutorial_overlay
-  - feature_discovery
-  - introduction
-  - step_by_step
-  - user_education
-  - user_onboarding
-  - focus
-  - overlay
-  - popup
-  - message
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
