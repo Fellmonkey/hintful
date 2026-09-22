@@ -301,6 +301,23 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
 - [`benchmark/README.md`](benchmark/README.md) — how the numbers under
   [Performance](#performance) are recorded.
 
+## Verifying
+
+For contributors and agents — the same commands CI runs:
+
+```bash
+# package root
+flutter pub get && flutter analyze && flutter test
+dart format --set-exit-if-changed .
+flutter pub publish --dry-run
+
+# example/
+flutter pub get && flutter analyze && flutter test
+
+# benchmark/
+flutter pub get && flutter analyze && flutter test bench/
+```
+
 MIT licensed.
 
 ---
