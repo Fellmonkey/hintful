@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/controller.dart';
+import 'package:hintful/src/engine/labels.dart';
 import 'package:hintful/src/engine/specs.dart';
 import 'package:hintful/src/engine/store.dart';
+import 'package:hintful/src/engine/theme/hint_theme.dart';
 import 'package:hintful/src/widgets/tour_offer.dart';
 
 HintTour _tour(String id, {String? minShowVersion}) => HintTour(
@@ -39,6 +41,80 @@ Future<void> _pumpDialog(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('labels default from HintTheme.tourOfferLabels', (tester) async {
+    final store = InMemoryHintStore();
+    final controller = HintController(headless: true);
+    addTearDown(controller.dispose);
+    const themed = HintTourOfferLabels(
+      title: 'Themed offer',
+      acceptLabel: 'Begin',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: [
+            HintTheme.minimal(ColorScheme.fromSeed(seedColor: Colors.teal))
+                .copyWith(tourOfferLabels: themed),
+          ],
+        ),
+        home: const Scaffold(body: SizedBox()),
+      ),
+    );
+    final context = tester.element(find.byType(Scaffold));
+
+    final result = showHintTourOffer(
+      context: context,
+      controller: controller,
+      tour: _tour('t'),
+      store: store,
+    );
+    await _pumpDialog(tester);
+
+    expect(find.text('Themed offer'), findsOneWidget);
+    expect(find.text('Begin'), findsOneWidget);
+    // The unset fields keep their defaults — the theme replaces wholesale.
+    expect(find.text('Later'), findsOneWidget);
+
+    await tester.tap(find.text('Later'));
+    await tester.pump();
+    expect(await result, HintTourOfferResult.declined);
+  });
+
+  testWidgets('explicit labels: override the theme', (tester) async {
+    final store = InMemoryHintStore();
+    final controller = HintController(headless: true);
+    addTearDown(controller.dispose);
+    const themed = HintTourOfferLabels(title: 'Themed offer');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: [
+            HintTheme.minimal(ColorScheme.fromSeed(seedColor: Colors.teal))
+                .copyWith(tourOfferLabels: themed),
+          ],
+        ),
+        home: const Scaffold(body: SizedBox()),
+      ),
+    );
+    final context = tester.element(find.byType(Scaffold));
+
+    final result = showHintTourOffer(
+      context: context,
+      controller: controller,
+      tour: _tour('t'),
+      store: store,
+      labels: const HintTourOfferLabels(title: 'Explicit offer'),
+    );
+    await _pumpDialog(tester);
+
+    expect(find.text('Explicit offer'), findsOneWidget);
+    expect(find.text('Themed offer'), findsNothing);
+
+    await tester.tap(find.text('Later'));
+    await tester.pump();
+    expect(await result, HintTourOfferResult.declined);
+  });
+
   testWidgets('accept starts the tour', (tester) async {
     final store = InMemoryHintStore();
     final controller = HintController(headless: true);

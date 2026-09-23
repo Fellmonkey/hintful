@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../engine/controller.dart';
+import '../engine/labels.dart';
 import '../engine/specs.dart';
 import '../engine/store.dart';
+import '../engine/theme/hint_theme.dart';
 
 /// What happened with the "Want a tour?" pre-dialog.
 ///
@@ -17,35 +19,6 @@ enum HintTourOfferResult {
   /// previous decline) or the user declined (the decline is remembered in
   /// the store).
   declined,
-}
-
-/// Localizable texts of the offer dialog. All fields have defaults — pass a
-/// const with overrides for a product's own wording/l10n.
-@immutable
-class HintTourOfferLabels {
-  /// Builds offer texts; omitted fields keep their English defaults.
-  const HintTourOfferLabels({
-    this.title = 'Want a tour?',
-    this.body = 'Take a quick tour of what is new.',
-    this.acceptLabel = 'Start',
-    this.skipLabel = 'Later',
-    this.applyToAllPagesLabel = 'Apply to all pages',
-  });
-
-  /// Dialog title (default — "Want a tour?").
-  final String title;
-
-  /// Dialog body text (default — "Take a quick tour of what is new.").
-  final String body;
-
-  /// Accept button label (default — "Start").
-  final String acceptLabel;
-
-  /// Decline button label (default — "Later").
-  final String skipLabel;
-
-  /// "Apply to all pages" checkbox label.
-  final String applyToAllPagesLabel;
 }
 
 /// The offer's decline keys are namespaced apart from the tour's own
@@ -79,6 +52,9 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// not record, the tour may show again (best practices §6). Pass
 /// `markOnFinish: false` to record the shown-state yourself (any other
 /// policy — see best practices §6).
+///
+/// [labels] overrides the dialog copy for this call; omitted — the design
+/// system's [HintTheme.tourOfferLabels].
 Future<HintTourOfferResult> showHintTourOffer({
   required BuildContext context,
   required HintController controller,
@@ -86,8 +62,9 @@ Future<HintTourOfferResult> showHintTourOffer({
   required HintStore store,
   String? pageId,
   bool markOnFinish = true,
-  HintTourOfferLabels labels = const HintTourOfferLabels(),
+  HintTourOfferLabels? labels,
 }) async {
+  final offerLabels = labels ?? Theme.of(context).hintTheme.tourOfferLabels;
   final page = pageId ?? tour.id;
   if (!store.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
     return HintTourOfferResult.declined; // already ran for this version
@@ -102,17 +79,17 @@ Future<HintTourOfferResult> showHintTourOffer({
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: Text(labels.title),
+        title: Text(offerLabels.title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(labels.body),
+            Text(offerLabels.body),
             CheckboxListTile(
               value: applyToAllPages,
               onChanged: (value) =>
                   setState(() => applyToAllPages = value ?? false),
-              title: Text(labels.applyToAllPagesLabel),
+              title: Text(offerLabels.applyToAllPagesLabel),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
@@ -121,11 +98,11 @@ Future<HintTourOfferResult> showHintTourOffer({
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(labels.skipLabel),
+            child: Text(offerLabels.skipLabel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(labels.acceptLabel),
+            child: Text(offerLabels.acceptLabel),
           ),
         ],
       ),

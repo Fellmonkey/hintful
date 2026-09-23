@@ -217,6 +217,7 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
   `startOnce(tour, store:, version:)` (marks on finish; the version gate
   lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by hand
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
+  copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
   declines persist per page or globally, an accepted tour is recorded on
   finish (opt-out `markOnFinish: false`), the tour stays reachable from
   other entry points

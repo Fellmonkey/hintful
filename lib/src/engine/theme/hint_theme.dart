@@ -30,6 +30,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     this.imageFilter,
     this.showPulse = false,
     this.tooltipLabels = const HintTooltipLabels(),
+    this.tourOfferLabels = const HintTourOfferLabels(),
   });
 
   /// Tooltip background (default — `inverseSurface` of the ColorScheme).
@@ -83,6 +84,11 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// default): localize once here, every [DefaultTooltip] inherits it.
   final HintTooltipLabels tooltipLabels;
 
+  /// Offer-dialog copy for the "Want a tour?" pre-dialog (English by
+  /// default): localize once here — `showHintTourOffer` without an explicit
+  /// `labels:` inherits it, the same design-system path as [tooltipLabels].
+  final HintTourOfferLabels tourOfferLabels;
+
   /// Default derived from a [ColorScheme] (inverseSurface pair).
   factory HintTheme.minimal(ColorScheme scheme) {
     final onSurface = scheme.onInverseSurface;
@@ -119,6 +125,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     ImageFilter? imageFilter,
     bool? showPulse,
     HintTooltipLabels? tooltipLabels,
+    HintTourOfferLabels? tourOfferLabels,
   }) {
     return HintTheme(
       tooltipBackground: tooltipBackground ?? this.tooltipBackground,
@@ -133,6 +140,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       imageFilter: imageFilter ?? this.imageFilter,
       showPulse: showPulse ?? this.showPulse,
       tooltipLabels: tooltipLabels ?? this.tooltipLabels,
+      tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,
     );
   }
 
@@ -162,6 +170,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       showPulse: t < 0.5 ? showPulse : other.showPulse,
       // Strings do not interpolate either — same point-pick.
       tooltipLabels: t < 0.5 ? tooltipLabels : other.tooltipLabels,
+      tourOfferLabels: t < 0.5 ? tourOfferLabels : other.tourOfferLabels,
     );
   }
 }

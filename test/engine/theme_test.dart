@@ -214,4 +214,36 @@ void main() {
       expect(theme.copyWith(tooltipLabels: ru).tooltipLabels, ru);
     });
   });
+
+  group('tourOfferLabels (offer dialog l10n hook)', () {
+    final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+
+    test('default is English', () {
+      const labels = HintTourOfferLabels();
+      expect(labels.title, 'Want a tour?');
+      expect(labels.body, 'Take a quick tour of what is new.');
+      expect(labels.acceptLabel, 'Start');
+      expect(labels.skipLabel, 'Later');
+      expect(labels.applyToAllPagesLabel, 'Apply to all pages');
+    });
+
+    test('minimal theme carries the default labels', () {
+      final theme = HintTheme.minimal(scheme);
+      expect(theme.tourOfferLabels, const HintTourOfferLabels());
+    });
+
+    test('copyWith replaces labels wholesale', () {
+      final theme = HintTheme.minimal(scheme);
+      const ru = HintTourOfferLabels(title: 'Начать тур?');
+      expect(theme.copyWith(tourOfferLabels: ru).tourOfferLabels, ru);
+    });
+
+    test('lerp picks tourOfferLabels by the interpolation point', () {
+      final a = HintTheme.minimal(scheme);
+      const ru = HintTourOfferLabels(title: 'Начать тур?');
+      final localized = a.copyWith(tourOfferLabels: ru);
+      expect(a.lerp(localized, 0.0).tourOfferLabels.title, 'Want a tour?');
+      expect(a.lerp(localized, 1.0).tourOfferLabels.title, 'Начать тур?');
+    });
+  });
 }

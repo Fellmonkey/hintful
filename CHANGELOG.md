@@ -112,6 +112,10 @@
    recording policy. The `minVersion:` parameter is gone — declare
    `HintTour.minShowVersion` on the tour instead (both the offer gate and
    `startOnce` read it).
+- **Offer labels are themeable:** new `HintTheme.tourOfferLabels` — the
+  "Want a tour?" dialog's default copy joins the design system alongside
+  `tooltipLabels`; `showHintTourOffer(labels:)` still overrides per call
+  (omitted — the theme's labels; zero-config English unchanged).
 - **Honest diagnostics:** a busy `start` in release now no-ops *before*
   typo classification — it no longer emits `unknownTarget` skip events for
   a tour that never ran, nor clobbers the running tour's registry diff;

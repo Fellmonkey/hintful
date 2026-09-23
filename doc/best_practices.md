@@ -639,6 +639,8 @@ Two rules: one offer per page entry point (offer from three buttons and the
 dialog appears where the user least expects it), and keep the tour reachable
 after a decline (settings, help menu) — the namespaced decline keys in §6 are
 what make that possible. `HintTourOfferLabels` carries the copy
-(title, body, accept, later, checkbox) and `HintTourOfferResult` tells you which
+(title, body, accept, later, checkbox) — its default comes from
+`HintTheme.tourOfferLabels` (localize once in the design system), and a
+per-call `labels:` overrides it. `HintTourOfferResult` tells you which
 branch was taken if you want to log it.
 

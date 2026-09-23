@@ -44,7 +44,7 @@ library;
 export 'src/engine/controller.dart' show HintController;
 export 'src/engine/diagnostics.dart'
     show HintDiagnosticsHandler, HintSkipEvent, HintSkipReason;
-export 'src/engine/labels.dart' show HintTooltipLabels;
+export 'src/engine/labels.dart' show HintTourOfferLabels, HintTooltipLabels;
 export 'src/engine/machine.dart'
     show HintActive, HintIdle, HintState, HintWaiting;
 export 'src/engine/motion.dart' show hintTransitionDuration;
@@ -68,4 +68,4 @@ export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
 export 'src/widgets/hint_target.dart' show HintTarget;
 export 'src/widgets/hint_target_ext.dart' show HintTargetX;
 export 'src/widgets/tour_offer.dart'
-    show HintTourOfferLabels, HintTourOfferResult, showHintTourOffer;
+    show HintTourOfferResult, showHintTourOffer;

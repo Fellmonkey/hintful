@@ -106,6 +106,13 @@ class _ExampleAppState extends State<ExampleApp> {
   /// "loads" the summary on step 3 (lazy-section simulation) and only the
   /// versioned intro is marked shown on exit. Also rebuilds the AppBar
   /// icons (disabled while a tour is active).
+  ///
+  /// The intro's marking is the best-practices §6 **mark-on-any-exit**
+  /// variant — a deliberate hand-rolled listener: finished, skipped or
+  /// timed out all count ("the user has seen it"). It is NOT `startOnce`
+  /// (mark-on-finish only): the offer path below already demonstrates that
+  /// policy via `showHintTourOffer`'s default `markOnFinish: true`.
+  /// Pick one policy per tour, keep it in the entry point (§6).
   void _onTourStateChanged() {
     final state = _controller.currentState;
     if (state.isIdle) {
@@ -133,7 +140,9 @@ class _ExampleAppState extends State<ExampleApp> {
 
   /// The versioned-intro entry: show once per app version. Gated — when the
   /// intro already showed in [_appVersion], explain instead of showing
-  /// ("Bump version" re-enables it).
+  /// ("Bump version" re-enables it). Marking runs on ANY exit via
+  /// [_onTourStateChanged] (the §6 variant); for mark-on-finish call
+  /// `startOnce` instead (as the offer path does).
   void _startTour() {
     if (!_controller.currentState.isIdle) return; // one tour at a time
     final store = _store;

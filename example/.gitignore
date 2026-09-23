@@ -44,5 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Machine-local and generated Android files — the example's android/ tree
+# comes from a local `flutter create` and is never tracked in this repo
+/android/local.properties
+/android/**/GeneratedPluginRegistrant.java
+
 # Widget Preview related
 .widget_preview/
