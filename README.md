@@ -214,8 +214,11 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - Enum-typed tours: `HintTour.fromEnum` — the exhaustive `stepFor` switch
   makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
-  `startOnce(tour, store:, version:)` (marks on finish; the version gate
-  lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by hand
+  set the store once (`HintController(store: ...)`) and call
+  `startOnce(tour, version:)` (marks on finish; the version gate
+  lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by hand;
+  `CallbackHintStore(read:, write:)` is the three-line path over your
+  storage
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
   declines persist per page or globally, an accepted tour is recorded on
@@ -245,8 +248,8 @@ registry (`HintTargetRegistry`), machine states
 (`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
 (`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
 `DefaultTooltip`, `showHintTourOffer` + offer labels/result),
-`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore` +
-`HintStore.compareVersions`).
+`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore`/
+`CallbackHintStore` + `HintStore.compareVersions`).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:

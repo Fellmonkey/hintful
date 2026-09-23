@@ -88,10 +88,15 @@ class _ExampleAppState extends State<ExampleApp> {
     super.initState();
     _controller.state.addListener(_onTourStateChanged);
     // The app-side store: `shared_preferences` is async, the library core
-    // stays dependency-free (see shared_prefs_hint_store.dart).
+    // stays dependency-free (see shared_prefs_hint_store.dart). Set once on
+    // the controller — startOnce / the offer dialog read `controller.store`
+    // with no per-call `store:`.
     SharedPreferences.getInstance().then((prefs) {
       if (!mounted) return;
-      setState(() => _store = SharedPrefsHintStore(prefs));
+      setState(() {
+        _store = sharedPrefsHintStore(prefs);
+        _controller.store = _store;
+      });
     });
   }
 
@@ -237,13 +242,11 @@ class _ExampleAppState extends State<ExampleApp> {
   /// from an enum ([HintTour.fromEnum]) — see demo_tours.dart.
   void _startOfferTour(BuildContext context) {
     if (!_controller.currentState.isIdle) return; // one tour at a time
-    final store = _store;
-    if (store == null) return; // prefs not loaded yet
+    if (_store == null) return; // prefs not loaded yet
     showHintTourOffer(
       context: context,
-      controller: _controller,
+      controller: _controller, // controller.store: set in initState
       tour: offerTour(minShowVersion: _appVersion),
-      store: store,
       pageId: 'HomePage',
     ).then((result) {
       if (result == HintTourOfferResult.started) {

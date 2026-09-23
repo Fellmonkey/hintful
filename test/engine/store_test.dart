@@ -71,4 +71,67 @@ void main() {
       expect(store.shouldShow('intro'), isTrue);
     });
   });
+
+  group('CallbackHintStore', () {
+    test('same version semantics as InMemoryHintStore over read/write', () {
+      final backing = <String, String>{};
+      final store = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+      );
+
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
+      store.markShown('intro', '1.0.0');
+      expect(store.shouldShow('intro'), isFalse);
+      expect(store.shouldShow('intro', minVersion: '1.1.0'), isTrue);
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
+      expect(backing['intro'], '1.0.0');
+    });
+
+    test('keys are independent', () {
+      final backing = <String, String>{};
+      final store = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+      );
+      store.markShown('intro', '1.0.0');
+      store.markShown('other', '2.0.0');
+      expect(store.shouldShow('intro', minVersion: '1.1.0'), isTrue);
+      expect(store.shouldShow('other', minVersion: '2.0.0'), isFalse);
+    });
+
+    test('clear without onClear is a no-op (kv store cannot enumerate)', () {
+      final backing = <String, String>{};
+      final store = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+      );
+      store.markShown('intro', '1.0.0');
+      store.clear(); // no onClear — must not throw
+      expect(store.shouldShow('intro'), isFalse);
+    });
+
+    test('onClear runs on clear()', () {
+      final backing = <String, String>{};
+      final store = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+        onClear: backing.clear,
+      );
+      store.markShown('intro', '1.0.0');
+      store.clear();
+      expect(backing, isEmpty);
+      expect(store.shouldShow('intro'), isTrue);
+    });
+
+    test('multi-digit version segments compare numerically', () {
+      final backing = <String, String>{'intro': '2.9.0'};
+      final store = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+      );
+      expect(store.shouldShow('intro', minVersion: '2.10.0'), isTrue);
+      expect(store.shouldShow('intro', minVersion: '2.9.0'), isFalse);
+    });
+  });
 }

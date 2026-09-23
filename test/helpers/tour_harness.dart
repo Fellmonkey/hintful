@@ -22,11 +22,11 @@ class HarnessTarget {
 }
 
 /// Diagnostics collector — shared by the flow tests (timeout, skip, typo).
-class DiagnosticsRecorder implements HintDiagnosticsHandler {
+/// A callable class: satisfies the `HintDiagnosticsHandler` function type.
+class DiagnosticsRecorder {
   final List<HintSkipEvent> events = [];
 
-  @override
-  void onHintSkipped(HintSkipEvent event) => events.add(event);
+  void call(HintSkipEvent event) => events.add(event);
 }
 
 /// Widget-test harness for tours.
@@ -56,12 +56,21 @@ class TourHarness {
     this.themeExtensions = const [],
     this.leading,
   })  : registry = registry ?? HintTargetRegistry(),
-        diagnostics = diagnostics ?? DiagnosticsRecorder();
+        _customDiagnostics = diagnostics,
+        recorder = DiagnosticsRecorder();
 
   /// Scene targets; [reveal] adds more at runtime (deferred scenario).
   final List<HarnessTarget> targets;
   final HintTargetRegistry registry;
-  final HintDiagnosticsHandler diagnostics;
+
+  /// The default event sink — populated when no custom [diagnostics] was
+  /// passed. Flow tests read `h.recorder.events`.
+  final DiagnosticsRecorder recorder;
+  final HintDiagnosticsHandler? _customDiagnostics;
+
+  /// The handler passed to the controller: the custom one when given,
+  /// otherwise the tear-off of [recorder].
+  HintDiagnosticsHandler get diagnostics => _customDiagnostics ?? recorder.call;
 
   /// `ThemeData.extensions` of the scene (a custom [HintTheme] — e.g.
   /// `showTail: false`). Empty — the zero-config minimal default.

@@ -16,25 +16,30 @@
 /// - controller ([HintController]) — the single control point; the render
 ///   contract (`HintOverlayHost`, position types, the overlay factory) is
 ///   deliberately internal and can change without breaking changes;
-/// - diagnostics ([HintDiagnosticsHandler], [HintSkipEvent],
-///   [HintSkipReason]) — failed shows arrive as one event object, extensible
-///   in 1.x;
+/// - diagnostics ([HintDiagnosticsHandler] as a plain function type,
+///   [HintSkipEvent], [HintSkipReason]) — failed shows arrive as one event
+///   object; debug builds always print the line, then invoke your callback;
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [HintStore.compareVersions]) — the "show once per app version" service.
+///   [CallbackHintStore], [HintStore.compareVersions]) — the "show once per
+///   app version" service; set it once via `HintController(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, position value types
 /// `HintPosition`/`PositionedHint`/`UnpositionedHint`/
 /// `HintPositionResolver`), the register-path
 /// (`HintTargetRegistration`/`register`/`unregister`/`lookup`), the
-/// diagnostics helpers (`formatHintSkipped`, `DebugPrintDiagnostics`,
-/// `closestTargetIds`, `editDistance`), the focus-padding fallback constant
-/// `kHintFocusPadding`, the internal `hintTourWithSteps`, and the concrete
-/// resolvers `CompositorHintResolver` / `UnpositionedHintResolver` (they
-/// touch Flutter's layer internals). They stay public inside `lib/src/` for
-/// the package's own tests.
+/// inheritance-scope helpers (`HintStepInternal` /
+/// `resolveTimeout`/`resolveMissingPolicy`/`hasRectTarget`,
+/// `HintControllerScope` / `inScope`), the diagnostics helpers
+/// (`formatHintSkipped`, `debugPrintHintSkip`, `closestTargetIds`,
+/// `editDistance`), the focus-padding fallback constant `kHintFocusPadding`,
+/// the internal `hintTourWithSteps`, and the concrete resolvers
+/// `CompositorHintResolver` / `UnpositionedHintResolver` (they touch
+/// Flutter's layer internals). They stay public inside `lib/src/` for the
+/// package's own tests — a public member of an exported *class* is API by
+/// definition, so engine-only helpers live in unexported *extensions*.
 ///
 /// Deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
 /// are NOT part of the contract — the implementation lives under `lib/src/`
@@ -62,7 +67,8 @@ export 'src/engine/specs.dart'
         HintTooltipContext,
         HintTour,
         TooltipPosition;
-export 'src/engine/store.dart' show HintStore, InMemoryHintStore;
+export 'src/engine/store.dart'
+    show CallbackHintStore, HintStore, InMemoryHintStore;
 export 'src/engine/theme/hint_theme.dart' show HintTheme, HintThemeX;
 export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
 export 'src/widgets/hint_target.dart' show HintTarget;

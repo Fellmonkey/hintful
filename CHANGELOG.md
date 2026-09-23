@@ -18,13 +18,29 @@
   Drive targets through `HintTarget`; the public registry exposes
   `defaultInstance`, `onWarning`, `addListener`, `removeListener`, `ids`.
 - **Diagnostics as an event object:** **Breaking** —
-  `HintDiagnosticsHandler.onHintSkipped` now takes a single `HintSkipEvent`
-  (`tourId`, `stepIndex`, `targetId`, `reason`, `detail`) instead of five
-  positional arguments; new fields can be added in 1.x without breaking
-  implementations. `DebugPrintDiagnostics` and `closestTargetIds` are no
-  longer exported (the debug handler is attached automatically in debug
-  builds; typo candidates arrive in `detail`). `kHintFocusPadding` and the
-  internal `hintTourWithSteps` are also out of the barrel.
+  `HintDiagnosticsHandler` is now a plain function type
+  (`void Function(HintSkipEvent)`) — one callback per controller, passed as
+  `diagnostics:`; attach several sinks inside the function. The event carries
+  `tourId`, `stepIndex`, `targetId`, `reason`, `detail`; new fields can be
+  added in 1.x (optional-only — a new `required` field would break event
+  construction). Debug builds **always print** the `[hintful] …` line first,
+  then invoke your callback; release runs the callback alone (or nothing).
+  `DebugPrintDiagnostics` (class) is gone; `closestTargetIds`,
+  `formatHintSkipped`, `debugPrintHintSkip` are internal. `kHintFocusPadding`
+  and the internal `hintTourWithSteps` are also out of the barrel.
+- **Store on the controller:** `HintController(store: ...)` — set the
+  versioned-hints store once; `startOnce(store:)` and
+  `showHintTourOffer(store:)` become **optional** overrides (per-call wins,
+  otherwise the controller's store; neither → debug assert / no-persist
+  debug print). Backwards compatible: every existing `store:` call site keeps
+  compiling. New `CallbackHintStore(read:, write:, onClear:)` — the
+  three-line persistent store over your storage, no subclass ceremony.
+- **Internal helpers leave the public class surface:** `HintStep.resolveTimeout` /
+  `resolveMissingPolicy` / `hasRectTarget` and `HintController.inScope` move
+  to unexported extensions (same pattern as the register-path) — they are
+  engine machinery, not app-level API; barrel consumers cannot call them, and
+  the members no longer freeze the class shape. Public read-only surface
+  stays: `targetIds`, `duplicateTargetIds`, `scopePrefix`.
 - **Single registry source:** the default host reads
   `HintController.registry` (public getter), so a custom host and the engine
   can no longer desync.

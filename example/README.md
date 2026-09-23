@@ -39,8 +39,9 @@ The demo is split so each layer stays readable:
 - `demo_tours.dart` — the tour definitions behind every button in the table
   above.
 - `shared_prefs_hint_store.dart` — a `shared_preferences`-backed
-  `HintStore` (the library core stays dependency-free; this is the
-  pattern for real apps).
+  `HintStore` built from `CallbackHintStore` (the library core stays
+  dependency-free; this is the pattern for real apps — set once via
+  `HintController(store: ...)`).
 
 ## Running
 

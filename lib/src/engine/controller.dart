@@ -104,9 +104,14 @@ class HintController implements HintActions {
   /// [registry] defaults to the default singleton (zero-config) — the same
   /// instance the default overlay host renders from ([registry] getter: one
   /// source of truth, the wait logic and the rendering cannot desync).
-  /// [diagnostics] defaults to a debug-print handler, but only in debug
-  /// builds: in release the diagnostics cost is zero, reasons go to the
-  /// callback if the user supplies a handler.
+  /// [diagnostics] is a plain callback (see [HintDiagnosticsHandler]); debug
+  /// builds print the same event as one line **before** invoking it, so a
+  /// custom handler never silences the console; in release the callback runs
+  /// alone, or is absent — zero cost.
+  /// [store] is the default versioned-hints store for [startOnce] and the
+  /// offer dialog — set it once (it may land after async init via the
+  /// [store] setter) and no call site needs `store:` again; per-call
+  /// `store:` overrides it. Omit both until you need show-once.
   /// [overlay] is a lazy provider of the `OverlayState` the engine renders
   /// into — needed only for fully-deferred scenarios with zero mounted
   /// targets (`targetRect`-only tours): there is nothing to capture the root
@@ -120,13 +125,13 @@ class HintController implements HintActions {
     OverlayState? Function()? overlay,
     bool headless = false,
     this.scopePrefix,
+    this.store,
   })  : assert(
           !(headless && overlay != null),
           'hintful: headless: true cannot be combined with overlay:',
         ),
         _registry = registry ?? HintTargetRegistry.defaultInstance,
-        _diagnostics =
-            diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
+        _diagnostics = _composeDiagnostics(diagnostics),
         _overlayHostBuilder =
             headless ? null : defaultOverlayHost(overlay: overlay) {
     _init();
@@ -141,11 +146,25 @@ class HintController implements HintActions {
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     this.scopePrefix,
+    this.store,
   })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
-        _diagnostics =
-            diagnostics ?? (kDebugMode ? const DebugPrintDiagnostics() : null),
+        _diagnostics = _composeDiagnostics(diagnostics),
         _overlayHostBuilder = host {
     _init();
+  }
+
+  /// The user callback composed with the debug print: in debug builds the
+  /// one-line diagnosis always fires first, then the callback when one is
+  /// attached; in release only the callback survives (or nothing).
+  static HintDiagnosticsHandler? _composeDiagnostics(
+    HintDiagnosticsHandler? user,
+  ) {
+    if (!kDebugMode) return user;
+    if (user == null) return debugPrintHintSkip;
+    return (event) {
+      debugPrintHintSkip(event);
+      user(event);
+    };
   }
 
   void _init() {
@@ -174,12 +193,19 @@ class HintController implements HintActions {
   /// share [HintTargetRegistry.defaultInstance] (zero-config).
   HintTargetRegistry get registry => _registry;
 
-  /// The handler this controller reports failed shows to (wait timeouts,
-  /// typos, user skips). Also handed to the default overlay host —
-  /// engine-side overlay failures (`overlayUnavailable`) go through the
-  /// same channel.
+  /// The handler this controller reports failed shows to — the composed
+  /// handler (your callback, with the debug print running first in debug
+  /// builds). Also handed to the default overlay host — engine-side overlay
+  /// failures (`overlayUnavailable`) go through the same channel.
   HintDiagnosticsHandler? get diagnostics => _diagnostics;
   HintOverlayHost? _builtHost;
+
+  /// Default versioned-hints store — read by [startOnce] and the offer
+  /// dialog when no per-call `store:` override is passed. Settable at any
+  /// point before those calls (the usual shape: create the controller,
+  /// assign the store when async storage finishes loading).
+  /// Null — show-once paths need an explicit per-call store.
+  HintStore? store;
 
   /// Scope: which registry ids belong to this controller's screen.
   ///
@@ -190,9 +216,6 @@ class HintController implements HintActions {
   /// per screen (`scopePrefix: 'greenhouse-'` / `'spread-'`); null — no
   /// scoping (global).
   final String? scopePrefix;
-
-  /// True when [id] belongs to this controller's scope.
-  bool inScope(String id) => scopePrefix == null || id.startsWith(scopePrefix!);
 
   final HintMachine _machine = HintMachine();
   final ValueNotifier<HintState> _stateNotifier =
@@ -303,6 +326,11 @@ class HintController implements HintActions {
   /// Show-once from the box: [HintStore.shouldShow] → [start] →
   /// [HintStore.markShown] **on finish** (normal completion).
   ///
+  /// The store is [store] param when given, else the controller's [store]
+  /// — set `HintController(store: ...)` once and call `startOnce(tour)` with
+  /// no per-call store. Neither available: a debug assert and `false` (the
+  /// once-semantics cannot run without a store).
+  ///
   /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
   ///   the version gate comes from [HintTour.minShowVersion];
   /// - started → arms a one-shot mark for `tour.id`; when that tour emits
@@ -317,15 +345,22 @@ class HintController implements HintActions {
   /// "shown" definition is *finished* (see best practices §6).
   Future<bool> startOnce(
     HintTour tour, {
-    required HintStore store,
+    HintStore? store,
     String? version,
   }) async {
-    if (!store.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
+    final effective = store ?? this.store;
+    assert(
+      effective != null,
+      'hintful: startOnce has no HintStore — pass store: or set '
+      'HintController(store: ...)',
+    );
+    if (effective == null) return false;
+    if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
       return false;
     }
     if (!isIdle) return false;
     final record = version ?? tour.minShowVersion ?? 'true';
-    _pendingOnce = (tourId: tour.id, store: store, version: record);
+    _pendingOnce = (tourId: tour.id, store: effective, version: record);
     await start(tour);
     if (isIdle) {
       // start() early-returned (all steps stripped as typos) — nothing
@@ -594,7 +629,7 @@ class HintController implements HintActions {
       HintActive(:final targetId) => targetId,
       _ => '?',
     };
-    _diagnostics?.onHintSkipped(HintSkipEvent(
+    _diagnostics?.call(HintSkipEvent(
       tourId: tourId,
       stepIndex: stepIndex,
       targetId: targetId,
@@ -615,7 +650,7 @@ class HintController implements HintActions {
   /// Release-path typo handling: typo steps are skipped, the tour continues.
   HintTour _withoutTypoSteps(HintTour tour, List<UnknownHintTarget> typos) {
     for (final t in typos) {
-      _diagnostics?.onHintSkipped(HintSkipEvent(
+      _diagnostics?.call(HintSkipEvent(
         tourId: tour.id,
         stepIndex: t.index,
         targetId: t.typoId,
@@ -630,4 +665,15 @@ class HintController implements HintActions {
     // manual reconstruction here once dropped autoScroll.
     return hintTourWithSteps(tour, kept);
   }
+}
+
+/// Scope filtering — deliberately an extension, not a method on
+/// [HintController]: the barrel does not export it, so package consumers
+/// cannot call it (the filter is engine machinery, not an app-level query;
+/// drive scoping through [HintController.scopePrefix]). Kept out of the
+/// class for a smaller public contract — same pattern as the registry's
+/// register-path extension.
+extension HintControllerScope on HintController {
+  /// True when [id] belongs to this controller's scope.
+  bool inScope(String id) => scopePrefix == null || id.startsWith(scopePrefix!);
 }

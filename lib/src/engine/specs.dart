@@ -430,18 +430,6 @@ class HintStep {
   /// All target ids of the step: the primary [targetId] + [moreTargets].
   List<String> get targetIds => [targetId, ...moreTargets];
 
-  /// Whether the step is rect-anchored ([targetRect] is set).
-  bool get hasRectTarget => targetRect != null;
-
-  /// The step's timeout, honoring inheritance.
-  Duration resolveTimeout(Duration fallback) => stepTimeout ?? fallback;
-
-  /// The step's missing-target policy, honoring inheritance.
-  HintMissingTargetPolicy resolveMissingPolicy(
-    HintMissingTargetPolicy tourPolicy,
-  ) =>
-      missingTargetPolicy ?? tourPolicy;
-
   /// Serializes the step to the frozen JSON wire format (see `fromJson`).
   Map<String, dynamic> toJson() => {
         'targetId': targetId,
@@ -787,6 +775,26 @@ class HintTour {
       minShowVersion: json['minShowVersion'] as String?,
     );
   }
+}
+
+/// Inheritance resolution on a [HintStep] — deliberately an extension, not
+/// part of the class's public surface: the barrel does not export it, so
+/// package consumers cannot call these (the `fallback`/`tourPolicy`
+/// arguments are the machine's business, not the app's). Same pattern as
+/// the registry's register-path extension; reachable by the engine and the
+/// package's own tests through `lib/src`.
+extension HintStepInternal on HintStep {
+  /// Whether the step is rect-anchored ([HintStep.targetRect] is set).
+  bool get hasRectTarget => targetRect != null;
+
+  /// The step's timeout, honoring inheritance.
+  Duration resolveTimeout(Duration fallback) => stepTimeout ?? fallback;
+
+  /// The step's missing-target policy, honoring inheritance.
+  HintMissingTargetPolicy resolveMissingPolicy(
+    HintMissingTargetPolicy tourPolicy,
+  ) =>
+      missingTargetPolicy ?? tourPolicy;
 }
 
 /// Same tour with a different [steps] list — every other field is preserved

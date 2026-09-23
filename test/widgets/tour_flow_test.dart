@@ -759,7 +759,7 @@ void main() {
 
       expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
-      final diag = h.diagnostics as DiagnosticsRecorder;
+      final diag = h.recorder;
       expect(diag.events.single.reason, HintSkipReason.userSkipped);
       expect(diag.events.single.stepIndex, 0);
       expect(diag.events.single.targetId, 'stats');
@@ -789,7 +789,7 @@ void main() {
 
       expect(h.controller.currentState, isA<HintIdle>());
       h.expectIdleClean();
-      final diag = h.diagnostics as DiagnosticsRecorder;
+      final diag = h.recorder;
       expect(diag.events.single.reason, HintSkipReason.timeout);
       expect(diag.events.single.stepIndex, 1);
       expect(diag.events.single.targetId, 'records');

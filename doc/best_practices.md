@@ -187,12 +187,15 @@ if (!await controller.tryStart(tour)) return; // busy
 
 ## 6. Once per version — `HintStore`
 
-**Preferred:** `startOnce` — gate + start + mark-on-finish in one call:
+**Preferred:** `startOnce` — gate + start + mark-on-finish in one call.
+Set the store once on the controller (`HintController(store: store)`); a
+per-call `store:` overrides it:
 
 ```dart
+final controller = HintController(store: store); // once, at wiring
+
 final started = await controller.startOnce(
   AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
-  store: store,
   version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
 if (!started) return; // already shown for this version, or busy
@@ -233,9 +236,11 @@ Key and version rules:
 - `minVersion` is the version the hint targets ("new in 1.2.0") and `HintStore.compareVersions` orders `1.10.0 > 1.9.0` correctly; `clear()` is a debug/test tool — the production "show again" is a version bump.
 
 `InMemoryHintStore` ships in core: the right store for tests and the reference
-implementation of the rules above. A persistent store — `SharedPreferences`, a
-backend — lives outside the barrel; implement `HintStore` and nothing else
-changes.
+implementation of the rules above. For persistent storage the short path is
+`CallbackHintStore(read:, write:)` — three lines over `SharedPreferences` or
+your own key-value layer (the app owns the storage; the core package stays
+dependency-free). A full class (`implements HintStore`) is only needed when
+you also override `clear()` or want richer behavior.
 
 ---
 
@@ -339,26 +344,21 @@ Reasons are typed (`HintSkipReason`): `timeout`, `unknown-target`,
 A target that vanishes mid-step is *not* reported — the step goes back to waiting
 and a permanent loss surfaces as `timeout`.
 
-The controller attaches a debug-print handler only in debug builds: in
-release `diagnostics` is `null` and costs nothing. Wire your own
-for analytics or a dev panel — same contract, any number of handlers:
+`diagnostics:` is a plain function (`typedef HintDiagnosticsHandler`) — one
+callback per controller. Debug builds **always print** the formatted line
+(`[hintful] …`) first, then invoke your callback; in release only your
+callback runs (or nothing — zero cost):
 
 ```dart
-HintController(diagnostics: const AnalyticsDiagnostics());
-
-class AnalyticsDiagnostics implements HintDiagnosticsHandler {
-  const AnalyticsDiagnostics();
-
-  @override
-  void onHintSkipped(HintSkipEvent event) {
-    analytics.log('hint_skipped', {
-      'tour': event.tourId,
-      'step': event.stepIndex,
-      'target': event.targetId,
-      'reason': event.reason.label,
-    });
-  }
-}
+HintController(
+  diagnostics: (e) => analytics.log('hint_skipped', {
+    'tour': e.tourId,
+    'step': e.stepIndex,
+    'target': e.targetId,
+    'reason': e.reason.label, // stable string — safe for string-keyed sinks
+    'detail': e.detail,
+  }),
+);
 ```
 
 Two behaviours to know before trusting a green local run: a typo'd `targetId` is
@@ -584,7 +584,7 @@ diagnostics — so a tour flow is a plain unit test:
 ```dart
 final controller = HintController(
   registry: HintTargetRegistry(), // your own, never the app singleton
-  diagnostics: recorder,
+  diagnostics: (e) => events.add(e), // or recorder.call / recorder.add
   headless: true, // no render mechanics — machine only
 );
 
@@ -598,7 +598,9 @@ controller.dispose();
 Notes:
 
 - pass your own `HintTargetRegistry` so a test never depends on the app's targets (or pollutes them) — and pass that **same instance** to every `HintTarget`/`withHint` in the scene (mismatch = every step diagnoses as `timeout`/`unknownTarget`); the package's `test/helpers/tour_harness.dart` shows the pairing;
-- assert on diagnostics with a recording `HintDiagnosticsHandler`, not by capturing `debugPrint` output;
+- assert on diagnostics with your own recording callback (`diagnostics: (e) => …`
+  or a tear-off `recorder.call`), not by capturing `debugPrint` output —
+  debug builds print the line *and* invoke your callback;
 - a typo'd `targetId` is designed for `expectLater(controller.start(tour), throwsAssertionError)` — `start` returns a `Future` so the failure surfaces in the test instead of inside someone's build;
 - keep test tours on a short/`Duration.zero` `stepTimeout`, and remember timers must be pumped or a missing target fails after the real 3 s;
 - `dispose()` every controller (it is idempotent) — otherwise the registry listener and the timer outlive the test.
@@ -619,9 +621,8 @@ pages" checkbox that starts the tour on accept.
 ```dart
 final result = await showHintTourOffer(
   context: context,
-  controller: controller,
+  controller: controller, // controller.store: set once — no store: needed
   tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
-  store: store,
   pageId: 'settings',     // the page this offer belongs to
   // markOnFinish: false, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),

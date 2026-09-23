@@ -29,11 +29,10 @@ Future<BuildContext> _pumpContext(WidgetTester tester) async {
   return captured;
 }
 
-class _DiagRecorder implements HintDiagnosticsHandler {
+class _DiagRecorder {
   final List<HintSkipEvent> events = [];
 
-  @override
-  void onHintSkipped(HintSkipEvent event) => events.add(event);
+  void call(HintSkipEvent event) => events.add(event);
 }
 
 class _RecordingHost implements HintOverlayHost {
@@ -68,15 +67,27 @@ void main() {
       expect(controller.registry, same(registry));
     });
 
-    test('diagnostics getter is the handler the default host inherits', () {
+    test(
+        'diagnostics getter reports to the given handler (composed with '
+        'the debug print in debug builds)', () {
       final diag = _DiagRecorder();
       final controller = HintController(
         registry: HintTargetRegistry(),
-        diagnostics: diag,
+        diagnostics: diag.call,
         headless: true,
       );
       addTearDown(controller.dispose);
-      expect(controller.diagnostics, same(diag));
+      // Not same(diag): the getter is the composed handler (debug print +
+      // the user callback) — check the behavior, not the identity.
+      controller.diagnostics!(const HintSkipEvent(
+        tourId: 't',
+        stepIndex: 0,
+        targetId: 'x',
+        reason: HintSkipReason.timeout,
+        detail: 'did not appear',
+      ));
+      expect(diag.events, hasLength(1));
+      expect(diag.events.single.tourId, 't');
     });
 
     test(
@@ -85,7 +96,7 @@ void main() {
       final diag = _DiagRecorder();
       final controller = HintController(
         registry: HintTargetRegistry(), // empty: nothing to capture from
-        diagnostics: diag,
+        diagnostics: diag.call,
       );
       addTearDown(controller.dispose);
 
@@ -171,7 +182,7 @@ void main() {
       final host = _RecordingHost();
       final diag = _DiagRecorder();
       final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag);
+          registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -198,7 +209,7 @@ void main() {
       final diag = _DiagRecorder();
       final host = _RecordingHost();
       final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag);
+          registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -336,7 +347,7 @@ void main() {
       final diag = _DiagRecorder();
       final controller = HintController(
         registry: registry,
-        diagnostics: diag,
+        diagnostics: diag.call,
         headless: true,
       );
       final tour = _tour2();
@@ -412,7 +423,7 @@ void main() {
       final diag = _DiagRecorder();
       final host = _RecordingHost();
       final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag);
+          registry: registry, diagnostics: diag.call);
 
       await controller.start(_tour2()); // waiting(0) + 3s timer
       controller.dispose();
@@ -460,7 +471,7 @@ void main() {
       final diag = _DiagRecorder();
       final controller = HintController(
         registry: registry,
-        diagnostics: diag,
+        diagnostics: diag.call,
         headless: true,
       );
       addTearDown(controller.dispose);
@@ -688,6 +699,78 @@ void main() {
       );
       controller.finish();
       expect(store.shouldShow('intro', minVersion: '1.1.0'), isFalse);
+    });
+
+    testWidgets('store on the controller — startOnce with no per-call store',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      expect(
+        await controller.startOnce(oneStep(minShowVersion: '1.0.0')),
+        isTrue,
+      );
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'not marked until finish');
+      controller.finish();
+      expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
+    });
+
+    testWidgets('per-call store: overrides the controller store',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final controllerStore = InMemoryHintStore();
+      final callStore = InMemoryHintStore();
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: controllerStore,
+      );
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'target0',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      expect(
+        await controller.startOnce(
+          oneStep(minShowVersion: '1.0.0'),
+          store: callStore,
+        ),
+        isTrue,
+      );
+      controller.finish();
+      expect(callStore.shouldShow('intro', minVersion: '1.0.0'), isFalse,
+          reason: 'the per-call store wins');
+      expect(controllerStore.shouldShow('intro', minVersion: '1.0.0'), isTrue,
+          reason: 'the controller store stays untouched');
+    });
+
+    testWidgets('no store anywhere — debug assert, false, no start',
+        (tester) async {
+      final controller =
+          HintController(registry: HintTargetRegistry(), headless: true);
+      addTearDown(controller.dispose);
+
+      await expectLater(
+        controller.startOnce(oneStep(minShowVersion: '1.0.0')),
+        throwsAssertionError,
+      );
+      expect(controller.isIdle, isTrue);
     });
   });
 
@@ -1012,7 +1095,7 @@ void main() {
       final diag = _DiagRecorder();
       final host = _RecordingHost();
       final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag);
+          registry: registry, diagnostics: diag.call);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(

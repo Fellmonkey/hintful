@@ -166,7 +166,7 @@ class HintOverlayEngine implements HintOverlayHost {
       HintActive(:final targetId) => targetId,
       _ => '?',
     };
-    _diagnostics?.onHintSkipped(HintSkipEvent(
+    _diagnostics?.call(HintSkipEvent(
       tourId: state?.tour?.id ?? '?',
       stepIndex: stepIndex,
       targetId: targetId,

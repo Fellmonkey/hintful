@@ -126,24 +126,18 @@ and [§15](best_practices.md#15-multi-content--a-second-tooltip).
 ### 8. How do I test a tour?
 
 Headless first — no overlay, the whole machine. Record diagnostics with your own
-handler:
+callback (a plain function — pass it directly or tear off a method):
 
 ```dart
-class Recorder implements HintDiagnosticsHandler {
-  final reasons = <HintSkipReason>[];
-  @override
-  void onHintSkipped(HintSkipEvent event) => reasons.add(event.reason);
-}
-
-final recorder = Recorder();
+final reasons = <HintSkipReason>[];
 final controller = HintController(
   registry: HintTargetRegistry(), // your own, not the app singleton
-  diagnostics: recorder,
+  diagnostics: (e) => reasons.add(e.reason),
   headless: true, // no render mechanics — machine only
 );
 
 await controller.start(tour);
-expect(recorder.reasons, [HintSkipReason.timeout]);
+expect(reasons, [HintSkipReason.timeout]);
 controller.dispose();
 ```
 
@@ -194,9 +188,9 @@ Offer it when the tour is optional and the screen has other jobs:
 ```dart
 await showHintTourOffer(
   context: context,
-  controller: controller,
+  controller: controller, // controller.store: set once — no store: here
   tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
-  store: store,
+  store: store, // optional override for this call
   pageId: 'settings',
 );
 ```

@@ -6,9 +6,14 @@ import 'package:flutter/foundation.dart';
 /// an event bus can reuse the same reason values without changing the
 /// contract.
 ///
-/// Closed in 1.x: no new values will be added before 2.0 — exhaustive
-/// `switch`es over this enum in app code are safe. ([HintSkipEvent] fields
-/// stay extensible; this reason set does not grow with them.)
+/// **Closed for the whole 1.x line — a conscious 1.0 decision:** exhaustive
+/// `switch`es over this enum in app code will not break before 2.0. A new
+/// diagnostic kind (replaced, feature-flagged-out, …) is a 2.0 change with a
+/// migration note, not a hidden 1.x addition. ([HintSkipEvent] fields stay
+/// extensible within 1.x — new fields are optional-only; this reason set
+/// does not grow with them.) For analytics that should survive the 2.0
+/// addition, log [HintSkipEvent.reason]'s [label] (a stable string) and keep
+/// context in [HintSkipEvent.detail] — string-keyed sinks never switch.
 enum HintSkipReason {
   /// The render host could not be mounted: no `OverlayState` was reachable
   /// and no mounted target was available to capture the root overlay from.
@@ -39,7 +44,8 @@ enum HintSkipReason {
 ///
 /// An event object instead of positional arguments: new fields (version,
 /// screen, timestamp) can be added in 1.x without breaking implementations
-/// of [HintDiagnosticsHandler].
+/// of [HintDiagnosticsHandler] — **optional fields only** (a new `required`
+/// constructor parameter would break event construction in app tests).
 @immutable
 class HintSkipEvent {
   /// Builds an event from the skipped step's context.
@@ -67,18 +73,30 @@ class HintSkipEvent {
   final String detail;
 }
 
-/// Handler for "why didn't it show" diagnostics.
+/// Handler for "why didn't it show" diagnostics — a plain function taking
+/// one [HintSkipEvent].
 ///
-/// The controller writes every failed show attempt here as a [HintSkipEvent].
-/// Other subsystems can register additional handlers implementing the same
-/// interface — the contract stays unchanged and the engine never learns
-/// about them.
-abstract class HintDiagnosticsHandler {
-  /// Step [HintSkipEvent.stepIndex] of tour [HintSkipEvent.tourId] for
-  /// target [HintSkipEvent.targetId] was not shown for
-  /// [HintSkipEvent.reason]; [HintSkipEvent.detail] carries reason context.
-  void onHintSkipped(HintSkipEvent event);
-}
+/// One handler per controller, passed as the constructor's `diagnostics:`
+/// parameter; to fan out to several sinks, do it inside the one function.
+/// The controller reports every failed show here: wait timeouts, typos,
+/// user skips and engine-side overlay failures — the same channel, one
+/// event object per failure.
+///
+/// ```dart
+/// HintController(diagnostics: (e) => analytics.log('hint_skipped', {
+///   'tour': e.tourId,
+///   'step': e.stepIndex,
+///   'reason': e.reason.label,
+/// }));
+/// ```
+///
+/// A function type, not a class: attaching analytics cannot break the
+/// contract in 1.x (there is no method to add), and the call site needs no
+/// ceremony. Debug builds **always print the same event as one line**
+/// (`[hintful] …`) first, then invoke this callback when one is attached —
+/// a custom handler never costs you the console diagnosis. In release the
+/// callback runs alone (zero print cost) or is absent (zero cost at all).
+typedef HintDiagnosticsHandler = void Function(HintSkipEvent event);
 
 /// A single diagnostics line fit for logging.
 ///
@@ -89,19 +107,11 @@ String formatHintSkipped(HintSkipEvent event) {
       " ${event.reason.label} (target '${event.targetId}') — ${event.detail}";
 }
 
-/// Default handler: prints the formatted line via [debugPrint].
-///
-/// Who wires this handler is policy (the controller only attaches it in
-/// debug builds, so release cost is zero).
-class DebugPrintDiagnostics implements HintDiagnosticsHandler {
-  /// Creates the default printing handler.
-  const DebugPrintDiagnostics();
-
-  @override
-  void onHintSkipped(HintSkipEvent event) {
+/// Debug-build default sink: the one-line diagnosis through [debugPrint].
+/// Attached automatically in debug builds (before any user callback) —
+/// not part of the public barrel.
+void debugPrintHintSkip(HintSkipEvent event) =>
     debugPrint(formatHintSkipped(event));
-  }
-}
 
 /// Levenshtein (edit) distance between [a] and [b].
 ///

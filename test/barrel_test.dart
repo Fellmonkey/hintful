@@ -9,10 +9,11 @@ import 'package:hintful/hintful.dart';
 /// What stays outside the barrel on purpose (the render contract
 /// `HintOverlayHost`/`defaultOverlayHost`/position types, the register-path
 /// `HintTargetRegistration`, the diagnostics helpers `formatHintSkipped`/
-/// `DebugPrintDiagnostics`/`closestTargetIds`, `kHintFocusPadding`,
-/// `hintTourWithSteps`, and the concrete `CompositorHintResolver` /
-/// `UnpositionedHintResolver`) is covered through its source path in the
-/// engine tests.
+/// `debugPrintHintSkip`/`closestTargetIds`, `kHintFocusPadding`,
+/// `hintTourWithSteps`, the scope/inheritance helpers
+/// `HintControllerScope`/`HintStepInternal`, and the concrete
+/// `CompositorHintResolver` / `UnpositionedHintResolver`) is covered through
+/// its source path in the engine tests.
 void main() {
   test('barrel: the whole public contract is reachable from one import point',
       () async {
@@ -63,7 +64,6 @@ void main() {
     expect(registry.ids, isEmpty);
     expect(controller.currentState, isA<HintIdle>());
     expect(controller.isIdle, isTrue);
-    expect(controller.inScope('anything'), isTrue);
 
     // Machine states — the public observable (HintState + subtypes).
     expect(HintWaiting(tour: tour, stepIndex: 0), isA<HintState>());
@@ -79,10 +79,9 @@ void main() {
     );
     expect(event.reason, HintSkipReason.timeout);
     expect(HintSkipReason.timeout.label, isNotEmpty);
-    expect(
-      _HandlerProbe(),
-      isA<HintDiagnosticsHandler>(),
-    );
+    // The handler is a plain function type — any matching closure conforms.
+    void probe(HintSkipEvent e) {}
+    expect(probe, isA<HintDiagnosticsHandler>());
 
     // Actions + tooltip context — what a custom tooltip is handed.
     expect(controller, isA<HintActions>());
@@ -127,6 +126,18 @@ void main() {
     expect(HintStore.compareVersions('1.10.0', '1.9.0'), greaterThan(0));
     expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
 
+    // CallbackHintStore — the three-line persistent-store path.
+    final backing = <String, String>{};
+    final cbStore = CallbackHintStore(
+      read: (key) => backing[key],
+      write: (key, version) => backing[key] = version,
+    );
+    expect(cbStore, isA<HintStore>());
+    expect(cbStore.shouldShow('intro'), isTrue);
+    cbStore.markShown('intro', '2.0.0');
+    expect(cbStore.shouldShow('intro', minVersion: '2.0.0'), isFalse);
+    expect(cbStore.shouldShow('intro', minVersion: '3.0.0'), isTrue);
+
     // Server-driven tours — fromJson + toJson round-trip (bring your own HTTP).
     final wireTour = HintTour.fromJson(richTour.toJson());
     expect(wireTour.id, richTour.id);
@@ -136,9 +147,4 @@ void main() {
     expect(HintTourOfferResult.values, hasLength(2));
     expect(showHintTourOffer, isNotNull);
   });
-}
-
-class _HandlerProbe implements HintDiagnosticsHandler {
-  @override
-  void onHintSkipped(HintSkipEvent event) {}
 }

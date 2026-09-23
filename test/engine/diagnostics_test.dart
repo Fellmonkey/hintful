@@ -85,14 +85,14 @@ void main() {
     });
   });
 
-  group('DebugPrintDiagnostics', () {
+  group('debugPrintHintSkip (the always-on debug sink)', () {
     test('prints the formatted line through debugPrint', () async {
       final logs = <String>[];
       final original = debugPrint;
       debugPrint =
           (String? message, {int? wrapWidth}) => logs.add(message ?? '');
       try {
-        const DebugPrintDiagnostics().onHintSkipped(const HintSkipEvent(
+        debugPrintHintSkip(const HintSkipEvent(
           tourId: 't',
           stepIndex: 0,
           targetId: 'x',
