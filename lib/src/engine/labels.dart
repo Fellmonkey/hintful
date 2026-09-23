@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 /// ```
 @immutable
 class HintTooltipLabels {
+  /// Builds labels; omitted fields keep their English defaults.
   const HintTooltipLabels({
     this.skip = 'Skip',
     this.back = 'Back',
@@ -35,8 +36,14 @@ class HintTooltipLabels {
 
   /// Action buttons of the primary tooltip.
   final String skip;
+
+  /// "Back" button label.
   final String back;
+
+  /// "Next" button label.
   final String next;
+
+  /// "Done" button label (last step — replaces Next).
   final String done;
 
   /// Waiting-phase placeholder ("the target is not mounted yet").
@@ -57,6 +64,7 @@ class HintTooltipLabels {
       announceStep?.call(stepIndex, totalSteps, title) ??
       'Step ${stepIndex + 1} of $totalSteps: $title';
 
+  /// Same labels with the given fields replaced (null — keep the current).
   HintTooltipLabels copyWith({
     String? skip,
     String? back,

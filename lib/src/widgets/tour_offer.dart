@@ -23,6 +23,7 @@ enum HintTourOfferResult {
 /// const with overrides for a product's own wording/l10n.
 @immutable
 class HintTourOfferLabels {
+  /// Builds offer texts; omitted fields keep their English defaults.
   const HintTourOfferLabels({
     this.title = 'Want a tour?',
     this.body = 'Take a quick tour of what is new.',
@@ -31,10 +32,19 @@ class HintTourOfferLabels {
     this.applyToAllPagesLabel = 'Apply to all pages',
   });
 
+  /// Dialog title (default — "Want a tour?").
   final String title;
+
+  /// Dialog body text (default — "Take a quick tour of what is new.").
   final String body;
+
+  /// Accept button label (default — "Start").
   final String acceptLabel;
+
+  /// Decline button label (default — "Later").
   final String skipLabel;
+
+  /// "Apply to all pages" checkbox label.
   final String applyToAllPagesLabel;
 }
 

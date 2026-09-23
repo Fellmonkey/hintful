@@ -42,6 +42,7 @@ enum HintSkipReason {
 /// of [HintDiagnosticsHandler].
 @immutable
 class HintSkipEvent {
+  /// Builds an event from the skipped step's context.
   const HintSkipEvent({
     required this.tourId,
     required this.stepIndex,
@@ -93,6 +94,7 @@ String formatHintSkipped(HintSkipEvent event) {
 /// Who wires this handler is policy (the controller only attaches it in
 /// debug builds, so release cost is zero).
 class DebugPrintDiagnostics implements HintDiagnosticsHandler {
+  /// Creates the default printing handler.
   const DebugPrintDiagnostics();
 
   @override

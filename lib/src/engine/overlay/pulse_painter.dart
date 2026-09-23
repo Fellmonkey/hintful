@@ -15,6 +15,7 @@ import '../specs.dart' show FocusShape, kHintFocusPadding;
 /// (the animation tick repaints every frame, reading the compositor
 /// transform live — no rebuilds, no extra lag).
 class PulsePainter extends CustomPainter {
+  /// Creates a painter for one repaint configuration.
   PulsePainter({
     required this.animation,
     required this.resolver,
@@ -23,10 +24,19 @@ class PulsePainter extends CustomPainter {
     this.focusPadding = kHintFocusPadding,
   });
 
+  /// Pulse progress animation (0..1); null — no pulse is drawn.
   final Animation<double>? animation;
+
+  /// Source of the target's position (null — nothing to ring).
   final HintPositionResolver? resolver;
+
+  /// Ring stroke color (usually the theme accent).
   final Color color;
+
+  /// Shape of the ring — matches the scrim hole.
   final FocusShape focusShape;
+
+  /// Padding from the target bounds — the ring starts at the hole edge.
   final double focusPadding;
 
   @override

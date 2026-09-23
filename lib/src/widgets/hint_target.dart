@@ -15,6 +15,8 @@ import '../engine/specs.dart';
 /// Identification is by string id, not GlobalKey. The State creates its own
 /// [LayerLink] (id is the external key, link is internal mechanics).
 class HintTarget extends StatefulWidget {
+  /// Registers [id] for the lifetime of this widget and wraps [child]
+  /// in the transform leader the overlay follows.
   const HintTarget({
     super.key,
     required this.id,
@@ -28,6 +30,7 @@ class HintTarget extends StatefulWidget {
   /// Key in the target registry.
   final String id;
 
+  /// The widget to spotlight (rendered through the transform leader).
   final Widget child;
 
   /// Registry; defaults to [HintTargetRegistry.defaultInstance] (zero-config).

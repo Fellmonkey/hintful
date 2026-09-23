@@ -24,6 +24,8 @@ import 'tooltip_tail.dart';
 FocusShape resolveFocusShape(HintStep step, [HintTargetRegistration? reg]) =>
     step.focusShape ?? reg?.focusShape ?? FocusShape.rectangle;
 
+/// Same fallback chain for the focus padding: step override → target
+/// default → package default ([kHintFocusPadding]).
 double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
     step.focusPadding ?? reg?.focusPadding ?? kHintFocusPadding;
 
@@ -77,6 +79,8 @@ HintOverlayHost Function(HintController) defaultOverlayHost({
 /// `overlay` for fully-deferred scenarios (zero mounted targets). User input
 /// (next/skip/finish) goes into [HintActions] — the controller implements it.
 class HintOverlayEngine implements HintOverlayHost {
+  /// Creates the engine over [registry], driven by [input], on [overlay]
+  /// (captured from the first mounted target when null).
   HintOverlayEngine({
     required HintTargetRegistry registry,
     required HintActions input,

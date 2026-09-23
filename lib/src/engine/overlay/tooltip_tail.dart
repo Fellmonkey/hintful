@@ -1,7 +1,19 @@
 import 'package:flutter/widgets.dart';
 
 /// Which edge of the tooltip the tail points from, toward the target.
-enum TailSide { top, bottom, left, right }
+enum TailSide {
+  /// Tail on the top edge, pointing up at a hole above.
+  top,
+
+  /// Tail on the bottom edge, pointing down at a hole below.
+  bottom,
+
+  /// Tail on the left edge, pointing left at a hole beside it.
+  left,
+
+  /// Tail on the right edge, pointing right at a hole beside it.
+  right,
+}
 
 /// Sub-pixel tolerance: the tooltip rect comes from the compositor transform
 /// (float noise ~1e-16 is amplified by ancestor matrices), so an exact
@@ -107,6 +119,7 @@ double _clampCenter(double value, double extent, double halfWidth) {
 /// painter then reads both the current tooltip position and the current
 /// hole.
 class TooltipTailPainter extends CustomPainter {
+  /// Creates a tail painter reading position and hole live at paint time.
   TooltipTailPainter({
     required this.positionKey,
     required this.holeOf,
@@ -127,7 +140,10 @@ class TooltipTailPainter extends CustomPainter {
   /// of the same surface.
   final Color color;
 
+  /// Triangle length beyond the tooltip edge (px).
   final double tailLength;
+
+  /// Triangle base width on the tooltip edge (px).
   final double tailWidth;
 
   @override
@@ -168,6 +184,7 @@ class TooltipTailPainter extends CustomPainter {
 /// it per theme (`HintTheme.showTail`) when a custom tooltip draws its own
 /// pointer.
 class TooltipTail extends StatefulWidget {
+  /// Wraps [child] so the tail paints behind it, aiming at [holeOf].
   const TooltipTail({
     super.key,
     required this.holeOf,
@@ -179,7 +196,10 @@ class TooltipTail extends StatefulWidget {
   /// paint time (see [TooltipTailPainter.holeOf]).
   final Rect Function() holeOf;
 
+  /// Tail color — filled with the tooltip's background color.
   final Color color;
+
+  /// The tooltip subtree the tail is painted behind.
   final Widget child;
 
   @override

@@ -10,13 +10,37 @@ import 'package:flutter/widgets.dart';
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
-enum TooltipPosition { auto, top, bottom, left, right }
+enum TooltipPosition {
+  /// Pick the side with the most free space, re-evaluated live (the default).
+  auto,
+
+  /// Above the target.
+  top,
+
+  /// Below the target.
+  bottom,
+
+  /// Left of the target.
+  left,
+
+  /// Right of the target.
+  right,
+}
 
 /// Hole shape cut into the scrim around a spotlighted target.
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
-enum FocusShape { rectangle, circle, roundedRect }
+enum FocusShape {
+  /// Sharp-cornered rectangle (the default).
+  rectangle,
+
+  /// Circle inscribed in the target bounds.
+  circle,
+
+  /// Rectangle with rounded corners.
+  roundedRect,
+}
 
 /// Tooltip entry animation — the preset ladder, rung 2 of the animation
 /// ladder.
@@ -36,7 +60,14 @@ enum FocusShape { rectangle, circle, roundedRect }
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
-enum HintEntryAnimation { easeOut, sprung }
+enum HintEntryAnimation {
+  /// Fade + a whisper of scale (0.96 → 1) on `Curves.easeOut`, 200 ms.
+  easeOut,
+
+  /// Scale 0.8 → 1 on `Curves.elasticOut` (the overshoot is the bounce),
+  /// 800 ms.
+  sprung,
+}
 
 /// Actions available to a step's content (custom tooltips).
 ///
@@ -69,14 +100,20 @@ abstract class HintActions {
 /// full step context.
 @immutable
 class HintTooltipContext {
+  /// Builds a context bound to [actions] and a position within the tour.
   const HintTooltipContext({
     required this.actions,
     required this.stepIndex,
     required this.totalSteps,
   });
 
+  /// Tour actions the tooltip can invoke (next/skip/previous/finish).
   final HintActions actions;
+
+  /// 0-based index of the step this context describes.
   final int stepIndex;
+
+  /// Total number of steps in the tour.
   final int totalSteps;
 
   /// Last step of the tour: Next becomes Done.
@@ -93,7 +130,13 @@ class HintTooltipContext {
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
-enum HintMissingTargetPolicy { abortTour, skipStep }
+enum HintMissingTargetPolicy {
+  /// The tour ends with a `timeout` diagnosis (the default).
+  abortTour,
+
+  /// The step is diagnosed and the tour continues with the next step.
+  skipStep,
+}
 
 /// Default focus padding when neither the step nor the target sets one.
 const double kHintFocusPadding = 4.0;
@@ -103,6 +146,8 @@ const double kHintFocusPadding = 4.0;
 /// [HintTooltip] and `DefaultTooltip`.
 @immutable
 class HintStepContent {
+  /// Copy for a step/slot: strings and/or localized builders (all optional —
+  /// an empty content renders nothing).
   const HintStepContent({
     this.title,
     this.description,
@@ -112,14 +157,20 @@ class HintStepContent {
 
   /// Zero-config title/description; ignored when a `tooltipBuilder` is set.
   final String? title;
+
+  /// Zero-config description; ignored when a `tooltipBuilder` is set.
   final String? description;
 
   /// Localized builders; called with the overlay's BuildContext at show
   /// time. Takes precedence over [title]/[description] — use for l10n:
   /// `titleBuilder: (c) => AppLocalizations.of(c)!.introTitle`.
   final String Function(BuildContext)? titleBuilder;
+
+  /// Localized description builder; takes precedence over [description]
+  /// (same contract as [titleBuilder]).
   final String Function(BuildContext)? descriptionBuilder;
 
+  /// No strings and no builders — the slot renders nothing.
   bool get isEmpty =>
       title == null &&
       description == null &&
@@ -134,11 +185,13 @@ class HintStepContent {
   String? effectiveDescription(BuildContext context) =>
       descriptionBuilder?.call(context) ?? description;
 
+  /// Serializes the string copy (builders are code-side only).
   Map<String, dynamic> toJson() => {
         if (title != null) 'title': title,
         if (description != null) 'description': description,
       };
 
+  /// Parses the string copy from JSON (builders are code-side only).
   factory HintStepContent.fromJson(Map<String, dynamic> json) =>
       HintStepContent(
         title: json['title'] as String?,
@@ -207,6 +260,8 @@ final class HintTapCustom extends HintTapBehavior {
 /// deliberate exception to allow fully replacing a tooltip.
 @immutable
 class HintStep {
+  /// Creates a step: non-empty [targetId], and content
+  /// (`title`/`description` or builders) or a [tooltipBuilder].
   const HintStep({
     required this.targetId,
     this.moreTargets = const [],
@@ -278,11 +333,18 @@ class HintStep {
   /// Sugar over [content]'s `title` — prefer reading [content] when both
   /// are relevant.
   String? get title => content.title;
+
+  /// Sugar over [content]'s `description`.
   String? get description => content.description;
+
+  /// Sugar over [content]'s `titleBuilder`.
   String Function(BuildContext)? get titleBuilder => content.titleBuilder;
+
+  /// Sugar over [content]'s `descriptionBuilder`.
   String Function(BuildContext)? get descriptionBuilder =>
       content.descriptionBuilder;
 
+  /// Preferred side for the primary tooltip — see [TooltipPosition].
   final TooltipPosition position;
 
   /// Wait-for-target timeout for this step; null — inherits [HintTour.stepTimeout].
@@ -320,6 +382,9 @@ class HintStep {
   /// icons to avoid per-step duplication — a step override is for the
   /// exception, not the rule.
   final FocusShape? focusShape;
+
+  /// Spotlight padding for this step; null — inherits from [HintTarget]
+  /// or [kHintFocusPadding].
   final double? focusPadding;
 
   /// Auto-scroll the primary target into view when the step activates.
@@ -331,6 +396,9 @@ class HintStep {
   /// time — delegates to [content] (builders take precedence).
   String? effectiveTitle(BuildContext context) =>
       content.effectiveTitle(context);
+
+  /// Effective description for the overlay's BuildContext at show
+  /// time — delegates to [content] (builders take precedence).
   String? effectiveDescription(BuildContext context) =>
       content.effectiveDescription(context);
 
@@ -344,6 +412,10 @@ class HintStep {
   /// ladder); null — no animation. Rung 3 (anything custom) is a
   /// [tooltipBuilder] with its own animation widgets.
   final HintEntryAnimation? transition;
+
+  /// Explicit spotlight rect instead of a registry target: the step is
+  /// entered immediately (no waiting) and spotlights these coordinates
+  /// statically.
   final Rect? targetRect;
 
   /// Lifecycle: fires once when this step first becomes active — the start
@@ -358,6 +430,7 @@ class HintStep {
   /// All target ids of the step: the primary [targetId] + [moreTargets].
   List<String> get targetIds => [targetId, ...moreTargets];
 
+  /// Whether the step is rect-anchored ([targetRect] is set).
   bool get hasRectTarget => targetRect != null;
 
   /// The step's timeout, honoring inheritance.
@@ -369,6 +442,7 @@ class HintStep {
   ) =>
       missingTargetPolicy ?? tourPolicy;
 
+  /// Serializes the step to the frozen JSON wire format (see `fromJson`).
   Map<String, dynamic> toJson() => {
         'targetId': targetId,
         if (moreTargets.isNotEmpty) 'moreTargets': moreTargets,
@@ -470,6 +544,8 @@ class HintStep {
 /// slot (it receives the same context as the primary's builder).
 @immutable
 class HintTooltip {
+  /// Creates a slot with content or a [tooltipBuilder], on its own
+  /// [position] around the primary target.
   const HintTooltip({
     this.position = TooltipPosition.auto,
     String? title,
@@ -510,14 +586,24 @@ class HintTooltip {
         descriptionBuilder: _descriptionBuilder,
       );
 
+  /// Sugar over [content]'s `title`.
   String? get title => content.title;
+
+  /// Sugar over [content]'s `description`.
   String? get description => content.description;
+
+  /// Sugar over [content]'s `titleBuilder`.
   String Function(BuildContext)? get titleBuilder => content.titleBuilder;
+
+  /// Sugar over [content]'s `descriptionBuilder`.
   String Function(BuildContext)? get descriptionBuilder =>
       content.descriptionBuilder;
 
+  /// Effective title for [context] — builders take precedence.
   String? effectiveTitle(BuildContext context) =>
       content.effectiveTitle(context);
+
+  /// Effective description for [context] — builders take precedence.
   String? effectiveDescription(BuildContext context) =>
       content.effectiveDescription(context);
 
@@ -528,12 +614,16 @@ class HintTooltip {
     HintTooltipContext ctx,
   )? tooltipBuilder;
 
+  /// Serializes the slot to the frozen JSON wire format (position + string
+  /// copy; builders are code-side only).
   Map<String, dynamic> toJson() => {
         'position': position.name,
         if (title != null) 'title': title,
         if (description != null) 'description': description,
       };
 
+  /// Parses a slot payload; an unknown `position` falls back to
+  /// [TooltipPosition.auto] (reported through [onWarning]).
   factory HintTooltip.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -553,6 +643,7 @@ class HintTooltip {
 /// `fromJson`): `{id, steps: [{targetId, title, ...}], stepTimeout}`.
 @immutable
 class HintTour {
+  /// Creates a tour of [steps] under a non-empty [id].
   const HintTour({
     required this.id,
     required this.steps,
@@ -564,7 +655,10 @@ class HintTour {
   })  : assert(id != '', 'HintTour.id must not be empty'),
         assert(steps.length > 0, 'HintTour.steps must not be empty');
 
+  /// Stable tour id — non-empty; diagnostics, stores and offers key on it.
   final String id;
+
+  /// Ordered steps of the tour; must be non-empty.
   final List<HintStep> steps;
 
   /// Default wait-for-target timeout for all steps of the tour.
@@ -642,6 +736,7 @@ class HintTour {
     return duplicates;
   }
 
+  /// Serializes the tour to the frozen JSON wire format (see `fromJson`).
   Map<String, dynamic> toJson() => {
         'id': id,
         'steps': steps.map((s) => s.toJson()).toList(),

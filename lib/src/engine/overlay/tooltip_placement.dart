@@ -247,6 +247,7 @@ Offset placeTooltip({
 /// last resort (an on-screen anchor with no room: tooltip or hole larger than
 /// the screen, every side blocked) — a safe-rect corner with a margin.
 class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
+  /// Places one tooltip against [holeLocal] on the [screenLocal] rect.
   TooltipPlacementDelegate({
     required this.screenLocal,
     required this.holeLocal,
@@ -327,6 +328,7 @@ class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
 /// side wins the fight for the free space), then the extras one by one (each
 /// avoids what is already placed).
 class TooltipMultiPlacementDelegate extends MultiChildLayoutDelegate {
+  /// Places the primary tooltip plus every extra slot without overlaps.
   TooltipMultiPlacementDelegate({
     required this.screenLocal,
     required this.holeLocal,
@@ -343,14 +345,22 @@ class TooltipMultiPlacementDelegate extends MultiChildLayoutDelegate {
   /// Layout id of the extra slot with [index].
   static String extraId(int index) => 'extra_$index';
 
+  /// The screen in the tooltip layer's coordinates (see class doc).
   final Rect screenLocal;
+
+  /// The primary target (scrim hole) rect in the same coordinates.
   final Rect holeLocal;
+
+  /// Preferred side of the primary tooltip.
   final TooltipPosition primaryPosition;
 
   /// Preferred sides of the extra slots, in order (index == [extraId]).
   final List<TooltipPosition> extraPositions;
 
+  /// Gap between a tooltip and the hole it anchors to.
   final double gap;
+
+  /// System insets (notch, home indicator) the tooltips stay inside.
   final EdgeInsets safeArea;
 
   /// Spotlighted targets of the step besides the primary hole: no slot may

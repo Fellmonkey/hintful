@@ -14,6 +14,7 @@ import 'specs.dart';
 /// dispose.
 @immutable
 class HintTargetRegistration {
+  /// Snapshots a mounted target's [id], [link] and [context].
   const HintTargetRegistration({
     required this.id,
     required this.link,
@@ -22,12 +23,19 @@ class HintTargetRegistration {
     this.focusPadding,
   });
 
+  /// String key of the target (not a GlobalKey).
   final String id;
+
+  /// CompositedTransform link the follower uses to track the target.
   final LayerLink link;
+
+  /// The target's element — read only during step-change handling (class doc).
   final BuildContext context;
 
   /// Default hole shape/padding for this target; a step's value overrides.
   final FocusShape? focusShape;
+
+  /// Default hole padding for this target; a step's value overrides.
   final double? focusPadding;
 }
 
@@ -46,6 +54,7 @@ class HintTargetRegistration {
 /// - **Data only**: the registry stores no widgets/elements — just id, link
 ///   and context; no leaks.
 class HintTargetRegistry {
+  /// Creates a registry; [onWarning] captures debug-only developer warnings.
   HintTargetRegistry({this.onWarning});
 
   /// Global instance for zero-config (`HintTarget` without `registry:`).
@@ -93,6 +102,8 @@ extension HintTargetRegistryInternal on HintTargetRegistry {
   /// Current registration for [id], or null if the target is not mounted.
   HintTargetRegistration? lookup(String id) => _byId[id];
 
+  /// Registers [registration] as the current owner of its id (last wins;
+  /// notifies listeners).
   void register(HintTargetRegistration registration) {
     final existing = _byId[registration.id];
     if (existing != null && !identical(existing, registration)) {

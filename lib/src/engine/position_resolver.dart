@@ -11,8 +11,10 @@ sealed class HintPosition {
   const HintPosition();
 }
 
+/// The target is mounted; the compositor knows its position.
 @immutable
 class PositionedHint extends HintPosition {
+  /// Creates a positioned hint from overlay-space [translation] + [size].
   const PositionedHint({required this.translation, required this.size});
 
   /// Offset of the target's top-left corner in overlay coordinates (the
@@ -26,8 +28,10 @@ class PositionedHint extends HintPosition {
   String toString() => 'PositionedHint($translation, $size)';
 }
 
+/// The target is not in the tree (yet/already) — there is no position.
 @immutable
 class UnpositionedHint extends HintPosition {
+  /// Creates an unpositioned hint.
   const UnpositionedHint();
 
   @override
@@ -40,12 +44,14 @@ class UnpositionedHint extends HintPosition {
 /// internal layer APIs: if `FollowerLayer.getLastTransform()` breaks or gets
 /// renamed, one implementation is fixed instead of the whole overlay.
 abstract class HintPositionResolver {
+  /// Current position of the target (or [UnpositionedHint]).
   HintPosition resolve();
 }
 
 /// A resolver that never yields a position: used in waiting mode when the
 /// target does not exist yet and the scrim is drawn fully (no hole).
 class UnpositionedHintResolver implements HintPositionResolver {
+  /// Creates the never-positioned resolver.
   const UnpositionedHintResolver();
 
   @override
@@ -67,6 +73,7 @@ class UnpositionedHintResolver implements HintPositionResolver {
 /// each `resolve()`. The source is the follower itself, not `link.leader`:
 /// `LeaderLayer` has no `getLastTransform` method.
 class CompositorHintResolver implements HintPositionResolver {
+  /// Captures the follower render object read on every [resolve].
   CompositorHintResolver(this._follower);
 
   final RenderFollowerLayer _follower;

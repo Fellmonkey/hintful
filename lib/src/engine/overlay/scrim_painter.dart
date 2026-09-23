@@ -28,6 +28,7 @@ import '../specs.dart' show FocusShape;
 /// config?" (holes/color/shape); movement repaints are driven by the
 /// caller rebuilding with fresh hole lists (or waiting on `_holeNotifier`).
 class RectScrimPainter extends CustomPainter {
+  /// Creates a scrim over the screen with [holes] punched through [color].
   const RectScrimPainter({
     required this.holes,
     required this.color,
@@ -37,6 +38,8 @@ class RectScrimPainter extends CustomPainter {
   /// Hole rects in the canvas's own (screen) coordinates, padding already
   /// applied by the caller.
   final List<Rect> holes;
+
+  /// Dim color over the whole screen (its alpha carries the dim level).
   final Color color;
 
   /// Hole shape — see [holeShape].

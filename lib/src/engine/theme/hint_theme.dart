@@ -17,6 +17,7 @@ import '../labels.dart';
 /// defines its own theme.
 @immutable
 class HintTheme extends ThemeExtension<HintTheme> {
+  /// Creates a theme from the required colors and optional style overrides.
   const HintTheme({
     required this.tooltipBackground,
     required this.tooltipForeground,
@@ -40,13 +41,19 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// Screen dimming around the target (scrim).
   final Color scrimColor;
 
+  /// Tooltip corner radius (default via [HintTheme.minimal] — 12).
   final BorderRadius tooltipRadius;
+
+  /// Inner padding of the tooltip (default via [HintTheme.minimal] — 16).
   final EdgeInsets tooltipPadding;
 
   /// Title/description styles; null — the tooltip resolves defaults from
   /// [tooltipForeground] (a partially custom theme does not break
   /// zero-config).
   final TextStyle? tooltipTitleStyle;
+
+  /// Description style; null — the tooltip resolves defaults from
+  /// [tooltipForeground] (same contract as [tooltipTitleStyle]).
   final TextStyle? tooltipDescriptionStyle;
 
   /// The tail (arrow from the tooltip toward the target). On by default —
@@ -161,6 +168,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
 
 /// Access to the hint theme from [ThemeData]: `Theme.of(context).hintTheme`.
 extension HintThemeX on ThemeData {
+  /// This theme's [HintTheme]; unregistered — the zero-config
+  /// [HintTheme.minimal] default derived from [colorScheme].
   HintTheme get hintTheme =>
       extensions[HintTheme] as HintTheme? ?? HintTheme.minimal(colorScheme);
 }

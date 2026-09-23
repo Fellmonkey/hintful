@@ -220,6 +220,7 @@ class HintController implements HintActions {
   /// Observable tour state.
   ValueListenable<HintState> get state => _stateNotifier;
 
+  /// Current value of [state] — the machine state at this moment.
   HintState get currentState => _stateNotifier.value;
 
   /// No tour is running — for UI state (disable Start buttons). Not an

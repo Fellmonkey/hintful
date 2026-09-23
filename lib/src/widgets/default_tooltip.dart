@@ -30,6 +30,8 @@ import '../engine/theme/hint_theme.dart';
 /// engine baseline), so at scale 1.0 the content is only width-capped
 /// (wrapping) — no scrollable is built.
 class DefaultTooltip extends StatelessWidget {
+  /// Renders [step]'s content with actions from [ctx] (and optional
+  /// [labels]/[content] overrides for slots).
   const DefaultTooltip({
     super.key,
     required this.step,
@@ -39,6 +41,7 @@ class DefaultTooltip extends StatelessWidget {
     this.labels,
   });
 
+  /// The step whose content and tour position are rendered.
   final HintStep step;
 
   /// Content override for a non-primary slot: null — the step's own

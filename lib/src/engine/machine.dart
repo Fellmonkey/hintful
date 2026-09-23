@@ -16,26 +16,34 @@ import 'specs.dart';
 sealed class HintState {
   const HintState();
 
+  /// The running tour; null in [HintIdle].
   HintTour? get tour => switch (this) {
         HintIdle() => null,
         HintWaiting(:final tour) => tour,
         HintActive(:final tour) => tour,
       };
 
+  /// 0-based index of the current step; null in [HintIdle].
   int? get stepIndex => switch (this) {
         HintIdle() => null,
         HintWaiting(:final stepIndex) => stepIndex,
         HintActive(:final stepIndex) => stepIndex,
       };
 
+  /// Whether the state is [HintIdle].
   bool get isIdle => this is HintIdle;
+
+  /// Whether the state is [HintActive].
   bool get isActive => this is HintActive;
+
+  /// Whether the state is [HintWaiting].
   bool get isWaiting => this is HintWaiting;
 }
 
 /// No tour: zero engine widgets in the tree.
 @immutable
 class HintIdle extends HintState {
+  /// The initial/idle state — no tour is running.
   const HintIdle();
 
   @override
@@ -49,6 +57,7 @@ class HintIdle extends HintState {
 /// timeout is driven by the controller via [ArmTimeoutEffect]).
 @immutable
 class HintWaiting extends HintState {
+  /// Waiting on [stepIndex] of [tour] for its target(s) to mount.
   const HintWaiting({required this.tour, required this.stepIndex});
 
   @override
@@ -78,6 +87,7 @@ class HintWaiting extends HintState {
 /// Step shown: target mounted, scrim with a hole and tooltip are active.
 @immutable
 class HintActive extends HintState {
+  /// Step [stepIndex] of [tour] is shown (scrim + tooltip active).
   const HintActive({required this.tour, required this.stepIndex});
 
   @override
@@ -110,26 +120,33 @@ sealed class HintEvent {
   const HintEvent();
 }
 
+/// Start a tour — only valid from [HintIdle] (one tour at a time).
 @immutable
 class HintStart extends HintEvent {
+  /// Wraps the [tour] to start.
   const HintStart({required this.tour});
 
+  /// The tour to run.
   final HintTour tour;
 }
 
 /// A target registered (or re-registered) in the registry.
 @immutable
 class TargetAppeared extends HintEvent {
+  /// Reports that [targetId] mounted in the registry.
   const TargetAppeared({required this.targetId});
 
+  /// The registry id that appeared.
   final String targetId;
 }
 
 /// A target unregistered (disposed).
 @immutable
 class TargetVanished extends HintEvent {
+  /// Reports that [targetId] unmounted from the registry.
   const TargetVanished({required this.targetId});
 
+  /// The registry id that vanished.
   final String targetId;
 }
 
@@ -137,11 +154,14 @@ class TargetVanished extends HintEvent {
 /// from the timer armed via [ArmTimeoutEffect]).
 @immutable
 class WaitTimeout extends HintEvent {
+  /// The wait-for-target timer elapsed.
   const WaitTimeout();
 }
 
+/// Advance the tour — Next button, target tap (default), overlay tap.
 @immutable
 class UserNext extends HintEvent {
+  /// Requests the next step (finishes the tour on the last one).
   const UserNext();
 }
 
@@ -150,6 +170,7 @@ class UserNext extends HintEvent {
 /// extend the wait).
 @immutable
 class UserPrevious extends HintEvent {
+  /// Requests the previous step.
   const UserPrevious();
 }
 
@@ -157,18 +178,24 @@ class UserPrevious extends HintEvent {
 /// in release. Same index: a no-op (no timer reset, no re-enter).
 @immutable
 class UserGoTo extends HintEvent {
+  /// Jumps to the 0-based [index] step.
   const UserGoTo({required this.index});
 
+  /// 0-based index of the step to jump to.
   final int index;
 }
 
+/// Abort the tour — the user chose Skip.
 @immutable
 class UserSkip extends HintEvent {
+  /// Requests an abort with the `userSkipped` diagnosis.
   const UserSkip();
 }
 
+/// Finish the tour normally (Done).
 @immutable
 class UserFinish extends HintEvent {
+  /// Requests normal completion of the tour.
   const UserFinish();
 }
 
@@ -188,8 +215,10 @@ sealed class HintEffect {
 /// after waiting and every step forward.
 @immutable
 class EnterStepEffect extends HintEffect {
+  /// Activates the step at [stepIndex] (updates the overlay content).
   const EnterStepEffect({required this.stepIndex});
 
+  /// 0-based index of the step to show.
   final int stepIndex;
 
   @override
@@ -206,8 +235,10 @@ class EnterStepEffect extends HintEffect {
 /// Arm the wait-for-target timer; emitted exactly when entering waiting.
 @immutable
 class ArmTimeoutEffect extends HintEffect {
+  /// Arms the wait-for-target timer for [timeout].
   const ArmTimeoutEffect({required this.timeout});
 
+  /// How long the target has to mount before the timeout event fires.
   final Duration timeout;
 
   @override
@@ -224,6 +255,7 @@ class ArmTimeoutEffect extends HintEffect {
 /// Clear the timer; emitted when leaving waiting (into active or idle).
 @immutable
 class ClearTimeoutEffect extends HintEffect {
+  /// Disarms the wait-for-target timer.
   const ClearTimeoutEffect();
 
   @override
@@ -243,9 +275,13 @@ class ClearTimeoutEffect extends HintEffect {
 /// the controller enriches it with entity data before diagnostics.
 @immutable
 class AbortEffect extends HintEffect {
+  /// Aborts the tour with [reason] and human-readable [detail].
   const AbortEffect({required this.reason, required this.detail});
 
+  /// Diagnosis kind (timeout / userSkipped).
   final HintSkipReason reason;
+
+  /// Reason context (timeout duration, target ids, …).
   final String detail;
 
   @override
@@ -264,14 +300,21 @@ class AbortEffect extends HintEffect {
 /// Skipping the last step ends the tour — [FinishedEffect] arrives with it.
 @immutable
 class StepSkippedEffect extends HintEffect {
+  /// Skips the step at [stepIndex] with [reason]/[detail]; the tour
+  /// continues with the next step.
   const StepSkippedEffect({
     required this.stepIndex,
     required this.reason,
     required this.detail,
   });
 
+  /// 0-based index of the skipped step.
   final int stepIndex;
+
+  /// Diagnosis kind (timeout today).
   final HintSkipReason reason;
+
+  /// Reason context for the skip.
   final String detail;
 
   @override
@@ -292,8 +335,10 @@ class StepSkippedEffect extends HintEffect {
 /// Normal tour completion (last step passed or [UserFinish]).
 @immutable
 class FinishedEffect extends HintEffect {
+  /// Completes the tour identified by [tourId].
   const FinishedEffect({required this.tourId});
 
+  /// Id of the finished tour.
   final String tourId;
 
   @override
@@ -312,8 +357,10 @@ class FinishedEffect extends HintEffect {
 /// The result of a single [HintMachine.dispatch]: new state + effects.
 @immutable
 class HintTransition {
+  /// Pairs the [state] after the dispatch with the [effects] to apply.
   const HintTransition({required this.state, required this.effects});
 
+  /// State after the dispatch.
   final HintState state;
 
   /// Immutable list of effects the controller must apply.
@@ -331,10 +378,14 @@ class HintTransition {
 /// step, or go into waiting for the target. In tests this is a presence map;
 /// in the controller it is `registry.lookup(id) != null`.
 class HintMachine {
+  /// Creates the machine, optionally seeded with [initialState]
+  /// (defaults to [HintIdle]).
   HintMachine({HintState? initialState})
       : _state = initialState ?? const HintIdle();
 
   HintState _state;
+
+  /// Current state — updated by every [dispatch].
   HintState get state => _state;
 
   static bool _allPresent(
