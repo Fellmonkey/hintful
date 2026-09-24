@@ -18,11 +18,11 @@ The AppBar has **Show tour** (the versioned intro), **Show hint** and
 | Multi-target steps (several holes at once) | **Multi-target** |
 | Multi-content (several tooltips around one target) | **Multi-content** |
 | Tap regions (target vs overlay, tap position) | **Tap regions** — tap the button / the dark area, watch the snackbar |
-| Enum-typed steps + "Want a tour?" pre-dialog | **Offer tour** — the tour comes from `HintTour.fromEnum`; the dialog offers it once and declines persist ("Apply to all pages") |
+| "Want a tour?" pre-dialog | **Offer tour** — a plain `HintTour` offered once per version; declines persist ("Apply to all pages") |
 | Server-driven shape (`HintTour.fromJson`) | **JSON** — steps parsed from a map run like declared ones |
 | l10n, target-level shape, `withHint` | **L10n** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target; its first step sets `autoScroll: true` to bring that row in |
-| Spotlight shapes | **Circle / Rounded / Neg pad / Rect** — `focusShape`, negative `focusPadding`, and a `targetRect` step with no widget at all |
-| Entry-animation rungs | **Sprung** (the preset bounce) and **Custom** (a `tooltipBuilder` with its own `TweenAnimationBuilder`) |
+| Spotlight shapes | **Circle / Rounded / Neg pad** — `focusShape` (including target-level) and negative `focusPadding` |
+| Custom animation | **Custom** — a `tooltipBuilder` with its own `TweenAnimationBuilder` entry (reduce-motion honored inline) |
 | Step lifecycle hooks | **Hooks** — `onStepEnter`/`onStepExit` fire around the step |
 | Per-step scroll | **Step scroll** — the offscreen `entry-5` step sets `autoScroll: true`, the first step of that tour does not |
 
@@ -38,10 +38,10 @@ The demo is split so each layer stays readable:
   demo cards (style chips + one button per feature).
 - `demo_tours.dart` — the tour definitions behind every button in the table
   above.
-- `shared_prefs_hint_store.dart` — a `shared_preferences`-backed
-  `HintStore` built from `CallbackHintStore` (the library core stays
-  dependency-free; this is the pattern for real apps — set once via
-  `HintController(store: ...)`).
+- `shared_prefs_hint_store.dart` — the ready-made
+  `SharedPreferencesHintStore` from the **`hintful_prefs`** companion
+  package (the library core stays dependency-free; storage lives outside
+  it). Wired once via `Hintful.configure(store: ...)` in `main.dart`.
 
 ## Running
 

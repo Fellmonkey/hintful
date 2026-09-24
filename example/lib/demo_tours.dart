@@ -59,7 +59,7 @@ HintTour multiTargetTour() => HintTour(
               title: 'Both filters at once',
               description: 'One step can spotlight several targets — '
                   'each has its own scrim hole, the tooltip avoids them all.'),
-          moreTargets: ['filter-daily'],
+          additionalTargets: ['filter-daily'],
         ),
         HintStep(
           targetId: 'fab',
@@ -82,18 +82,20 @@ HintTour multiContentTour() => HintTour(
           content: HintStepContent(
               title: 'Primary tooltip',
               description: 'The primary tooltip — it owns the tour controls.'),
-          moreTooltips: [
+          additionalTooltips: [
             HintTooltip(
               position: TooltipPosition.left,
-              title: 'Left slot',
-              description: 'An extra tooltip on the left — '
-                  'informational, no buttons.',
+              content: HintStepContent(
+                  title: 'Left slot',
+                  description: 'An extra tooltip on the left — '
+                      'informational, no buttons.'),
             ),
             HintTooltip(
               position: TooltipPosition.top,
-              title: 'Top slot',
-              description: 'Another slot on top. Slots never overlap '
-                  'each other or the spotlighted target.',
+              content: HintStepContent(
+                  title: 'Top slot',
+                  description: 'Another slot on top. Slots never overlap '
+                      'each other or the spotlighted target.'),
             ),
           ],
         ),
@@ -134,35 +136,28 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
       ],
     );
 
-/// The steps of the offer tour as an enum: the values (in declaration
-/// order) ARE the step list — see [offerTour].
-enum OfferStep { fab, filters }
-
-/// A tour built from an enum ([HintTour.fromEnum]): the exhaustive switch in
-/// `stepFor` is checked at compile time — adding or removing an [OfferStep]
-/// value breaks the build, so the tour can never silently drift from the
-/// enum. Used by the "Offer tour" demo, which first asks "Want a tour?"
-/// (see `showHintTourOffer`).
-HintTour offerTour({String? minShowVersion}) => HintTour.fromEnum(
+/// A plain tour behind the "Offer tour" demo, which first asks "Want a
+/// tour?" (see `showHintTourOffer`). Marking runs on any exit
+/// ([HintMarkPolicy.onAnyExit] in the app shell) — finish/skip/timeout all
+/// count as "the user has seen it".
+HintTour offerTour({String? minShowVersion}) => HintTour(
       id: 'offer',
-      values: OfferStep.values,
-      stepFor: (step) => switch (step) {
-        OfferStep.fab => HintStep(
-            targetId: 'fab',
-            content: HintStepContent(
-                title: 'Quick log',
-                description: 'A tour built from an enum — the switch here is '
-                    'exhaustive, so the steps can never drift from the enum.'),
-          ),
-        OfferStep.filters => HintStep(
-            targetId: 'filter-all',
-            content: HintStepContent(
-                title: 'All sets filter',
-                description:
-                    'Declared order of the enum = order of the steps.'),
-          ),
-      },
       minShowVersion: minShowVersion,
+      steps: [
+        HintStep(
+          targetId: 'fab',
+          content: HintStepContent(
+              title: 'Quick log',
+              description: 'A plain tour — the offer dialog decides '
+                  'whether it shows at all.'),
+        ),
+        HintStep(
+          targetId: 'filter-all',
+          content: HintStepContent(
+              title: 'All sets filter',
+              description: 'One step per element, declared top to bottom.'),
+        ),
+      ],
     );
 
 /// New 51-feature demos — Visual demos card.
@@ -198,31 +193,6 @@ HintTour negativePaddingTour() => HintTour(
       ],
     );
 
-HintTour rectTargetTour() => HintTour(
-      id: 'feat-rect',
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Rect by coords',
-              description: 'targetRect — without HintTarget (test)'),
-          targetRect: const Rect.fromLTWH(100, 300, 120, 40),
-        ),
-      ],
-    );
-
-HintTour sprungTour() => HintTour(
-      id: 'feat-sprung',
-      steps: [
-        HintStep(
-            targetId: 'fab',
-            content: HintStepContent(
-                title: 'Sprung', description: 'Sprung curve — bouncy'),
-            transition: HintEntryAnimation.sprung,
-            transitionDuration: const Duration(milliseconds: 350))
-      ],
-    );
-
 HintTour hooksTour(void Function(String m) notify) => HintTour(
       id: 'feat-hooks',
       steps: [
@@ -237,12 +207,12 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
       ],
     );
 
-/// Rung 3 of the animation ladder: a fully custom entry (fade + rise)
+/// The end of the customization ladder: a fully custom entry (fade + rise)
 /// through `tooltipBuilder` — the engine places whatever the builder
 /// returns (positioning, tail side, safe area all still apply), the builder
-/// owns how it enters, down to its own action button. Honors reduce-motion
-/// through the exported `hintTransitionDuration` — the same contract the
-/// built-in presets use.
+/// owns how it enters, down to its own action button. Animation is entirely
+/// the builder's job; reduce-motion is honored inline via
+/// `MediaQuery.disableAnimations`.
 HintTour fadeSlideTour() => HintTour(
       id: 'feat-fade-slide',
       steps: [
@@ -253,13 +223,13 @@ HintTour fadeSlideTour() => HintTour(
               description: 'Custom entry, custom button.'),
           tooltipBuilder: (context, step, ctx) {
             final theme = Theme.of(context).hintTheme;
-            final duration = hintTransitionDuration(
-              MediaQuery.of(context),
-              const Duration(milliseconds: 400),
-            );
+            final reduceMotion = MediaQuery.of(context).disableAnimations;
+            final duration = reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 400);
             final card = Semantics(
               container: true,
-              label: step.title,
+              label: step.content.title,
               child: Material(
                 color: theme.tooltipBackground,
                 borderRadius: theme.tooltipRadius,
@@ -270,10 +240,11 @@ HintTour fadeSlideTour() => HintTour(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(step.title ?? '', style: theme.tooltipTitleStyle),
-                      if (step.description != null) ...[
+                      Text(step.content.title ?? '',
+                          style: theme.tooltipTitleStyle),
+                      if (step.content.description != null) ...[
                         const SizedBox(height: 4),
-                        Text(step.description!,
+                        Text(step.content.description!,
                             style: theme.tooltipDescriptionStyle),
                       ],
                       const SizedBox(height: 12),

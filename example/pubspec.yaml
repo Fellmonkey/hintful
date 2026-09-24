@@ -13,8 +13,12 @@ dependencies:
   # The only dependency on the package — through the public barrel.
   hintful:
     path: ../
-  # Versioned hints demo: the app-side persistent HintStore (the library
-  # core stays dependency-free — the app owns its storage).
+  # The ready-made persistent store (shared_preferences-backed) — the
+  # companion package shipped alongside the core.
+  hintful_prefs:
+    path: ../../hintful_prefs
+  # Versioned hints demo: shared_preferences under the store above (the
+  # library core stays dependency-free — storage lives outside it).
   shared_preferences: ^2.3.0
 
 dev_dependencies:
@@ -24,6 +28,11 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+# Resolve the core package locally during development (the path deps above).
+dependency_overrides:
+  hintful:
+    path: ../
 
 flutter:
   uses-material-design: true

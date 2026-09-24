@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // The only import of the package — the public barrel: the engine internals,
 // overlay machinery and machine effects are not reachable from here.
 import 'package:hintful/hintful.dart';
+import 'package:hintful_prefs/hintful_prefs.dart'
+    show SharedPreferencesHintStore;
 
 import 'demo_tours.dart';
 import 'home_screen.dart';
@@ -50,8 +52,9 @@ class _ExampleAppState extends State<ExampleApp> {
 
   /// The versioned-hints store; null until `shared_preferences` loads
   /// (async init) — the demo card shows "Loading…" and the versioned gate
-  /// is inert until it is ready.
-  HintStore? _store;
+  /// is inert until it is ready. Concrete type: `clear()` is a dev tool of
+  /// the concrete store, not of the [HintStore] contract.
+  SharedPreferencesHintStore? _store;
 
   /// The demo's pretend app version — bumped by the "Bump version" button
   /// to demonstrate the "new in this version" re-show.
@@ -82,15 +85,13 @@ class _ExampleAppState extends State<ExampleApp> {
     super.initState();
     _controller.state.addListener(_onTourStateChanged);
     // The app-side store: `shared_preferences` is async, the library core
-    // stays dependency-free (see shared_prefs_hint_store.dart). Set once on
-    // the controller — startOnce / the offer dialog read `controller.store`
-    // with no per-call `store:`.
+    // stays dependency-free (see shared_prefs_hint_store.dart). Configured
+    // app-wide — startOnce / the offer dialog read it with no per-call
+    // `store:`.
     SharedPreferences.getInstance().then((prefs) {
       if (!mounted) return;
-      setState(() {
-        _store = sharedPrefsHintStore(prefs);
-        _controller.store = _store;
-      });
+      setState(() => _store = sharedPrefsHintStore(prefs));
+      Hintful.configure(store: _store);
     });
   }
 
@@ -210,9 +211,6 @@ class _ExampleAppState extends State<ExampleApp> {
       _guardStart(() => _controller.start(roundedHoleTour()));
   void _startNegativePaddingTour() =>
       _guardStart(() => _controller.start(negativePaddingTour()));
-  void _startRectTargetTour() =>
-      _guardStart(() => _controller.start(rectTargetTour()));
-  void _startSprungTour() => _guardStart(() => _controller.start(sprungTour()));
   void _startHooksTour() =>
       _guardStart(() => _controller.start(hooksTour(_notify)));
   void _startFadeSlideTour() =>
@@ -225,14 +223,14 @@ class _ExampleAppState extends State<ExampleApp> {
 
   /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
   /// checkbox; the decision (start or decline) is persisted via the store —
-  /// per page, or globally when the checkbox is on. The tour itself is built
-  /// from an enum ([HintTour.fromEnum]) — see demo_tours.dart.
+  /// per page, or globally when the checkbox is on. The tour is a plain
+  /// [HintTour] — see demo_tours.dart.
   void _startOfferTour(BuildContext context) {
     if (!_controller.currentState.isIdle) return; // one tour at a time
     if (_store == null) return; // prefs not loaded yet
     showHintTourOffer(
       context: context,
-      controller: _controller, // controller.store: set in initState
+      controller: _controller, // reads Hintful.store — configured in initState
       tour: offerTour(minShowVersion: _appVersion),
       pageId: 'HomePage',
       mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
@@ -329,8 +327,6 @@ class _ExampleAppState extends State<ExampleApp> {
         onCircleHoleTour: _startCircleHoleTour,
         onRoundedHoleTour: _startRoundedHoleTour,
         onNegativePaddingTour: _startNegativePaddingTour,
-        onRectTargetTour: _startRectTargetTour,
-        onSprungTour: _startSprungTour,
         onHooksTour: _startHooksTour,
         onFadeSlideTour: _startFadeSlideTour,
         onJsonTour: _startJsonTour,

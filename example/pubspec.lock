@@ -105,6 +105,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  hintful_prefs:
+    dependency: "direct main"
+    description:
+      path: "../../hintful_prefs"
+      relative: true
+    source: path
+    version: "1.0.0"
   integration_test:
     dependency: "direct dev"
     description: flutter

@@ -261,7 +261,7 @@ void main() {
     expect(find.text('Overlay taps off'), findsNothing);
   });
 
-  testWidgets('offer dialog: accept starts the enum-built tour, then gated',
+  testWidgets('offer dialog: accept starts the tour, then gated',
       (tester) async {
     await pumpApp(tester);
 
@@ -274,7 +274,7 @@ void main() {
     await tester.pump();
     await tester.pump(); // step 1 tooltip
 
-    // The tour built from an enum runs like any other.
+    // The tour runs like any other.
     expect(find.text('Quick log'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pump();

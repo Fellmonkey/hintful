@@ -45,8 +45,6 @@ class HintHomeScreen extends StatelessWidget {
     required this.onCircleHoleTour,
     required this.onRoundedHoleTour,
     required this.onNegativePaddingTour,
-    required this.onRectTargetTour,
-    required this.onSprungTour,
     required this.onHooksTour,
     required this.onFadeSlideTour,
     required this.onJsonTour,
@@ -76,8 +74,6 @@ class HintHomeScreen extends StatelessWidget {
   final VoidCallback onCircleHoleTour;
   final VoidCallback onRoundedHoleTour;
   final VoidCallback onNegativePaddingTour;
-  final VoidCallback onRectTargetTour;
-  final VoidCallback onSprungTour;
   final VoidCallback onHooksTour;
   final VoidCallback onFadeSlideTour;
   final VoidCallback onJsonTour;
@@ -142,8 +138,6 @@ class HintHomeScreen extends StatelessWidget {
             onCircleHoleTour: onCircleHoleTour,
             onRoundedHoleTour: onRoundedHoleTour,
             onNegativePaddingTour: onNegativePaddingTour,
-            onRectTargetTour: onRectTargetTour,
-            onSprungTour: onSprungTour,
             onHooksTour: onHooksTour,
             onFadeSlideTour: onFadeSlideTour,
             onJsonTour: onJsonTour,
@@ -283,8 +277,6 @@ class _VisualDemosCard extends StatelessWidget {
     required this.onCircleHoleTour,
     required this.onRoundedHoleTour,
     required this.onNegativePaddingTour,
-    required this.onRectTargetTour,
-    required this.onSprungTour,
     required this.onHooksTour,
     required this.onFadeSlideTour,
     required this.onJsonTour,
@@ -301,8 +293,6 @@ class _VisualDemosCard extends StatelessWidget {
   final VoidCallback onCircleHoleTour;
   final VoidCallback onRoundedHoleTour;
   final VoidCallback onNegativePaddingTour;
-  final VoidCallback onRectTargetTour;
-  final VoidCallback onSprungTour;
   final VoidCallback onHooksTour;
   final VoidCallback onFadeSlideTour;
   final VoidCallback onJsonTour;
@@ -380,7 +370,6 @@ class _VisualDemosCard extends StatelessWidget {
                 _tourButton('Circle', onCircleHoleTour),
                 _tourButton('Rounded', onRoundedHoleTour),
                 _tourButton('Neg pad', onNegativePaddingTour),
-                _tourButton('Rect', onRectTargetTour),
               ],
             ),
             const SizedBox(height: 16),
@@ -391,7 +380,6 @@ class _VisualDemosCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _tourButton('Sprung', onSprungTour),
                 _tourButton('Custom', onFadeSlideTour),
                 _tourButton('Hooks', onHooksTour),
                 _tourButton('Step scroll', onAutoScrollStepTour),
@@ -445,11 +433,12 @@ class _MotionNotice extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Sprung / Custom demos honor the system setting '
+                  'The Custom demo honors the system setting inline via '
+                  'MediaQuery.disableAnimations '
                   '(Android: Remove animations, iOS/macOS: Reduce motion, '
-                  'Web: prefers-reduced-motion). They are included '
+                  'Web: prefers-reduced-motion). It is included '
                   'intentionally to showcase the engine — enable animations '
-                  'in OS / browser to see them fully. '
+                  'in OS / browser to see it fully. '
                   'Chrome: DevTools > Rendering > Emulate prefers-reduced-motion: no-preference.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
