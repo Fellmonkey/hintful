@@ -118,7 +118,7 @@ final store = CallbackHintStore(
   read: (key) => prefs.getString(key),
   write: (key, value) => prefs.setString(key, value),
 );
-final controller = HintController(store: store);
+Hintful.configure(store: store); // every controller reads it
 
 // optional ask-first dialog — gate + decline + startOnce under `mark:`
 await showHintTourOffer(
@@ -126,18 +126,20 @@ await showHintTourOffer(
   controller: controller,
   tour: introTour(minShowVersion: appVersion),
   pageId: 'Home',
-  // mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
+  // mark: HintMarkPolicy.onAnyExit, // default: finish/skip/timeout all count
 );
 
-// or start directly; `mark:` defaults to HintMarkPolicy.onFinish
+// or start directly; `mark:` defaults to HintMarkPolicy.onAnyExit
 await controller.startOnce(introTour(minShowVersion: appVersion));
 ```
 
-No store assigned? A session `InMemoryHintStore` keeps show-once working
-for this run only (debug prints a one-time warning) — assign a persistent
-store for real once-per-version semantics. Wire format ↔ Dart params:
-`stepTimeout` ↔ `waitTimeoutMs`, `transition` ↔ `transitionCurve`,
-tap-bools `tapOnTarget`/`tapOnOverlay` ↔ `HintTapBehavior.advance()`/`ignore()`.
+No store configured? A session `InMemoryHintStore` keeps show-once working
+for this run only (debug prints a one-time warning) — configure a persistent
+store for real once-per-version semantics. The ready-made shared_preferences
+store ships in the [`hintful_prefs`](https://pub.dev/packages/hintful_prefs)
+companion package. Wire format ↔ Dart params: `stepTimeout` ↔
+`waitTimeoutMs`, tap-bools `tapOnTarget`/`tapOnOverlay` ↔
+`HintTapBehavior.advance()`/`ignore()`.
 
 ## Fast — measured, not promised
 
@@ -177,7 +179,9 @@ wiring your own handler for analytics:
 - **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
   the tour manages focus and returns it to the element you were on before
   it started.
-- **Reduce motion**: with the system setting on, transitions are instant.
+- **Reduce motion**: with the system setting on, custom tooltip entries
+  check `MediaQuery.disableAnimations` and render instantly (the default
+  tooltip has no animation of its own).
 - **Text scale**: the tooltip fits on screen at 2× text scale (content
   scrolls instead of overflowing) — writing copy that never needs it:
   [FAQ §5](doc/faq.md#5-text-overflows-at-20-scale).
@@ -200,11 +204,12 @@ dependencies. Bloc/Riverpod/Provider/GetX wiring is a ~15-line
 `ValueListenable` wrapper in your app (bring your own package) — see
 [best practices](doc/best_practices.md) for the pattern.
 
-And it is testable headless: `HintController(headless: true)` runs
-the whole machine — wait-for-target, timeouts, typo validation, diagnostics —
-with no overlay at all, which is how the tour flow tests drive it
-(`test/helpers/tour_harness.dart`). Headless vs full-fidelity, and the
-two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless-first).
+And it is testable headless: `HintController.test()` (a
+`@visibleForTesting` factory) runs the whole machine — wait-for-target,
+timeouts, typo validation, diagnostics — with no overlay at all, which is
+how the tour flow tests drive it (`test/helpers/tour_harness.dart`).
+Headless vs full-fidelity, and the two-frame rule:
+[best practices §20](doc/best_practices.md#20-testing--headless-first).
 
 ## Features
 
@@ -213,7 +218,7 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - `start/next/previous/goTo/skip/finish`; safe variants
   `tryStart/restart/tryShowHint` + `isIdle` — no manual guards before starting
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
-- Missing targets: `HintMissingTargetPolicy.skipStep` (tour default or per-step)
+- Missing targets: `HintMissingTargetPolicy.skipStep` (the tour default)
   skips an absent target with a `timeout` diagnosis and continues the tour;
   short/`Duration.zero` per-step `stepTimeout` for conditionally-absent targets
 - Scoped controllers: `scopePrefix` isolates tabs/split-view sharing one
@@ -235,33 +240,29 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
 - Optional blur scrim and pulsing ring (theme options; the default stays a
   plain dim — the lightest thing to render)
 - Focus shapes (rectangle/circle/rounded) + padding (including negative
-  shrink), static rect spotlights (`targetRect` — no widget needed), and
-  scroll-into-view: an offscreen target is brought on screen with its step
-- Entry animation in three rungs: none by default; the `easeOut` quiet fade
-  (200 ms) or the `sprung` bounce (800 ms) per step via `transition`
-  (+ `transitionDuration`); anything custom through `tooltipBuilder` (the
-  engine still places it) — all skipped under the system reduce-motion
-  setting, and `hintTransitionDuration` is the shared helper for your own
-  animation
+  shrink), and scroll-into-view: an offscreen target is brought on screen
+  with its step
+- Animation is the tooltip's job: no built-in entry animation — a custom
+  `tooltipBuilder` animates its own entry (the engine still places it);
+  honor `MediaQuery.disableAnimations` inline for reduce-motion
 - Tap regions: tap-on-target vs tap-on-overlay with per-step callbacks and
   tap position; scroll-through — the page scrolls under an active tour
 
 **Content & reuse**
 
-- Enum-typed tours: `HintTour.fromEnum` — the exhaustive `stepFor` switch
-  makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
-  set the store once (`HintController(store: ...)`) and call
-  `startOnce(tour, mark:)` (default `HintMarkPolicy.onFinish`; the version
+  configure the store once (`Hintful.configure(store: ...)`) and call
+  `startOnce(tour, mark:)` (default `HintMarkPolicy.onAnyExit`; the version
   gate lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by
-  hand; with no store assigned, a session `InMemoryHintStore` keeps
+  hand; with no store configured, a session `InMemoryHintStore` keeps
   show-once working for this run only. `CallbackHintStore(read:, write:)`
-  is the three-line path over your storage
+  is the three-line path over your storage; `hintful_prefs` ships a
+  ready-made shared_preferences store
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
   declines persist per page or globally; gates return
   `HintTourOfferResult.alreadyShown`, accept while busy returns `busy`;
-  an accepted tour is recorded per `mark:` (`onFinish` by default), the
+  an accepted tour is recorded per `mark:` (`onAnyExit` by default), the
   tour stays reachable from other entry points
 - `withHint` sugar (`child.withHint('id')`) and target-level
   `focusShape`/`focusPadding` — the shape lives on the widget, a step
@@ -280,15 +281,15 @@ The only supported import is `package:hintful/hintful.dart`. Deep imports
 the API — implementation lives under `lib/src/` and is reachable only through
 this barrel (explicit `show` lists). The exported surface: tour data
 (`HintStep`/`HintTour`/`HintTooltip`/`HintStepContent`/`HintTapBehavior` +
-`TooltipPosition`/`FocusShape`/`HintEntryAnimation`/`HintMissingTargetPolicy`),
+`TooltipPosition`/`FocusShape`/`HintMissingTargetPolicy`),
 registry (`HintTargetRegistry`), machine states
 (`HintState`/`HintIdle`/`HintWaiting`/`HintActive`), controller
 (`HintController`, `HintActions`, `HintTooltipContext`), diagnostics
 (`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
 (`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
 `DefaultTooltip`, `showHintTourOffer` + offer labels/result),
-`hintTransitionDuration`, store (`HintStore`/`InMemoryHintStore`/
-`CallbackHintStore` + `HintStore.compareVersions`).
+config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
+`CallbackHintStore`/`HintMarkPolicy`).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
@@ -338,8 +339,8 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
 - [`doc/best_practices.md`](doc/best_practices.md#index) — the decisions that keep
   tours findable and hard to break, one per section, with the code to copy;
 - [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryStart`,
-  `targetRect` without a target, text scale, taps, multi-target vs
-  multi-content, testing, server-driven tours and the offer dialog;
+  text scale, taps, multi-target vs multi-content, testing,
+  server-driven tours and the offer dialog;
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x → 1.0.0;
 - [`benchmark/README.md`](benchmark/README.md) — how the numbers under
   [Performance](#performance) are recorded.

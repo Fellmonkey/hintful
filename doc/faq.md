@@ -14,7 +14,7 @@ Check the debug log:
 - **`timeout`** — the target never appeared within `stepTimeout` (default 3s). Check the `targetId` and that the widget is mounted. For conditional widgets, use `stepTimeout: Duration.zero` + `skipStep`.
 - **`unknown-target`** — typo. The log shows the closest `targetId`s.
 - **`user-skipped`** — the user tapped Skip or pressed Esc.
-- **`overlay-unavailable`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens on zero-target tours (`targetRect` only) — pass `overlay:` to `HintController`.
+- **`overlay-unavailable`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens when a tour starts before any `HintTarget` has mounted — let the first target build first.
 
 A spotlighted target that **vanishes** mid-step is deliberately not reported: the
 step returns to the waiting phase and re-arms its timeout, so a permanent loss
@@ -52,25 +52,16 @@ if (!await controller.tryStart(tour)) return;
 
 ---
 
-### 4. `targetRect` without `HintTarget` — when do I need `overlay`?
+### 4. Do I ever need to hand the engine an `Overlay`?
 
-When no `HintTarget` is mounted, the engine has nowhere to get an `OverlayState`.
-
-```dart
-final key = GlobalKey<OverlayState>();
-MaterialApp(home: Overlay(key: key, initialEntries: [...]));
-
-// rect-based tour
-HintController(overlay: () => key.currentState)
-```
-
-Otherwise you don't need `overlay` — the engine finds the root overlay from the first target.
+No. The engine captures the root overlay from the first mounted `HintTarget`
+— zero configuration.
 
 ---
 
 ### 5. Text overflows at `2.0` scale?
 
-The tooltip caps height and scrolls. Write shorter instead: **8 words for title, 20 for description**. Need more? Use `moreTooltips` or a second step.
+The tooltip caps height and scrolls. Write shorter instead: **8 words for title, 20 for description**. Need more? Use `additionalTooltips` or a second step.
 
 Test with `MediaQuery.textScalerOf(context).scale(2.0)` — hintful handles it, but short copy never needs to scroll.
 
@@ -100,26 +91,26 @@ Full section: [best practices §16](best_practices.md#16-taps--who-owns-the-gest
 
 ---
 
-### 7. Two widgets, one idea — `moreTargets` or `moreTooltips`?
+### 7. Two widgets, one idea — `additionalTargets` or `additionalTooltips`?
 
-`moreTargets` widens the **spotlight** (one tooltip, several holes);
-`moreTooltips` adds **tooltips** around one hole:
+`additionalTargets` widens the **spotlight** (one tooltip, several holes);
+`additionalTooltips` adds **tooltips** around one hole:
 
 ```dart
 // one tooltip, two holes
-HintStep(targetId: 'filter-all', moreTargets: ['filter-daily'], content: HintStepContent(title: 'Two filters, one job'))
+HintStep(targetId: 'filter-all', additionalTargets: ['filter-daily'], content: HintStepContent(title: 'Two filters, one job'))
 
 // one hole, two tooltips
-HintStep(targetId: 'stats', content: HintStepContent(title: 'Your week'), moreTooltips: [
-  HintTooltip(position: TooltipPosition.left, title: 'Volume', description: '12.4 t'),
+HintStep(targetId: 'stats', content: HintStepContent(title: 'Your week'), additionalTooltips: [
+  HintTooltip(position: TooltipPosition.left, content: HintStepContent(title: 'Volume', description: '12.4 t')),
 ])
 ```
 
-The step waits for **all** its `moreTargets` before it activates, and extras are
+The step waits for **all** its `additionalTargets` before it activates, and extras are
 informational (no buttons) — set their `position` explicitly.
 
-More: [best practices §14](best_practices.md#14-multi-target--several-things-one-story)
-and [§15](best_practices.md#15-multi-content--a-second-tooltip).
+More: [best practices §13](best_practices.md#13-multi-target--several-things-one-story)
+and [§14](best_practices.md#14-multi-content--a-second-tooltip).
 
 ---
 
@@ -130,10 +121,10 @@ callback (a plain function — pass it directly or tear off a method):
 
 ```dart
 final reasons = <HintSkipReason>[];
-final controller = HintController(
+final controller = HintController.test(
   registry: HintTargetRegistry(), // your own, not the app singleton
   diagnostics: (e) => reasons.add(e.reason),
-  headless: true, // no render mechanics — machine only
+  // headless: true, // the default — machine only
 );
 
 await controller.start(tour);
@@ -197,9 +188,9 @@ await showHintTourOffer(
 It skips the dialog when the tour already ran for `tour.minShowVersion`
 (`alreadyShown`), remembers a decline per page (or globally with the
 "Apply to all pages" checkbox), and counts a barrier dismissal as a decline.
-Accepting starts the tour and records the shown-state **on finish**
-(`HintMarkPolicy.onFinish`, the default — skip does not record). Pass
-`mark: HintMarkPolicy.onAnyExit` or `HintMarkPolicy.manual` if your policy
+Accepting starts the tour and records the shown-state **on any exit**
+(`HintMarkPolicy.onAnyExit`, the default — finish/skip/timeout all count).
+Pass `HintMarkPolicy.onFinish` or `HintMarkPolicy.manual` if your policy
 differs — see [best practices §6](best_practices.md#6-once-per-version--hintstore).
 
 Offer from one entry point per page, and keep the tour reachable after a decline

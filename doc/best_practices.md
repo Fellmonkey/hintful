@@ -6,13 +6,13 @@ Keep tours easy to find, easy to change, and hard to break. Each rule below is o
 
 **Structure** — [0 Architecture](#0-architecture--one-file-owns-all-tours) · [1 Targets](#1-targets--shape-lives-on-the-widget) · [2 Tours](#2-tours--let-the-compiler-help) · [3 Text](#3-text--use-builders-for-localization)
 
-**Entry points** — [5 isIdle vs tryStart](#5-when-to-show--separate-ui-state-from-the-guard) · [6 Once per version](#6-once-per-version--hintstore) · [21 The offer dialog](#21-the-offer-dialog--want-a-tour)
+**Entry points** — [5 isIdle vs tryStart](#5-when-to-show--separate-ui-state-from-the-guard) · [6 Once per version](#6-once-per-version--hintstore) · [20 The offer dialog](#20-the-offer-dialog--want-a-tour)
 
-**Copy & look** — [4 Copy](#4-copy--hints-are-ui-not-docs) · [10 Shapes](#10-shapes--negative-padding-is-safe) · [11 Custom tooltip](#11-custom--tooltipbuilder-is-the-escape-hatch) · [17 Motion](#17-motion--three-rungs-one-duty)
+**Copy & look** — [4 Copy](#4-copy--hints-are-ui-not-docs) · [10 Shapes](#10-shapes--negative-padding-is-safe) · [11 Custom tooltip](#11-custom--tooltipbuilder-is-the-escape-hatch) · [16 Motion](#16-motion--animate-it-yourself)
 
-**On screen** — [7 Offscreen](#7-offscreen--opt-in-auto-scroll) · [8 Scroll](#8-scroll--dont-fight-it) · [9 One tip](#9-one-tip--use-showhint) · [13 targetRect](#13-targetrect--spotlight-without-a-widget) · [14 Multi-target](#14-multi-target--several-things-one-story) · [15 Multi-content](#15-multi-content--a-second-tooltip) · [16 Taps](#16-taps--who-owns-the-gesture) · [18 Navigation](#18-navigation--the-tour-and-the-back-button)
+**On screen** — [7 Offscreen](#7-offscreen--opt-in-auto-scroll) · [8 Scroll](#8-scroll--dont-fight-it) · [9 One tip](#9-one-tip--use-showhint) · [13 Multi-target](#13-multi-target--several-things-one-story) · [14 Multi-content](#14-multi-content--a-second-tooltip) · [15 Taps](#15-taps--who-owns-the-gesture) · [17 Navigation](#17-navigation--the-tour-and-the-back-button)
 
-**Diagnostics & delivery** — [12 Diagnostics](#12-diagnostics--trust-the-log) · [19 Server-driven tours](#19-server-driven-tours--what-json-can-and-cannot-carry) · [20 Testing](#20-testing--headless-first)
+**Diagnostics & delivery** — [12 Diagnostics](#12-diagnostics--trust-the-log) · [18 Server-driven tours](#18-server-driven-tours--what-json-can-and-cannot-carry) · [19 Testing](#19-testing--headless-first)
 
 ---
 
@@ -73,7 +73,7 @@ CircleAvatar(...).withHint(
 HintStep(targetId: 'avatar', content: HintStepContent(title: 'Profile'))
 ```
 
-`step.shape ?? target.shape ?? rectangle` — the step wins only for the exception. Same for `focusPadding` (default `4.0`, logical px). On a multi-target step (`moreTargets`) the **primary** target decides for every hole: shape and padding are read from the first registration, extras do not get their own.
+`step.shape ?? target.shape ?? rectangle` — the step wins only for the exception. Same for `focusPadding` (default `4.0`, logical px). On a multi-target step (`additionalTargets`) the **primary** target decides for every hole: shape and padding are read from the first registration, extras do not get their own.
 
 Two more target rules:
 
@@ -84,25 +84,27 @@ Two more target rules:
 
 ## 2. Tours — let the compiler help
 
-```dart
-enum IntroStep { filters, list }
+Keep the step list as plain data — searchable, diffable in PRs, serializable:
 
-HintTour intro = HintTour.fromEnum(
+```dart
+HintTour intro = HintTour(
   id: 'intro',
-  values: IntroStep.values,
-  stepFor: (s) => switch (s) {
-    IntroStep.filters => HintStep(targetId: 'filters', content: HintStepContent(title: 'Filters')),
-    IntroStep.list    => HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
-  },
+  steps: [
+    HintStep(targetId: 'filters', content: HintStepContent(title: 'Filters')),
+    HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
+  ],
 );
 ```
 
-Add a value to `IntroStep` without updating `stepFor` → compile error, not a silent missing tooltip.
+Prefer enums over string ids in your own file (`IntroStep.filters` feeding a
+private `_stepFor` helper) to keep ids and steps in sync — the tour itself
+takes a plain steps list.
 
-`fromEnum` guards the step list; the rest of the tour contract is worth setting
-deliberately:
+The rest of the tour contract is worth setting deliberately:
 
-- `stepTimeout` (default 3 s) — how long a step waits for its target; per-step `stepTimeout` and the tour-level `missingTargetPolicy: skipStep` for targets that exist only sometimes (pair it with a short or `Duration.zero` timeout).
+- `stepTimeout` (default 3 s) — how long a step waits for its target; the
+  tour-level `missingTargetPolicy` (default `skipStep`) for targets that
+  exist only sometimes (pair with a short or `Duration.zero` per-step timeout).
 - `disableBackButton` — the tour owns Android back while it runs.
 - `tour.id` is not decoration: it is the `HintStore` key and the id in every diagnostics line, so renaming a tour resets its "already shown" history.
 
@@ -167,7 +169,7 @@ titleBuilder: (c) => c.l10n.hintAddSetTitle, // "Log your first set"
 // (inside HintStepContent) button: "Log it" — not "Next"
 ```
 
-**Keep it short:** 8 words for title, 20 for description. Need more? Use `moreTooltips` or a second step. Test at `2.0` text scale — hintful caps and scrolls, but short copy never needs it.
+**Keep it short:** 8 words for title, 20 for description. Need more? Use `additionalTooltips` or a second step. Test at `2.0` text scale — hintful caps and scrolls, but short copy never needs it.
 
 ---
 
@@ -190,18 +192,19 @@ if (!await controller.tryStart(tour)) return; // busy
 ## 6. Once per version — `HintStore`
 
 **Preferred:** `startOnce` — gate + start + mark under a policy in one call.
-Set the store once on the controller (`HintController(store: store)`); there
-is no per-call store. With no store assigned, a session `InMemoryHintStore`
+Configure the store once app-wide (`Hintful.configure(store: store)`); there
+is no per-call store and no controller-level field. With no store
+configured, a session `InMemoryHintStore`
 takes over (debug prints a one-time warning) — show-once works for this run
-only; assign a persistent store for real once-per-version semantics
-(`controller.effectiveStore` exposes the resolved store):
+only; configure a persistent store for real once-per-version semantics
+(`Hintful.store` exposes what was configured):
 
 ```dart
-final controller = HintController(store: store); // once, at wiring
+Hintful.configure(store: store); // once, at wiring
 
 final started = await controller.startOnce(
   AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
-  mark: HintMarkPolicy.onFinish, // default — see the policies below
+  // mark: HintMarkPolicy.onAnyExit, // the default — see the policies below
   version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
 if (!started) return; // already shown for this version, or busy
@@ -209,12 +212,12 @@ if (!started) return; // already shown for this version, or busy
 
 `HintMarkPolicy` (closed in 1.x):
 
-- `onFinish` (default) — `markShown` runs **only on finish** (Done / last
-  step). Skip and timeout abort *without* marking — the tour may show again
-  next launch. That is deliberate: "finished" means the user saw the whole
-  thing.
-- `onAnyExit` — finish, skip or timeout all count ("the user has seen it").
-  Replaces the hand-rolled idle-listener pattern below.
+- `onAnyExit` (default) — `markShown` runs on **any exit after the tour
+  started**: finish (Done / last step), skip or timeout all count as "the
+  user has seen it". Retires the hand-rolled idle-listener pattern below.
+- `onFinish` — `markShown` runs **only on finish** (Done / last step). Skip
+  and timeout abort *without* marking — the tour may show again next
+  launch. Use when only a completed tour counts as "seen".
 - `manual` — never marks; the app owns the shown-state entirely.
 
 Prefer `startOnce` when a standard policy fits. For anything else (mark on
@@ -238,21 +241,23 @@ controller.state.addListener(() {
 
 The trap with the manual path: `start` returns as soon as the tour is
 **seeded** (step 1 is on screen), not when it ends — marking straight after
-`start` records a tour the user may have skipped one frame later. Pick one
-definition and keep it in the entry point, never scattered across screens.
+`start` records a tour the user may have skipped one frame later. Prefer
+`HintMarkPolicy.onAnyExit`, which is exactly this listener, built in.
 
 Key and version rules:
 
 - the key is yours; the hintful convention is `tour.id`, and renaming the tour starts its shown-history from zero;
 - the offer dialog keeps its own namespaced decline keys (`offer:<tourId>`, `offer:<tourId>@<pageId>`) — a decline does not suppress the tour from other entry points;
-- `minVersion` is the version the hint targets ("new in 1.2.0") and `HintStore.compareVersions` orders `1.10.0 > 1.9.0` correctly; `clear()` is a debug/test tool — the production "show again" is a version bump.
+- `minVersion` is the version the hint targets ("new in 1.2.0"); versions compare segment-wise (`1.10.0 > 1.9.0`); `clear()` is a debug/test tool of a concrete store — the production "show again" is a version bump.
 
 `InMemoryHintStore` ships in core: the right store for tests and the reference
 implementation of the rules above. For persistent storage the short path is
 `CallbackHintStore(read:, write:)` — three lines over `SharedPreferences` or
-your own key-value layer (the app owns the storage; the core package stays
-dependency-free). A full class (`implements HintStore`) is only needed when
-you also override `clear()` or want richer behavior.
+your own key-value layer — and the `hintful_prefs` companion package ships a
+ready-made `SharedPreferencesHintStore` (namespaced keys, a `clear()` dev
+tool, a public `compareVersions`). The app owns the storage; the core package
+stays dependency-free. A full class (`implements HintStore`) is only needed
+when you want richer behavior — the two-member contract is frozen for 1.x.
 
 ---
 
@@ -271,7 +276,7 @@ jarring.
 
 Three caveats, in the order they usually bite:
 
-- only the **primary** target of a step is scrolled — `moreTargets` extras stay where they are;
+- only the **primary** target of a step is scrolled — `additionalTargets` extras stay where they are;
 - a target with no `Scrollable` ancestor is not scrolled at all: autoScroll goes through `Scrollable.ensureVisible` on the target's context and silently does nothing without one;
 - it moves only when the target is not fully on screen (both corners inside the viewport → nothing happens), with a 350 ms `easeInOut`.
 
@@ -284,7 +289,7 @@ Hole rides the compositor, tooltip follows via `ScrollPosition` delta in the sam
 What that asks of your app — nothing, plus two don'ts:
 
 - **don't lock scrolling** while a tour runs: the page keeps living under the scrim (scroll-through is deliberate — the user can reach the next target themselves) and hole and tooltip follow it;
-- **don't unmount the spotlighted widget** mid-step. If it disappears (list recycling, a collapsed tab, a `PageView` rebuilding its page) the step returns to the waiting phase and re-arms its timeout instead of aborting: transient unmounts recover, a permanent loss ends in a `timeout` diagnosis. `targetRect` steps are exempt — their spotlight is static.
+- **don't unmount the spotlighted widget** mid-step. If it disappears (list recycling, a collapsed tab, a `PageView` rebuilding its page) the step returns to the waiting phase and re-arms its timeout instead of aborting: transient unmounts recover, a permanent loss ends in a `timeout` diagnosis.
 
 Nested and horizontal scrollables are fine: the engine follows the target's own
 resolved position, not one `ScrollController`.
@@ -340,8 +345,8 @@ The contract:
 - the engine still **places** it: keep-in-safe-area, avoid-the-spotlighted-target and the slot layout apply to whatever you return, and the tail is wrapped around it too (theme `showTail`, on by default) — turn that off in `HintTheme` if your tooltip draws its own;
 - the engine renders **no buttons** for a custom tooltip: the action row belongs to `DefaultTooltip`, so calling back into `DefaultTooltip(step:, ctx:)` is the cheap way to keep the default look and animate around it;
 - the screen-reader announcement ("Step N of M: …") also lives in `DefaultTooltip`; a fully custom tooltip should announce itself — `HintTooltipLabels.announce(...)` produces the same string;
-- reduce motion is on you, not on the engine — the shared helper for it is in
-  §17.
+- reduce motion is on you, not on the engine — check `MediaQuery.disableAnimations`
+  and render instantly when it is set (§16).
 
 ---
 
@@ -375,40 +380,13 @@ HintController(
 
 Two behaviours to know before trusting a green local run: a typo'd `targetId` is
 an **assert in debug** (loud, with the closest candidates) and a **skipped step in
-release** — the tour continues; a timed-out step follows `missingTargetPolicy`
-(`abortTour` by default, `skipStep` to carry on).
+release** — the tour continues; a timed-out step follows the tour's
+`missingTargetPolicy` (`skipStep` by default — the tour continues;
+`abortTour` to stop).
 
 ---
 
-## 13. `targetRect` — spotlight without a widget
-
-Spotlight at coordinates, no `HintTarget`:
-
-```dart
-HintStep(targetRect: Rect.fromLTWH(100, 300, 120, 40), content: HintStepContent(title: 'Here'))
-```
-
-The rect is in **overlay coordinates** (logical px — the space the tooltip is laid
-out in): derive it from a render box or a known layout, do not hand-tune it from
-a screenshot. What this mode is and is not:
-
-- it is **static** — no follower, no position watching: the hole does not follow scroll or layout changes, so the app must not move the content under it;
-- `moreTooltips` and the pulse ring are not rendered (they need live targets); the primary tooltip, the tail, `focusShape`/`focusPadding` and tap regions all work;
-- the step enters `Active` immediately — there is nothing to wait for, so `stepTimeout` and `missingTargetPolicy` are irrelevant here.
-
-Needs an explicit overlay provider when no targets are mounted — there is
-nothing to capture the root overlay from:
-
-```dart
-final overlayKey = GlobalKey<OverlayState>();
-HintController(overlay: () => overlayKey.currentState);
-```
-
-Otherwise the engine finds the root overlay from the first registered target.
-
----
-
-## 14. Multi-target — several things, one story
+## 13. Multi-target — several things, one story
 
 Sometimes one idea spans two widgets: both filters, a label and its switch, a
 value and its unit.
@@ -416,7 +394,7 @@ value and its unit.
 ```dart
 HintStep(
   targetId: 'filter-all',
-  moreTargets: ['filter-daily'], // one hole each, ONE tooltip
+  additionalTargets: ['filter-daily'], // one hole each, ONE tooltip
   content: HintStepContent(title: 'Two filters, one job'),
 )
 ```
@@ -427,40 +405,39 @@ Rules that matter:
 - one tooltip, anchored to the primary `targetId` — that is also the target `autoScroll` scrolls (§7) and the one whose shape/padding applies to every hole (§1);
 - placement avoids **all** spotlighted targets, so the tooltip never covers the second hole;
 - an id cannot repeat across the steps of one tour (`duplicateTargetIds` asserts on `start`) — spotlight both chips in the *same* step instead of giving them a step each;
-- a tap inside **any** hole counts as the target region (§16).
+- a tap inside **any** hole counts as the target region (§15).
 
 Keep it to two, maybe three targets. Past that the step stops reading as one
 idea and starts looking like a bug.
 
 ---
 
-## 15. Multi-content — a second tooltip
+## 14. Multi-content — a second tooltip
 
-`moreTargets` widens the spotlight; `moreTooltips` adds tooltips around **one**
+`additionalTargets` widens the spotlight; `additionalTooltips` adds tooltips around **one**
 target — a side note, a measurement, a "why".
 
 ```dart
 HintStep(
   targetId: 'stats',
   content: HintStepContent(title: 'Your week'),
-  moreTooltips: [
+  additionalTooltips: [
     HintTooltip(
       position: TooltipPosition.left,
-      title: 'Volume',
-      description: '12.4 t',
+      content: HintStepContent(title: 'Volume', description: '12.4 t'),
     ),
   ],
 )
 ```
 
 - set `position` explicitly on an extra: `auto` re-picks by free space and can fight the primary for the same side;
-- extras are informational by default (`DefaultTooltip(showActions: false)`, no buttons) — give one a `tooltipBuilder` if a slot needs its own action;
+- extras are informational by default (no action row, no buttons) — give one a `tooltipBuilder` if a slot needs its own action;
 - the engine guarantees slots do not overlap each other or the spotlighted targets, so you position nothing;
-- extras carry the tail too (pointing at the primary hole) and are **not** rendered in `targetRect` steps — see §13.
+- extras carry the tail too (pointing at the primary hole).
 
 ---
 
-## 16. Taps — who owns the gesture
+## 15. Taps — who owns the gesture
 
 The step's tap layer sits above the page, so a tap inside a spotlight (the
 "target region") or on the scrim (the "overlay region") goes to the tour, **not**
@@ -491,33 +468,31 @@ When to deviate:
 
 ---
 
-## 17. Motion — three rungs, one duty
+## 16. Motion — animate it yourself
 
-The animation ladder, from cheapest to richest:
+There are no built-in entry animations: the tooltip appears — right for most
+product hints. When a step wants motion, it lives in your `tooltipBuilder`
+(§11): wrap the card in a `TweenAnimationBuilder` (fade, rise, scale —
+anything), and the engine still places it.
 
-1. **none** (default): leave `transition` unset — the tooltip appears. Right for most product hints;
-2. **a preset**: `HintEntryAnimation.easeOut` — the quiet one (fade + scale 0.96 → 1, `easeOut`, 200 ms); `HintEntryAnimation.sprung` — the bounce (scale 0.8 → 1, `elasticOut`, 800 ms) for a step meant to delight. Both take `transitionDuration` as an override;
-3. **your builder**: anything else lives in `tooltipBuilder` (§11).
-
-The duty: the engine honors the system reduce-motion setting for its presets, and
-`hintTransitionDuration(...)` is the same check, exported for your builder — it
-returns `Duration.zero` when the user asked for less motion:
+The duty: reduce-motion is your check — `MediaQuery.disableAnimations` is
+the standard switch, return the plain card when it is set:
 
 ```dart
-final duration = hintTransitionDuration(
-  MediaQuery.of(context),
-  const Duration(milliseconds: 400),
-);
+final reduceMotion = MediaQuery.of(context).disableAnimations;
+final duration = reduceMotion
+    ? Duration.zero
+    : const Duration(milliseconds: 400);
 if (duration == Duration.zero) return card; // reduce motion: no animation
 ```
 
 Two habits: keep hint transitions short (a few hundred ms — a hint is not a page
-transition), and prefer no animation over a wrong one — `sprung` on a destructive
-step reads as playful at exactly the wrong moment.
+transition), and prefer no animation over a wrong one — a playful bounce on a
+destructive step reads as playful at exactly the wrong moment.
 
 ---
 
-## 18. Navigation — the tour and the back button
+## 17. Navigation — the tour and the back button
 
 Set `disableBackButton: true` when a tour must survive the system back gesture
 (Android back / predictive back): the engine consumes the pop while the tour
@@ -544,7 +519,7 @@ difference is the diagnosis (`user-skipped` vs no diagnostic at all), so use
 
 ---
 
-## 19. Server-driven tours — what JSON can and cannot carry
+## 18. Server-driven tours — what JSON can and cannot carry
 
 `HintTour.fromJson`/`toJson` (your own client, no HTTP dependency in the
 package) let a server reword, reorder and restyle a tour you already shipped:
@@ -562,10 +537,11 @@ try {
 await controller.start(tour);
 ```
 
-What the wire format carries: `id`, steps with `targetId`/`moreTargets`, titles
-and descriptions, `position`, `moreTooltips`, `stepTimeoutMs`/`waitTimeoutMs`,
+What the wire format carries: `id`, steps with
+`targetId`/`additionalTargets`, titles
+and descriptions, `position`, `additionalTooltips`, `stepTimeoutMs`,
 `showSkip`, the missing-target policy, historical `tapOn*` bools,
-shapes/padding, `autoScroll`, `transitionCurve` and `targetRect`.
+shapes/padding, `autoScroll` and `minShowVersion`.
 
 What it **cannot** carry: builders and callbacks. `titleBuilder`,
 `descriptionBuilder`, `tooltipBuilder`, `HintTapBehavior.custom` and the
@@ -587,17 +563,19 @@ For tests and previews, build the tour in Dart (or `HintTour.fromJson(fixture)`)
 
 ---
 
-## 20. Testing — headless first
+## 19. Testing — headless first
 
-The controller does not need a UI: with `headless: true` the whole
-machine runs without an overlay — waiting, timeouts, typo validation, policies,
+The controller does not need a UI: `HintController.test()` — a
+`@visibleForTesting` factory — runs the whole
+machine without an overlay (headless by default) — waiting, timeouts, typo
+validation, policies,
 diagnostics — so a tour flow is a plain unit test:
 
 ```dart
-final controller = HintController(
+final controller = HintController.test(
   registry: HintTargetRegistry(), // your own, never the app singleton
   diagnostics: (e) => events.add(e), // or recorder.call / recorder.add
-  headless: true, // no render mechanics — machine only
+  // headless: true, // the default — machine only
 );
 
 await controller.start(tour);                       // typo → assertion in debug
@@ -625,7 +603,7 @@ twice before asserting the tooltip.
 
 ---
 
-## 21. The offer dialog — "Want a tour?"
+## 20. The offer dialog — "Want a tour?"
 
 `showHintTourOffer` is the ask-first wrapper: a pre-dialog with an "Apply to all
 pages" checkbox that starts the tour on accept.
@@ -633,7 +611,7 @@ pages" checkbox that starts the tour on accept.
 ```dart
 final result = await showHintTourOffer(
   context: context,
-  controller: controller, // controller.store: set once — no store: needed
+  controller: controller, // reads the store configured via Hintful.configure
   tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
   pageId: 'settings',     // the page this offer belongs to
   // mark: HintMarkPolicy.manual, // opt-out: record the shown-state yourself (§6)
@@ -646,8 +624,8 @@ What it handles for you: no dialog when the tour already ran for
 page (and globally when the checkbox is on) under namespaced keys, and a
 barrier dismissal counted as a decline — "not now" must not nag. Accepting
 runs `startOnce` for you: the shown-state is recorded per `mark:`
-(`HintMarkPolicy.onFinish` by default — skip does not record — §6
-semantics). Pass `mark: HintMarkPolicy.onAnyExit` or `manual` only when
+(`HintMarkPolicy.onAnyExit` by default — finish/skip/timeout all count — §6
+semantics). Pass `HintMarkPolicy.onFinish` or `manual` only when
 your policy differs (§6).
 
 Two rules: one offer per page entry point (offer from three buttons and the
