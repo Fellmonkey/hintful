@@ -64,8 +64,7 @@ Widget _wrap(
 void main() {
   final step = HintStep(
     targetId: 'stats',
-    title: 'Title',
-    description: 'Description',
+    content: HintStepContent(title: 'Title', description: 'Description'),
   );
 
   testWidgets('title/description + Next/Skip (not the last step)',
@@ -176,7 +175,10 @@ void main() {
   });
 
   testWidgets('showSkip: false — no Skip button', (tester) async {
-    final noSkip = HintStep(targetId: 'stats', title: 't', showSkip: false);
+    final noSkip = HintStep(
+        targetId: 'stats',
+        content: HintStepContent(title: 't'),
+        showSkip: false);
     await tester.pumpWidget(_wrap(DefaultTooltip(
       step: noSkip,
       // First step of two: the action row exists (Next), Skip is opted out.

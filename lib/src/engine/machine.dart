@@ -513,8 +513,7 @@ class HintMachine {
         final detail = missing.length == 1
             ? "target '${missing.single}' did not appear within $timeout"
             : 'targets $missing did not appear within $timeout';
-        if (step.resolveMissingPolicy(tour.missingTargetPolicy) ==
-            HintMissingTargetPolicy.skipStep) {
+        if (tour.missingTargetPolicy == HintMissingTargetPolicy.skipStep) {
           effects.add(
             StepSkippedEffect(
               stepIndex: index,

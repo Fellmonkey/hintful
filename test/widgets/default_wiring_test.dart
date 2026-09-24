@@ -35,7 +35,10 @@ void main() {
     await controller.start(HintTour(
       id: 'intro',
       steps: [
-        HintStep(targetId: 'stats', title: 'Stats', description: 'Numbers.'),
+        HintStep(
+          targetId: 'stats',
+          content: HintStepContent(title: 'Stats', description: 'Numbers.'),
+        ),
       ],
     ));
     // Two-frame rule: frame 1 draws the scrim, frame 2 the tooltip.
@@ -81,7 +84,12 @@ void main() {
 
     await controller.start(HintTour(
       id: 'intro',
-      steps: [HintStep(targetId: 'stats', title: 'Scoped')],
+      steps: [
+        HintStep(
+          targetId: 'stats',
+          content: HintStepContent(title: 'Scoped'),
+        )
+      ],
     ));
     await tester.pump();
     await tester.pump();

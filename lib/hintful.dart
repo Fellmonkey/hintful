@@ -22,8 +22,9 @@
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [CallbackHintStore], [HintStore.compareVersions]) — the "show once per
-///   app version" service; set it once via `HintController(store: ...)`.
+///   [CallbackHintStore], [HintMarkPolicy], [HintStore.compareVersions]) —
+///   the "show once per app version" service; set it once via
+///   `HintController(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, position value types
@@ -31,7 +32,7 @@
 /// `HintPositionResolver`), the register-path
 /// (`HintTargetRegistration`/`register`/`unregister`/`lookup`), the
 /// inheritance-scope helpers (`HintStepInternal` /
-/// `resolveTimeout`/`resolveMissingPolicy`/`hasRectTarget`,
+/// `resolveTimeout`/`hasRectTarget`,
 /// `HintControllerScope` / `inScope`), the diagnostics helpers
 /// (`formatHintSkipped`, `debugPrintHintSkip`, `closestTargetIds`,
 /// `editDistance`), the focus-padding fallback constant `kHintFocusPadding`,
@@ -46,7 +47,7 @@
 /// and is only reachable through this barrel.
 library;
 
-export 'src/engine/controller.dart' show HintController;
+export 'src/engine/controller.dart' show HintController, HintOverlayProvider;
 export 'src/engine/diagnostics.dart'
     show HintDiagnosticsHandler, HintSkipEvent, HintSkipReason;
 export 'src/engine/labels.dart' show HintTourOfferLabels, HintTooltipLabels;
@@ -68,7 +69,7 @@ export 'src/engine/specs.dart'
         HintTour,
         TooltipPosition;
 export 'src/engine/store.dart'
-    show CallbackHintStore, HintStore, InMemoryHintStore;
+    show CallbackHintStore, HintMarkPolicy, HintStore, InMemoryHintStore;
 export 'src/engine/theme/hint_theme.dart' show HintTheme, HintThemeX;
 export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
 export 'src/widgets/hint_target.dart' show HintTarget;

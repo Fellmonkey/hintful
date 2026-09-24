@@ -108,6 +108,9 @@ class _StartupScene extends StatelessWidget {
 HintTour _tour() => HintTour(
       id: 'startup',
       steps: [
-        HintStep(targetId: 'target', title: 'Step one', description: 'Target'),
+        HintStep(
+          targetId: 'target',
+          content: HintStepContent(title: 'Step one', description: 'Target'),
+        ),
       ],
     );

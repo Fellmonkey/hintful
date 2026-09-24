@@ -107,10 +107,10 @@ Full section: [best practices §16](best_practices.md#16-taps--who-owns-the-gest
 
 ```dart
 // one tooltip, two holes
-HintStep(targetId: 'filter-all', moreTargets: ['filter-daily'], title: 'Two filters, one job')
+HintStep(targetId: 'filter-all', moreTargets: ['filter-daily'], content: HintStepContent(title: 'Two filters, one job'))
 
 // one hole, two tooltips
-HintStep(targetId: 'stats', title: 'Your week', moreTooltips: [
+HintStep(targetId: 'stats', content: HintStepContent(title: 'Your week'), moreTooltips: [
   HintTooltip(position: TooltipPosition.left, title: 'Volume', description: '12.4 t'),
 ])
 ```
@@ -190,17 +190,17 @@ await showHintTourOffer(
   context: context,
   controller: controller, // controller.store: set once — no store: here
   tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
-  store: store, // optional override for this call
   pageId: 'settings',
 );
 ```
 
-It skips the dialog when the tour already ran for `tour.minShowVersion`,
-remembers a decline per page (or globally with the "Apply to all pages"
-checkbox), and counts a barrier dismissal as a decline. Accepting starts the tour and records
-the shown-state **on finish** (skip does not record — the tour may offer
-again). Pass `markOnFinish: false` if you want to record it yourself under a
-different policy — see [best practices §6](best_practices.md#6-once-per-version--hintstore).
+It skips the dialog when the tour already ran for `tour.minShowVersion`
+(`alreadyShown`), remembers a decline per page (or globally with the
+"Apply to all pages" checkbox), and counts a barrier dismissal as a decline.
+Accepting starts the tour and records the shown-state **on finish**
+(`HintMarkPolicy.onFinish`, the default — skip does not record). Pass
+`mark: HintMarkPolicy.onAnyExit` or `HintMarkPolicy.manual` if your policy
+differs — see [best practices §6](best_practices.md#6-once-per-version--hintstore).
 
 Offer from one entry point per page, and keep the tour reachable after a decline
 (settings, help menu): that is why the decline keys are namespaced apart from the

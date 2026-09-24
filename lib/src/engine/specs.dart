@@ -80,8 +80,15 @@ abstract class HintActions {
   /// Move to the next step (finishes the tour on the last one).
   void next();
 
-  /// Go one step back. A no-op on the first step (and for custom tooltips
-  /// that do not want a back action — the default is safe).
+  /// Go one step back.
+  ///
+  /// **No-op contract:** the default body is intentionally empty. It is a
+  /// no-op (1) on the first step of a tour, and (2) for custom tooltips /
+  /// [HintActions] implementations that do not expose back-navigation —
+  /// calling `previous()` is always safe and never throws. Override only
+  /// when the surface actually moves backward (`HintController` dispatches
+  /// `UserPrevious`); forgetting to override is a silent no-op, not a bug
+  /// in the caller's code.
   void previous() {}
 
   /// Abort the tour (the user chose to skip).
@@ -139,6 +146,8 @@ enum HintMissingTargetPolicy {
 }
 
 /// Default focus padding when neither the step nor the target sets one.
+/// Engine-internal — not part of the public barrel (referenced only by
+/// engine docs and resolvers).
 const double kHintFocusPadding = 4.0;
 
 /// Step/slot copy: strings and/or localized builders — one place for the
@@ -253,27 +262,25 @@ final class HintTapCustom extends HintTapBehavior {
 
 /// A single tour step — data, not a widget.
 ///
-/// Two content paths: zero-config (`title`/`description` +
-/// `titleBuilder`/`descriptionBuilder`, rendered by the default tooltip from
-/// [HintTheme]) and custom (`tooltipBuilder`, the full-customization ladder).
-/// `tooltipBuilder` is the only widget-typed slot in the contract — a
-/// deliberate exception to allow fully replacing a tooltip.
+/// Two content paths: zero-config ([content] — strings and/or l10n builders,
+/// rendered by the default tooltip from [HintTheme]) and custom
+/// (`tooltipBuilder`, the full-customization ladder). `tooltipBuilder` is the
+/// only widget-typed slot in the contract — a deliberate exception to allow
+/// fully replacing a tooltip.
 @immutable
 class HintStep {
-  /// Creates a step: non-empty [targetId], and content
-  /// (`title`/`description` or builders) or a [tooltipBuilder].
+  /// Creates a step: non-empty [targetId], and [content] or a
+  /// [tooltipBuilder] (authoring rule — empty content with no custom
+  /// tooltip renders nothing useful, but is not asserted: property access
+  /// is not a potentially-constant expression in a const constructor).
   const HintStep({
     required this.targetId,
+    this.content = const HintStepContent(),
     this.moreTargets = const [],
     this.moreTooltips = const [],
-    String? title,
-    String? description,
-    String Function(BuildContext)? titleBuilder,
-    String Function(BuildContext)? descriptionBuilder,
     this.position = TooltipPosition.auto,
     this.stepTimeout,
     this.showSkip = true,
-    this.missingTargetPolicy,
     this.targetTap = const HintTapBehavior.advance(),
     this.overlayTap = const HintTapBehavior.advance(),
     this.tooltipBuilder,
@@ -287,21 +294,16 @@ class HintStep {
     this.onStepExit,
   })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
         assert(
-          tooltipBuilder != null ||
-              title != null ||
-              description != null ||
-              titleBuilder != null ||
-              descriptionBuilder != null,
-          'HintStep must have content (title/description/builders) '
-          'or tooltipBuilder (custom tooltip)',
-        ),
-        _title = title,
-        _description = description,
-        _titleBuilder = titleBuilder,
-        _descriptionBuilder = descriptionBuilder;
+          transition != null || transitionDuration == null,
+          'HintStep.transitionDuration is ignored without '
+          'HintStep.transition — pass both or neither',
+        );
 
   /// Key in the target registry — not a GlobalKey.
   final String targetId;
+
+  /// Copy for the primary tooltip (strings + optional l10n builders).
+  final HintStepContent content;
 
   /// Additional targets spotlighted together with [targetId] (multi-target
   /// step: several elements highlighted at once, one tooltip anchored to the
@@ -314,21 +316,6 @@ class HintStep {
   /// guarantees they do not overlap each other or the spotlighted targets
   /// (keep-in-safe-area applies to every slot).
   final List<HintTooltip> moreTooltips;
-
-  final String? _title;
-  final String? _description;
-  final String Function(BuildContext)? _titleBuilder;
-  final String Function(BuildContext)? _descriptionBuilder;
-
-  /// Copy for the primary tooltip (strings + optional l10n builders).
-  /// Built from the constructor sugar `title`/`description`/`titleBuilder`/
-  /// `descriptionBuilder`.
-  HintStepContent get content => HintStepContent(
-        title: _title,
-        description: _description,
-        titleBuilder: _titleBuilder,
-        descriptionBuilder: _descriptionBuilder,
-      );
 
   /// Sugar over [content]'s `title` — prefer reading [content] when both
   /// are relevant.
@@ -357,10 +344,6 @@ class HintStep {
   /// only when this flag is true.
   final bool showSkip;
 
-  /// Missing-target policy for this step; null — inherits
-  /// [HintTour.missingTargetPolicy].
-  final HintMissingTargetPolicy? missingTargetPolicy;
-
   /// Tap on a spotlighted target: one behavior (advance / ignore / custom).
   /// Default advances — the historical `tapOnTarget: true`.
   final HintTapBehavior targetTap;
@@ -384,7 +367,7 @@ class HintStep {
   final FocusShape? focusShape;
 
   /// Spotlight padding for this step; null — inherits from [HintTarget]
-  /// or [kHintFocusPadding].
+  /// or the internal default (4.0 logical px).
   final double? focusPadding;
 
   /// Auto-scroll the primary target into view when the step activates.
@@ -441,8 +424,6 @@ class HintStep {
         'position': position.name,
         if (stepTimeout != null) 'waitTimeoutMs': stepTimeout!.inMilliseconds,
         'showSkip': showSkip,
-        if (missingTargetPolicy != null)
-          'missingTargetPolicy': missingTargetPolicy!.name,
         // Wire keeps the historical bool: false ⇔ ignore, true ⇔ advance.
         // custom() is code-side only (same as every callback).
         'tapOnTarget': targetTap is! HintTapIgnore,
@@ -478,6 +459,10 @@ class HintStep {
     }
     return HintStep(
       targetId: targetId,
+      content: HintStepContent(
+        title: json['title'] as String?,
+        description: json['description'] as String?,
+      ),
       moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
       moreTooltips: (json['moreTooltips'] as List?)
               ?.map((e) => HintTooltip.fromJson(
@@ -486,8 +471,6 @@ class HintStep {
                   ))
               .toList() ??
           const [],
-      title: json['title'] as String?,
-      description: json['description'] as String?,
       position: _enumOrDefault(
           TooltipPosition.values, json['position'], TooltipPosition.auto,
           field: 'position', onWarning: onWarning),
@@ -495,9 +478,6 @@ class HintStep {
           ? null
           : Duration(milliseconds: json['waitTimeoutMs'] as int),
       showSkip: json['showSkip'] as bool? ?? true,
-      missingTargetPolicy: _enumOrNull(
-          HintMissingTargetPolicy.values, json['missingTargetPolicy'],
-          field: 'missingTargetPolicy', onWarning: onWarning),
       targetTap: (json['tapOnTarget'] as bool? ?? true)
           ? const HintTapBehavior.advance()
           : const HintTapBehavior.ignore(),
@@ -658,9 +638,11 @@ class HintTour {
   /// `showHintTourOffer` — the one place to declare "targets version X".
   final String? minShowVersion;
 
-  /// Default missing-target policy for all steps ([HintStep.missingTargetPolicy]
-  /// overrides per step): abort the tour, or show every step whose target
-  /// exists ([HintMissingTargetPolicy.skipStep]).
+  /// Default missing-target policy for all steps of the tour: abort the
+  /// tour, or show every step whose target exists
+  /// ([HintMissingTargetPolicy.skipStep]). Tour-level only — pair with a
+  /// short per-step `stepTimeout` (`Duration.zero` skips instantly) for
+  /// conditionally-absent targets.
   final HintMissingTargetPolicy missingTargetPolicy;
 
   /// Block the system back button (Android back / route pop) while the tour
@@ -789,12 +771,6 @@ extension HintStepInternal on HintStep {
 
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => stepTimeout ?? fallback;
-
-  /// The step's missing-target policy, honoring inheritance.
-  HintMissingTargetPolicy resolveMissingPolicy(
-    HintMissingTargetPolicy tourPolicy,
-  ) =>
-      missingTargetPolicy ?? tourPolicy;
 }
 
 /// Same tour with a different [steps] list — every other field is preserved

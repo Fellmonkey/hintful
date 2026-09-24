@@ -11,8 +11,14 @@ import 'package:hintful/src/engine/store.dart';
 HintTour _tour2() => HintTour(
       id: 't',
       steps: [
-        HintStep(targetId: 'target0', title: 'A'),
-        HintStep(targetId: 'target1', title: 'B'),
+        HintStep(
+          targetId: 'target0',
+          content: HintStepContent(title: 'A'),
+        ),
+        HintStep(
+          targetId: 'target1',
+          content: HintStepContent(title: 'B'),
+        ),
       ],
     );
 
@@ -104,7 +110,12 @@ void main() {
       addTearDown(host.dispose);
       final tour = HintTour(
         id: 't',
-        steps: const [HintStep(targetId: 'stats', title: 'Stats')],
+        steps: const [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Stats'),
+          )
+        ],
       );
 
       host.update(HintWaiting(tour: tour, stepIndex: 0));
@@ -252,7 +263,10 @@ void main() {
         context: ctx,
       ));
 
-      await controller.showHint(HintStep(targetId: 'stats', title: 'One tip'));
+      await controller.showHint(HintStep(
+        targetId: 'stats',
+        content: HintStepContent(title: 'One tip'),
+      ));
 
       expect(controller.currentState, isA<HintActive>());
       expect(controller.currentState.tour?.id, 'hint:stats');
@@ -267,7 +281,10 @@ void main() {
       final registry = HintTargetRegistry();
       final controller = HintController(registry: registry, headless: true);
 
-      await controller.showHint(HintStep(targetId: 'never', title: 'x'));
+      await controller.showHint(HintStep(
+        targetId: 'never',
+        content: HintStepContent(title: 'x'),
+      ));
 
       expect(controller.currentState, isA<HintWaiting>());
       expect(controller.currentState.tour?.id, 'hint:never');
@@ -403,7 +420,10 @@ void main() {
       final typoTour = HintTour(
         id: 'typo',
         steps: const [
-          HintStep(targetId: 'statsPeriodSelecor', title: 'Typo'),
+          HintStep(
+            targetId: 'statsPeriodSelecor',
+            content: HintStepContent(title: 'Typo'),
+          ),
         ],
       );
 
@@ -493,7 +513,12 @@ void main() {
 
       final second = HintTour(
         id: 'second',
-        steps: const [HintStep(targetId: 'target1', title: 'B')],
+        steps: const [
+          HintStep(
+            targetId: 'target1',
+            content: HintStepContent(title: 'B'),
+          )
+        ],
       );
       await controller.restart(second);
 
@@ -517,20 +542,27 @@ void main() {
   group('startOnce (show-once: mark only on finish)', () {
     HintTour oneStep({String? minShowVersion}) => HintTour(
           id: 'intro',
-          steps: const [HintStep(targetId: 'target0', title: 'A')],
+          steps: const [
+            HintStep(
+              targetId: 'target0',
+              content: HintStepContent(title: 'A'),
+            )
+          ],
           minShowVersion: minShowVersion,
         );
 
     testWidgets('gate closed — false, stays idle, no mark', (tester) async {
       final store = InMemoryHintStore()..markShown('intro', '1.0.0');
-      final controller =
-          HintController(registry: HintTargetRegistry(), headless: true);
+      final controller = HintController(
+        registry: HintTargetRegistry(),
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
 
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isFalse,
       );
@@ -542,7 +574,11 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
       registry.register(HintTargetRegistration(
         id: 'target0',
@@ -553,7 +589,6 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isTrue,
       );
@@ -570,7 +605,11 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
       registry.register(HintTargetRegistration(
         id: 'target0',
@@ -581,7 +620,6 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isTrue,
       );
@@ -593,14 +631,16 @@ void main() {
 
     testWidgets('timeout abort does not mark', (tester) async {
       final store = InMemoryHintStore();
-      final controller =
-          HintController(registry: HintTargetRegistry(), headless: true);
+      final controller = HintController(
+        registry: HintTargetRegistry(),
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
 
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isTrue,
       );
@@ -614,7 +654,11 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
       registry.register(HintTargetRegistration(
         id: 'target0',
@@ -626,7 +670,6 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isFalse,
       );
@@ -641,7 +684,11 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
       for (final id in ['target0', 'target1']) {
         registry.register(HintTargetRegistration(
@@ -654,7 +701,6 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
-          store: store,
         ),
         isTrue,
       );
@@ -673,7 +719,11 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController(
+        registry: registry,
+        headless: true,
+        store: store,
+      );
       addTearDown(controller.dispose);
       registry.register(HintTargetRegistration(
         id: 'target0',
@@ -683,7 +733,6 @@ void main() {
 
       await controller.startOnce(
         oneStep(minShowVersion: '1.0.0'),
-        store: store,
         version: '1.0.0',
       );
       controller.finish();
@@ -692,7 +741,6 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.1.0'),
-          store: store,
           version: '1.1.0',
         ),
         isTrue,
@@ -728,49 +776,26 @@ void main() {
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
     });
 
-    testWidgets('per-call store: overrides the controller store',
-        (tester) async {
-      final ctx = await _pumpContext(tester);
-      final registry = HintTargetRegistry();
-      final controllerStore = InMemoryHintStore();
-      final callStore = InMemoryHintStore();
-      final controller = HintController(
-        registry: registry,
-        headless: true,
-        store: controllerStore,
-      );
-      addTearDown(controller.dispose);
-      registry.register(HintTargetRegistration(
-        id: 'target0',
-        link: LayerLink(),
-        context: ctx,
-      ));
-
-      expect(
-        await controller.startOnce(
-          oneStep(minShowVersion: '1.0.0'),
-          store: callStore,
-        ),
-        isTrue,
-      );
-      controller.finish();
-      expect(callStore.shouldShow('intro', minVersion: '1.0.0'), isFalse,
-          reason: 'the per-call store wins');
-      expect(controllerStore.shouldShow('intro', minVersion: '1.0.0'), isTrue,
-          reason: 'the controller store stays untouched');
-    });
-
-    testWidgets('no store anywhere — debug assert, false, no start',
+    testWidgets('session fallback store — startOnce with no configured store',
         (tester) async {
       final controller =
           HintController(registry: HintTargetRegistry(), headless: true);
       addTearDown(controller.dispose);
 
-      await expectLater(
-        controller.startOnce(oneStep(minShowVersion: '1.0.0')),
-        throwsAssertionError,
+      // No store: falls back to a session InMemoryHintStore — starts and
+      // records in-memory (state lives for this run only).
+      expect(
+        await controller.startOnce(oneStep(minShowVersion: '1.0.0')),
+        isTrue,
       );
-      expect(controller.isIdle, isTrue);
+      expect(controller.isIdle, isFalse);
+      expect(controller.effectiveStore, isA<InMemoryHintStore>());
+      controller.finish();
+      expect(
+        controller.effectiveStore.shouldShow('intro', minVersion: '1.0.0'),
+        isFalse,
+        reason: 'finish marks in the session store',
+      );
     });
   });
 
@@ -794,7 +819,12 @@ void main() {
 
       final tour = HintTour(
         id: 'g',
-        steps: const [HintStep(targetId: 'greenhouse-target', title: 'x')],
+        steps: const [
+          HintStep(
+            targetId: 'greenhouse-target',
+            content: HintStepContent(title: 'x'),
+          )
+        ],
       );
       await controller.start(tour);
       // Waiting: the foreign target must not satisfy the step.
@@ -829,7 +859,12 @@ void main() {
 
       final tour = HintTour(
         id: 'g',
-        steps: const [HintStep(targetId: 'greenhouse-habit', title: 'x')],
+        steps: const [
+          HintStep(
+            targetId: 'greenhouse-habit',
+            content: HintStepContent(title: 'x'),
+          )
+        ],
       );
       await controller.start(tour);
       expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
@@ -851,13 +886,13 @@ void main() {
           steps: [
             HintStep(
               targetId: 'target0',
-              title: 'A',
+              content: HintStepContent(title: 'A'),
               onStepEnter: enter0,
               onStepExit: exit0,
             ),
             HintStep(
               targetId: 'target1',
-              title: 'B',
+              content: HintStepContent(title: 'B'),
               onStepEnter: enter1,
               onStepExit: exit1,
             ),
@@ -1111,10 +1146,13 @@ void main() {
         steps: [
           HintStep(
             targetId: 'target0',
-            title: 'Missing',
+            content: HintStepContent(title: 'Missing'),
             stepTimeout: const Duration(milliseconds: 10),
           ),
-          HintStep(targetId: 'target1', title: 'Present'),
+          HintStep(
+            targetId: 'target1',
+            content: HintStepContent(title: 'Present'),
+          ),
         ],
       );
       await controller.start(tour);
@@ -1139,9 +1177,18 @@ void main() {
       final tour = HintTour(
         id: 't',
         steps: [
-          const HintStep(targetId: 'addSet', title: 'valid'),
-          const HintStep(targetId: 'statsPeriodSelectr', title: 'typo'),
-          const HintStep(targetId: 'futureThing', title: 'deferred'),
+          const HintStep(
+            targetId: 'addSet',
+            content: HintStepContent(title: 'valid'),
+          ),
+          const HintStep(
+            targetId: 'statsPeriodSelectr',
+            content: HintStepContent(title: 'typo'),
+          ),
+          const HintStep(
+            targetId: 'futureThing',
+            content: HintStepContent(title: 'deferred'),
+          ),
         ],
       );
 
@@ -1164,8 +1211,14 @@ void main() {
       final tour = HintTour(
         id: 't',
         steps: [
-          const HintStep(targetId: 'target9', title: 'next step'),
-          const HintStep(targetId: 'statsPeriodSelectr', title: 'typo'),
+          const HintStep(
+            targetId: 'target9',
+            content: HintStepContent(title: 'next step'),
+          ),
+          const HintStep(
+            targetId: 'statsPeriodSelectr',
+            content: HintStepContent(title: 'typo'),
+          ),
         ],
       );
 
@@ -1183,7 +1236,10 @@ void main() {
       final tour = HintTour(
         id: 't',
         steps: const [
-          HintStep(targetId: 'anything', title: 'x'),
+          HintStep(
+            targetId: 'anything',
+            content: HintStepContent(title: 'x'),
+          ),
         ],
       );
       final classification = classifyStepTargets(tour, const {});
@@ -1199,7 +1255,7 @@ void main() {
           const HintStep(
             targetId: 'addSet',
             moreTargets: ['statsPeriodSelectr'], // the typo is the extra
-            title: 'multi',
+            content: HintStepContent(title: 'multi'),
           ),
         ],
       );

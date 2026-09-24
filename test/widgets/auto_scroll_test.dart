@@ -43,8 +43,14 @@ void main() {
     final tour = HintTour(
       id: 'autoScroll',
       steps: [
-        const HintStep(targetId: 'stats', title: 'Statistics'),
-        const HintStep(targetId: 'records', title: 'Records', autoScroll: true),
+        const HintStep(
+          targetId: 'stats',
+          content: HintStepContent(title: 'Statistics'),
+        ),
+        const HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+            autoScroll: true),
       ],
     );
     await h.pump(tester);

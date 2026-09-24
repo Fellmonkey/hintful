@@ -57,12 +57,6 @@ class _ExampleAppState extends State<ExampleApp> {
   /// to demonstrate the "new in this version" re-show.
   String _appVersion = '1.0.0';
 
-  /// Set when a versioned entry point starts its tour (the AppBar intro and
-  /// the "Offer tour" demo); on the next idle (finish/skip/timeout) it is
-  /// marked shown for the current app version — no nagging in the same
-  /// version.
-  String? _activeTourId;
-
   ThemeMode _themeMode = ThemeMode.light;
   int _selectedFilter = 0; // 0 = all sets, 1 = by day
   bool _showStats = false; // the "Summary" card (deferred target of step 3)
@@ -107,28 +101,17 @@ class _ExampleAppState extends State<ExampleApp> {
     super.dispose();
   }
 
-  /// App reaction to the tour state, gated by tour id: only the intro tour
-  /// "loads" the summary on step 3 (lazy-section simulation) and only the
-  /// versioned intro is marked shown on exit. Also rebuilds the AppBar
+  /// App reaction to the tour state: only the intro tour "loads" the
+  /// summary on step 3 (lazy-section simulation). Also rebuilds the AppBar
   /// icons (disabled while a tour is active).
   ///
-  /// The intro's marking is the best-practices §6 **mark-on-any-exit**
-  /// variant — a deliberate hand-rolled listener: finished, skipped or
-  /// timed out all count ("the user has seen it"). It is NOT `startOnce`
-  /// (mark-on-finish only): the offer path below already demonstrates that
-  /// policy via `showHintTourOffer`'s default `markOnFinish: true`.
-  /// Pick one policy per tour, keep it in the entry point (§6).
+  /// Marking of the versioned intro / offer tour runs under
+  /// `HintMarkPolicy.onAnyExit` in their entry points (§6) — no hand-rolled
+  /// idle listener for that anymore.
   void _onTourStateChanged() {
     final state = _controller.currentState;
     if (state.isIdle) {
       _statsRevealScheduled = false;
-      final active = _activeTourId;
-      if (active != null) {
-        _activeTourId = null;
-        // Finished, skipped or timed out — the user has seen it; do not
-        // nag again in this version.
-        _store?.markShown(active, _appVersion);
-      }
       if (mounted) setState(() {});
       return;
     }
@@ -146,8 +129,8 @@ class _ExampleAppState extends State<ExampleApp> {
   /// The versioned-intro entry: show once per app version. Gated — when the
   /// intro already showed in [_appVersion], explain instead of showing
   /// ("Bump version" re-enables it). Marking runs on ANY exit via
-  /// [_onTourStateChanged] (the §6 variant); for mark-on-finish call
-  /// `startOnce` instead (as the offer path does).
+  /// [HintMarkPolicy.onAnyExit] (§6: finished, skipped or timed out all
+  /// count — "the user has seen it").
   void _startTour() {
     if (!_controller.currentState.isIdle) return; // one tour at a time
     final store = _store;
@@ -163,8 +146,11 @@ class _ExampleAppState extends State<ExampleApp> {
       );
       return;
     }
-    _activeTourId = 'intro';
-    _controller.start(introTour());
+    _controller.startOnce(
+      introTour(minShowVersion: _appVersion),
+      mark: HintMarkPolicy.onAnyExit,
+      version: _appVersion,
+    );
   }
 
   /// Demo controls: 1.0.0 → 1.1.0 → … — "new in this version" re-shows the
@@ -202,8 +188,9 @@ class _ExampleAppState extends State<ExampleApp> {
     _controller.showHint(
       const HintStep(
         targetId: 'fab',
-        title: 'This is the quick-log button',
-        description: 'One tip — no tour, no configuration.',
+        content: HintStepContent(
+            title: 'This is the quick-log button',
+            description: 'One tip — no tour, no configuration.'),
       ),
     );
   }
@@ -248,11 +235,8 @@ class _ExampleAppState extends State<ExampleApp> {
       controller: _controller, // controller.store: set in initState
       tour: offerTour(minShowVersion: _appVersion),
       pageId: 'HomePage',
-    ).then((result) {
-      if (result == HintTourOfferResult.started) {
-        _activeTourId = 'offer'; // marked shown on exit — no re-offer
-      }
-    });
+      mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
+    );
   }
 
   void _guardStart(VoidCallback start) {

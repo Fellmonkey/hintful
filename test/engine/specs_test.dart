@@ -7,9 +7,18 @@ import 'package:hintful/src/engine/specs.dart';
 enum _TourStep { drawer, settings, records }
 
 HintStep _stepFor(_TourStep step) => switch (step) {
-      _TourStep.drawer => HintStep(targetId: 'drawer', title: 'Drawer'),
-      _TourStep.settings => HintStep(targetId: 'settings', title: 'Settings'),
-      _TourStep.records => HintStep(targetId: 'records', title: 'Records'),
+      _TourStep.drawer => HintStep(
+          targetId: 'drawer',
+          content: HintStepContent(title: 'Drawer'),
+        ),
+      _TourStep.settings => HintStep(
+          targetId: 'settings',
+          content: HintStepContent(title: 'Settings'),
+        ),
+      _TourStep.records => HintStep(
+          targetId: 'records',
+          content: HintStepContent(title: 'Records'),
+        ),
     };
 
 void main() {
@@ -72,10 +81,10 @@ void main() {
         id: 'dup',
         values: _TourStep.values,
         stepFor: (step) => HintStep(
+          content: HintStepContent(title: step.name),
           // Every step spotlighting the same target — a tour-authoring
           // error the engine would flag at start.
           targetId: 'x',
-          title: step.name,
         ),
       );
 
@@ -96,18 +105,20 @@ void main() {
     });
   });
 
-  group('missingTargetPolicy JSON round-trip', () {
-    test('tour + step policies survive toJson/fromJson', () {
+  group('missingTargetPolicy JSON round-trip (tour-level only)', () {
+    test('tour policy survives toJson/fromJson; step key ignored', () {
       final tour = HintTour(
         id: 't',
         missingTargetPolicy: HintMissingTargetPolicy.skipStep,
         steps: const [
           HintStep(
             targetId: 'a',
-            title: 'A',
-            missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+            content: HintStepContent(title: 'A'),
           ),
-          HintStep(targetId: 'b', title: 'B'),
+          HintStep(
+            targetId: 'b',
+            content: HintStepContent(title: 'B'),
+          ),
         ],
       );
 
@@ -117,11 +128,21 @@ void main() {
         restored.missingTargetPolicy,
         HintMissingTargetPolicy.skipStep,
       );
-      expect(
-        restored.steps[0].missingTargetPolicy,
-        HintMissingTargetPolicy.skipStep,
-      );
-      expect(restored.steps[1].missingTargetPolicy, isNull);
+      expect(restored.steps, hasLength(2));
+      // Step-level missingTargetPolicy is gone — no per-step field to read.
+      final withLegacy = HintTour.fromJson({
+        'id': 't',
+        'missingTargetPolicy': 'skipStep',
+        'steps': [
+          {
+            'targetId': 'a',
+            'title': 'A',
+            'missingTargetPolicy': 'explode-too',
+          },
+        ],
+      });
+      expect(withLegacy.missingTargetPolicy, HintMissingTargetPolicy.skipStep);
+      expect(withLegacy.steps.single.content.title, 'A');
     });
 
     test('absent keys default to abortTour (old payloads)', () {
@@ -136,7 +157,7 @@ void main() {
         restored.missingTargetPolicy,
         HintMissingTargetPolicy.abortTour,
       );
-      expect(restored.steps.single.missingTargetPolicy, isNull);
+      expect(restored.steps.single.content.title, 'A');
     });
 
     test('old tapOnTarget/tapOnOverlay bools map to HintTapBehavior', () {
@@ -181,21 +202,13 @@ void main() {
       expect(json['steps'][1]['tapOnOverlay'], true);
     });
 
-    test('resolveMissingPolicy: step overrides tour', () {
+    test('resolveMissingPolicy: tour-level only (step override removed)', () {
       const step = HintStep(
         targetId: 'a',
-        title: 'A',
-        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+        content: HintStepContent(title: 'A'),
       );
-      expect(
-        step.resolveMissingPolicy(HintMissingTargetPolicy.abortTour),
-        HintMissingTargetPolicy.skipStep,
-      );
-      const plain = HintStep(targetId: 'a', title: 'A');
-      expect(
-        plain.resolveMissingPolicy(HintMissingTargetPolicy.skipStep),
-        HintMissingTargetPolicy.skipStep,
-      );
+      // Tour-level policy is the single source — steps no longer carry one.
+      expect(step.content.title, 'A');
     });
   });
 
@@ -210,8 +223,14 @@ void main() {
         missingTargetPolicy: HintMissingTargetPolicy.skipStep,
         minShowVersion: '1.2.0',
         steps: const [
-          HintStep(targetId: 'a', title: 'A'),
-          HintStep(targetId: 'b', title: 'B'),
+          HintStep(
+            targetId: 'a',
+            content: HintStepContent(title: 'A'),
+          ),
+          HintStep(
+            targetId: 'b',
+            content: HintStepContent(title: 'B'),
+          ),
         ],
       );
 
@@ -236,7 +255,12 @@ void main() {
       final tour = HintTour(
         id: 't',
         minShowVersion: '1.2.0',
-        steps: const [HintStep(targetId: 'a', title: 'A')],
+        steps: const [
+          HintStep(
+            targetId: 'a',
+            content: HintStepContent(title: 'A'),
+          )
+        ],
       );
 
       final restored = HintTour.fromJson(tour.toJson());
@@ -313,7 +337,12 @@ void main() {
     test('a valid payload still parses', () {
       final tour = HintTour(
         id: 't',
-        steps: const [HintStep(targetId: 'a', title: 'A')],
+        steps: const [
+          HintStep(
+            targetId: 'a',
+            content: HintStepContent(title: 'A'),
+          )
+        ],
       );
 
       final restored = HintTour.fromJson(tour.toJson());
@@ -331,7 +360,7 @@ void main() {
         steps: const [
           HintStep(
             targetId: 'a',
-            title: 'A',
+            content: HintStepContent(title: 'A'),
             targetRect: Rect.fromLTWH(1, 2, 3, 4),
             focusShape: FocusShape.circle,
             focusPadding: 8,
@@ -362,12 +391,11 @@ void main() {
         steps: [
           HintStep(
               targetId: 'a',
-              title: 'Hello',
-              description: 'World',
+              content: HintStepContent(title: 'Hello', description: 'World'),
               position: TooltipPosition.bottom),
           HintStep(
             targetId: 'b',
-            title: 'Second',
+            content: HintStepContent(title: 'Second'),
             moreTargets: ['c'],
             moreTooltips: [
               HintTooltip(position: TooltipPosition.top, title: 'Extra')
@@ -437,10 +465,11 @@ void main() {
       expect(step.position, TooltipPosition.auto);
       expect(step.focusShape, isNull); // unknown → inherit the target's
       expect(step.transition, isNull); // unknown → no entry animation
-      expect(step.missingTargetPolicy, isNull); // unknown → inherit the tour's
+      // Step-level missingTargetPolicy is ignored (field removed) — no warn
+      // from that key; the tour-level 'explode' still warns.
       expect(step.moreTooltips.single.position, TooltipPosition.auto);
       expect(step.moreTooltips.single.title, 'Extra'); // the rest survives
-      expect(warnings, hasLength(6));
+      expect(warnings, hasLength(5));
       expect(warnings.every((w) => w.startsWith('hintful: unknown ')), isTrue);
       // The order follows argument evaluation — assert membership, not order.
       expect(warnings.any((w) => w.contains("missingTargetPolicy 'explode'")),

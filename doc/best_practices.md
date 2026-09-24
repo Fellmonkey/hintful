@@ -24,8 +24,8 @@ Put every tour in `lib/app_tours.dart` as plain data — no `BuildContext`, no w
 // app_tours.dart
 abstract class AppTours {
   static HintTour intro() => HintTour(id: 'intro', autoScroll: true, steps: [
-    HintStep(targetId: 'fab', titleBuilder: (c) => c.l10n.introFab),
-    HintStep(targetId: 'list', title: 'List'),
+    HintStep(targetId: 'fab', content: HintStepContent(titleBuilder: (c) => c.l10n.introFab)),
+    HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
   ]);
 
   static HintTour settings() => HintTour(id: 'settings', steps: [...]);
@@ -53,7 +53,7 @@ final controller = HintController(
 );
 
 HintTarget(id: 'greenhouse-addBed', child: AddBedButton())
-HintStep(targetId: 'greenhouse-addBed', title: 'Add a bed')
+HintStep(targetId: 'greenhouse-addBed', content: HintStepContent(title: 'Add a bed'))
 ```
 
 ---
@@ -70,7 +70,7 @@ CircleAvatar(...).withHint(
 );
 
 // step stays clean
-HintStep(targetId: 'avatar', title: 'Profile')
+HintStep(targetId: 'avatar', content: HintStepContent(title: 'Profile'))
 ```
 
 `step.shape ?? target.shape ?? rectangle` — the step wins only for the exception. Same for `focusPadding` (default `4.0`, logical px). On a multi-target step (`moreTargets`) the **primary** target decides for every hole: shape and padding are read from the first registration, extras do not get their own.
@@ -91,8 +91,8 @@ HintTour intro = HintTour.fromEnum(
   id: 'intro',
   values: IntroStep.values,
   stepFor: (s) => switch (s) {
-    IntroStep.filters => HintStep(targetId: 'filters', title: 'Filters'),
-    IntroStep.list    => HintStep(targetId: 'list', title: 'List'),
+    IntroStep.filters => HintStep(targetId: 'filters', content: HintStepContent(title: 'Filters')),
+    IntroStep.list    => HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
   },
 );
 ```
@@ -102,7 +102,7 @@ Add a value to `IntroStep` without updating `stepFor` → compile error, not a s
 `fromEnum` guards the step list; the rest of the tour contract is worth setting
 deliberately:
 
-- `stepTimeout` (default 3 s) — how long a step waits for its target; per-step `stepTimeout` and `missingTargetPolicy: skipStep` for targets that exist only sometimes (pair it with a short or `Duration.zero` timeout).
+- `stepTimeout` (default 3 s) — how long a step waits for its target; per-step `stepTimeout` and the tour-level `missingTargetPolicy: skipStep` for targets that exist only sometimes (pair it with a short or `Duration.zero` timeout).
 - `disableBackButton` — the tour owns Android back while it runs.
 - `tour.id` is not decoration: it is the `HintStore` key and the id in every diagnostics line, so renaming a tour resets its "already shown" history.
 
@@ -114,8 +114,10 @@ Don't thread `BuildContext` through `AppTours`:
 
 ```dart
 HintStep(
-  titleBuilder: (c) => AppLocalizations.of(c)!.introTitle,
-  descriptionBuilder: (c) => AppLocalizations.of(c)!.introBody,
+  content: HintStepContent(
+    titleBuilder: (c) => AppLocalizations.of(c)!.introTitle,
+    descriptionBuilder: (c) => AppLocalizations.of(c)!.introBody,
+  ),
 )
 ```
 
@@ -131,10 +133,10 @@ A spotlight can teach in 5 seconds or annoy for 5 seconds. Aim for the first.
 
 ```dart
 // ❌ feature
-HintStep(title: 'Filters', description: 'Filter by muscle, equipment.')
+HintStep(content: HintStepContent(title: 'Filters', description: 'Filter by muscle, equipment.'))
 
 // ✅ outcome — what I get
-HintStep(title: 'Find it in seconds', description: 'Filter by muscle or equipment — no scrolling.')
+HintStep(content: HintStepContent(title: 'Find it in seconds', description: 'Filter by muscle or equipment — no scrolling.'))
 ```
 
 **Be specific:**
@@ -149,11 +151,11 @@ HintStep(title: 'Find it in seconds', description: 'Filter by muscle or equipmen
 
 ```dart
 // ❌ two ideas in one
-HintStep(title: 'Filters and summary', description: 'Filter and see stats.')
+HintStep(content: HintStepContent(title: 'Filters and summary', description: 'Filter and see stats.'))
 
 // ✅ two steps, each one job
-HintStep(targetId: 'filters', title: 'Narrow it down')
-HintStep(targetId: 'stats', title: 'See the total')
+HintStep(targetId: 'filters', content: HintStepContent(title: 'Narrow it down'))
+HintStep(targetId: 'stats', content: HintStepContent(title: 'See the total'))
 ```
 
 **Match the CTA to the promise:**
@@ -162,7 +164,7 @@ Default `Next`/`Done`/`Skip` come from `HintTooltipLabels` — localize once in 
 
 ```dart
 titleBuilder: (c) => c.l10n.hintAddSetTitle, // "Log your first set"
-// button: "Log it" — not "Next"
+// (inside HintStepContent) button: "Log it" — not "Next"
 ```
 
 **Keep it short:** 8 words for title, 20 for description. Need more? Use `moreTooltips` or a second step. Test at `2.0` text scale — hintful caps and scrolls, but short copy never needs it.
@@ -187,26 +189,36 @@ if (!await controller.tryStart(tour)) return; // busy
 
 ## 6. Once per version — `HintStore`
 
-**Preferred:** `startOnce` — gate + start + mark-on-finish in one call.
-Set the store once on the controller (`HintController(store: store)`); a
-per-call `store:` overrides it:
+**Preferred:** `startOnce` — gate + start + mark under a policy in one call.
+Set the store once on the controller (`HintController(store: store)`); there
+is no per-call store. With no store assigned, a session `InMemoryHintStore`
+takes over (debug prints a one-time warning) — show-once works for this run
+only; assign a persistent store for real once-per-version semantics
+(`controller.effectiveStore` exposes the resolved store):
 
 ```dart
 final controller = HintController(store: store); // once, at wiring
 
 final started = await controller.startOnce(
   AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
+  mark: HintMarkPolicy.onFinish, // default — see the policies below
   version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
 if (!started) return; // already shown for this version, or busy
 ```
 
-Semantics: `markShown` runs **only on finish** (Done / last step). Skip and
-timeout abort *without* marking — the tour may show again next launch. That
-is deliberate: "finished" means the user saw the whole thing.
+`HintMarkPolicy` (closed in 1.x):
 
-Prefer `startOnce` when that definition fits. For any other policy (mark on
-first frame, mark on skip too, mark a different key) roll your own:
+- `onFinish` (default) — `markShown` runs **only on finish** (Done / last
+  step). Skip and timeout abort *without* marking — the tour may show again
+  next launch. That is deliberate: "finished" means the user saw the whole
+  thing.
+- `onAnyExit` — finish, skip or timeout all count ("the user has seen it").
+  Replaces the hand-rolled idle-listener pattern below.
+- `manual` — never marks; the app owns the shown-state entirely.
+
+Prefer `startOnce` when a standard policy fits. For anything else (mark on
+first frame, mark a different key) roll your own:
 
 ```dart
 Future<void> startIntro() async {
@@ -284,7 +296,7 @@ resolved position, not one `ScrollController`.
 One tip is not a tour:
 
 ```dart
-controller.showHint(HintStep(targetId: 'fab', title: 'Swipe to delete'));
+controller.showHint(HintStep(targetId: 'fab', content: HintStepContent(title: 'Swipe to delete')));
 ```
 
 No `Done`/`Skip` row when `totalSteps == 1`. The hint closes by tap or keyboard and looks distinct from a tour.
@@ -373,7 +385,7 @@ release** — the tour continues; a timed-out step follows `missingTargetPolicy`
 Spotlight at coordinates, no `HintTarget`:
 
 ```dart
-HintStep(targetRect: Rect.fromLTWH(100, 300, 120, 40), title: 'Here')
+HintStep(targetRect: Rect.fromLTWH(100, 300, 120, 40), content: HintStepContent(title: 'Here'))
 ```
 
 The rect is in **overlay coordinates** (logical px — the space the tooltip is laid
@@ -405,7 +417,7 @@ value and its unit.
 HintStep(
   targetId: 'filter-all',
   moreTargets: ['filter-daily'], // one hole each, ONE tooltip
-  title: 'Two filters, one job',
+  content: HintStepContent(title: 'Two filters, one job'),
 )
 ```
 
@@ -430,7 +442,7 @@ target — a side note, a measurement, a "why".
 ```dart
 HintStep(
   targetId: 'stats',
-  title: 'Your week',
+  content: HintStepContent(title: 'Your week'),
   moreTooltips: [
     HintTooltip(
       position: TooltipPosition.left,
@@ -624,17 +636,19 @@ final result = await showHintTourOffer(
   controller: controller, // controller.store: set once — no store: needed
   tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
   pageId: 'settings',     // the page this offer belongs to
-  // markOnFinish: false, // opt-out: record the shown-state yourself (§6)
+  // mark: HintMarkPolicy.manual, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),
 );
 ```
 
 What it handles for you: no dialog when the tour already ran for
-`tour.minShowVersion`, a decline remembered per page (and globally when the
-checkbox is on) under namespaced keys, and a barrier dismissal counted as a
-decline — "not now" must not nag. Accepting runs `startOnce` for you: the shown-state is recorded
-**on finish** (skip does not record — §6 semantics). Pass
-`markOnFinish: false` only when your policy differs (§6 listener pattern).
+`tour.minShowVersion` (returns `alreadyShown`), a decline remembered per
+page (and globally when the checkbox is on) under namespaced keys, and a
+barrier dismissal counted as a decline — "not now" must not nag. Accepting
+runs `startOnce` for you: the shown-state is recorded per `mark:`
+(`HintMarkPolicy.onFinish` by default — skip does not record — §6
+semantics). Pass `mark: HintMarkPolicy.onAnyExit` or `manual` only when
+your policy differs (§6).
 
 Two rules: one offer per page entry point (offer from three buttons and the
 dialog appears where the user least expects it), and keep the tour reachable

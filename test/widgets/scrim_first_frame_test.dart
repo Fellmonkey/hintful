@@ -66,8 +66,14 @@ class _SyncScreenState extends State<_SyncScreen> {
         onPressed: () => unawaited(_controller.start(HintTour(
           id: 't',
           steps: const [
-            HintStep(targetId: 'a', title: 'A', description: 'd'),
-            HintStep(targetId: 'b', title: 'B', description: 'd'),
+            HintStep(
+              targetId: 'a',
+              content: HintStepContent(title: 'A', description: 'd'),
+            ),
+            HintStep(
+              targetId: 'b',
+              content: HintStepContent(title: 'B', description: 'd'),
+            ),
           ],
         ))),
         child: const Icon(Icons.play_arrow),
@@ -205,7 +211,10 @@ void main() {
         HintTour(
           id: 't',
           steps: const [
-            HintStep(targetId: 'late', title: 'L', description: 'd'),
+            HintStep(
+              targetId: 'late',
+              content: HintStepContent(title: 'L', description: 'd'),
+            ),
           ],
         ),
       ),

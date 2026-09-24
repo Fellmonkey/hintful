@@ -71,13 +71,17 @@ final introTour = HintTour(
   steps: [
     HintStep(
       targetId: 'exerciseSelector',
-      title: 'Pick a movement',
-      description: 'Filter by muscle, equipment or name.',
+      content: HintStepContent(
+        title: 'Pick a movement',
+        description: 'Filter by muscle, equipment or name.',
+      ),
     ),
     HintStep(
       targetId: 'addSet',
-      title: 'Log your set',
-      description: 'Weight × reps, one tap.',
+      content: HintStepContent(
+        title: 'Log your set',
+        description: 'Weight × reps, one tap.',
+      ),
     ),
   ],
 );
@@ -91,16 +95,49 @@ No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
 That's the whole tour — and it already handles light/dark, scrolling and
 deferred targets.
 
-Localizing? Swap `title`/`description` for `titleBuilder`/`descriptionBuilder`
-(`(c) => AppLocalizations.of(c)!.introTitle`): the copy stays in your `AppTours`
-file and the `BuildContext` arrives from the overlay.
+Localizing? Swap the strings for `titleBuilder`/`descriptionBuilder` inside
+`HintStepContent` (`(c) => AppLocalizations.of(c)!.introTitle`): the copy
+stays in your `AppTours` file and the `BuildContext` arrives from the
+overlay.
 
 ```dart
 // Just one tip? No tour needed:
 controller.showHint(
-  HintStep(targetId: 'addSet', title: 'Swipe left to delete a set'),
+  HintStep(
+    targetId: 'addSet',
+    content: HintStepContent(title: 'Swipe left to delete a set'),
+  ),
 );
 ```
+
+**Production wiring** — store once, offer + show-once:
+
+```dart
+// once, at wiring (SharedPreferences / your storage)
+final store = CallbackHintStore(
+  read: (key) => prefs.getString(key),
+  write: (key, value) => prefs.setString(key, value),
+);
+final controller = HintController(store: store);
+
+// optional ask-first dialog — gate + decline + startOnce under `mark:`
+await showHintTourOffer(
+  context: context,
+  controller: controller,
+  tour: introTour(minShowVersion: appVersion),
+  pageId: 'Home',
+  // mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
+);
+
+// or start directly; `mark:` defaults to HintMarkPolicy.onFinish
+await controller.startOnce(introTour(minShowVersion: appVersion));
+```
+
+No store assigned? A session `InMemoryHintStore` keeps show-once working
+for this run only (debug prints a one-time warning) — assign a persistent
+store for real once-per-version semantics. Wire format ↔ Dart params:
+`stepTimeout` ↔ `waitTimeoutMs`, `transition` ↔ `transitionCurve`,
+tap-bools `tapOnTarget`/`tapOnOverlay` ↔ `HintTapBehavior.advance()`/`ignore()`.
 
 ## Fast — measured, not promised
 
@@ -215,15 +252,17 @@ two-frame rule: [best practices §20](doc/best_practices.md#20-testing--headless
   makes adding/removing a step a compile error
 - Versioned hints (`HintStore`): show once per app version —
   set the store once (`HintController(store: ...)`) and call
-  `startOnce(tour, version:)` (marks on finish; the version gate
-  lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by hand;
-  `CallbackHintStore(read:, write:)` is the three-line path over your
-  storage
+  `startOnce(tour, mark:)` (default `HintMarkPolicy.onFinish`; the version
+  gate lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by
+  hand; with no store assigned, a session `InMemoryHintStore` keeps
+  show-once working for this run only. `CallbackHintStore(read:, write:)`
+  is the three-line path over your storage
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
-  declines persist per page or globally, an accepted tour is recorded on
-  finish (opt-out `markOnFinish: false`), the tour stays reachable from
-  other entry points
+  declines persist per page or globally; gates return
+  `HintTourOfferResult.alreadyShown`, accept while busy returns `busy`;
+  an accepted tour is recorded per `mark:` (`onFinish` by default), the
+  tour stays reachable from other entry points
 - `withHint` sugar (`child.withHint('id')`) and target-level
   `focusShape`/`focusPadding` — the shape lives on the widget, a step
   overrides only the exception

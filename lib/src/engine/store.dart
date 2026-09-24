@@ -1,5 +1,24 @@
 import 'dart:math' as math;
 
+/// When a show-once path records the shown-state — one policy knob for
+/// [HintController.startOnce] and `showHintTourOffer`.
+///
+/// Closed in 1.x: no new values before 2.0.
+enum HintMarkPolicy {
+  /// Mark when the tour finishes normally (Done / last step). Skip, timeout
+  /// and abort do **not** mark — the tour may show again (the default).
+  onFinish,
+
+  /// Mark on any exit after the tour started: finish, skip or timeout all
+  /// count as "the user has seen it". Replaces a hand-rolled
+  /// `state.addListener` + `markShown` on idle.
+  onAnyExit,
+
+  /// Never mark automatically — the app owns the shown-state entirely
+  /// (gate with `shouldShow` / record with `markShown` itself).
+  manual,
+}
+
 /// Versioned-hints store: `{hintKey: lastShownAppVersion}`.
 ///
 /// The "should I show" question, answered as data: a hint shows once per app

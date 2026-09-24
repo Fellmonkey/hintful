@@ -13,9 +13,10 @@ HintTour _rectTour() => HintTour(
       steps: const [
         HintStep(
           targetId: 'ghost',
+          content: HintStepContent(
+              title: 'Rect by coords',
+              description: 'targetRect — without HintTarget'),
           targetRect: Rect.fromLTWH(100, 300, 120, 40),
-          title: 'Rect by coords',
-          description: 'targetRect — without HintTarget',
         ),
       ],
     );

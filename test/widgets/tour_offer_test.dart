@@ -9,7 +9,12 @@ import 'package:hintful/src/widgets/tour_offer.dart';
 
 HintTour _tour(String id, {String? minShowVersion}) => HintTour(
       id: id,
-      steps: [HintStep(targetId: 'x', title: 'X')],
+      steps: [
+        HintStep(
+          targetId: 'x',
+          content: HintStepContent(title: 'X'),
+        ),
+      ],
       minShowVersion: minShowVersion,
     );
 
@@ -20,11 +25,16 @@ HintTour _rectTour(String id) => HintTour(
       steps: [
         HintStep(
           targetId: 'x',
-          title: 'X',
+          content: HintStepContent(title: 'X'),
           targetRect: const Rect.fromLTWH(10, 10, 50, 50),
         ),
       ],
     );
+
+/// Headless controller wired to [store] — the offer always reads
+/// controller.effectiveStore (no per-call store).
+HintController _controllerWith(HintStore store) =>
+    HintController(headless: true, store: store);
 
 /// A MaterialApp + a context under it (the dialog needs a Navigator).
 Future<BuildContext> _pumpApp(WidgetTester tester) async {
@@ -43,7 +53,7 @@ Future<void> _pumpDialog(WidgetTester tester) async {
 void main() {
   testWidgets('labels default from HintTheme.tourOfferLabels', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     const themed = HintTourOfferLabels(
       title: 'Themed offer',
@@ -66,7 +76,6 @@ void main() {
       context: context,
       controller: controller,
       tour: _tour('t'),
-      store: store,
     );
     await _pumpDialog(tester);
 
@@ -82,7 +91,7 @@ void main() {
 
   testWidgets('explicit labels: override the theme', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     const themed = HintTourOfferLabels(title: 'Themed offer');
     await tester.pumpWidget(
@@ -102,7 +111,6 @@ void main() {
       context: context,
       controller: controller,
       tour: _tour('t'),
-      store: store,
       labels: const HintTourOfferLabels(title: 'Explicit offer'),
     );
     await _pumpDialog(tester);
@@ -117,7 +125,7 @@ void main() {
 
   testWidgets('accept starts the tour', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
 
@@ -125,7 +133,6 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
@@ -146,7 +153,7 @@ void main() {
       'the dialog is skipped when the tour already ran for the '
       'version', (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t', minShowVersion: '1.0.0');
@@ -156,20 +163,19 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
 
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result, HintTourOfferResult.declined);
+    expect(await result, HintTourOfferResult.alreadyShown);
     expect(controller.currentState.isIdle, isTrue);
   });
 
   testWidgets('decline: remembered per page, other pages still offer',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -178,7 +184,6 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
@@ -193,24 +198,22 @@ void main() {
     expect(store.shouldShow('offer:t'), isTrue,
         reason: 'no global decline without the checkbox');
 
-    // The same page no longer offers…
+    // The same page no longer offers → alreadyShown…
     result = showHintTourOffer(
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result, HintTourOfferResult.declined);
+    expect(await result, HintTourOfferResult.alreadyShown);
 
     // …a different page still does.
     result = showHintTourOffer(
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Other',
     );
     await _pumpDialog(tester);
@@ -220,7 +223,7 @@ void main() {
   testWidgets('decline with "apply to all pages": remembered globally',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -229,7 +232,6 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
@@ -248,18 +250,17 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Other',
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result2, HintTourOfferResult.declined);
+    expect(await result2, HintTourOfferResult.alreadyShown);
   });
 
   testWidgets('a decline does not suppress the tour from other entry points',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -268,7 +269,6 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       pageId: 'Home',
     );
     await _pumpDialog(tester);
@@ -284,7 +284,7 @@ void main() {
   testWidgets('pageId omitted — decline key defaults to tour.id',
       (tester) async {
     final store = InMemoryHintStore();
-    final controller = HintController(headless: true);
+    final controller = _controllerWith(store);
     addTearDown(controller.dispose);
     final context = await _pumpApp(tester);
     final tour = _tour('t');
@@ -293,7 +293,6 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
       // pageId omitted → tour.id
     );
     await _pumpDialog(tester);
@@ -311,19 +310,17 @@ void main() {
       context: context,
       controller: controller,
       tour: tour,
-      store: store,
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await again, HintTourOfferResult.declined);
+    expect(await again, HintTourOfferResult.alreadyShown);
   });
 
-  // The release busy guard in start() (if (!isIdle) return;) is assert-parity:
-  // unreachable under flutter test by design — covered by code review only.
-  group('markOnFinish (default)', () {
-    testWidgets('accept + finish → marked shown', (tester) async {
+  group('HintMarkPolicy (offer accept path)', () {
+    testWidgets('onFinish (default): accept + finish → marked shown',
+        (tester) async {
       final store = InMemoryHintStore();
-      final controller = HintController(headless: true);
+      final controller = _controllerWith(store);
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
@@ -331,7 +328,6 @@ void main() {
         context: context,
         controller: controller,
         tour: _rectTour('t'),
-        store: store,
         pageId: 'Home',
       );
       await _pumpDialog(tester);
@@ -347,9 +343,10 @@ void main() {
           reason: 'finish marks the tour shown');
     });
 
-    testWidgets('accept + skip → not marked', (tester) async {
+    testWidgets('onFinish (default): accept + skip → not marked',
+        (tester) async {
       final store = InMemoryHintStore();
-      final controller = HintController(headless: true);
+      final controller = _controllerWith(store);
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
@@ -357,7 +354,6 @@ void main() {
         context: context,
         controller: controller,
         tour: _rectTour('t'),
-        store: store,
         pageId: 'Home',
       );
       await _pumpDialog(tester);
@@ -371,9 +367,10 @@ void main() {
           reason: 'skip must not record — the tour may show again');
     });
 
-    testWidgets('markOnFinish: false + finish → not marked', (tester) async {
+    testWidgets('manual: finish → not marked (app owns the shown-state)',
+        (tester) async {
       final store = InMemoryHintStore();
-      final controller = HintController(headless: true);
+      final controller = _controllerWith(store);
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
@@ -381,9 +378,8 @@ void main() {
         context: context,
         controller: controller,
         tour: _rectTour('t'),
-        store: store,
         pageId: 'Home',
-        markOnFinish: false,
+        mark: HintMarkPolicy.manual,
       );
       await _pumpDialog(tester);
       await tester.tap(find.text('Start'));
@@ -393,13 +389,37 @@ void main() {
       controller.next();
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
-          reason: 'opt-out: the app records the shown-state itself');
+          reason: 'manual: the app records the shown-state itself');
+    });
+
+    testWidgets('onAnyExit: accept + skip → marked shown', (tester) async {
+      final store = InMemoryHintStore();
+      final controller = _controllerWith(store);
+      addTearDown(controller.dispose);
+      final context = await _pumpApp(tester);
+
+      final result = showHintTourOffer(
+        context: context,
+        controller: controller,
+        tour: _rectTour('t'),
+        pageId: 'Home',
+        mark: HintMarkPolicy.onAnyExit,
+      );
+      await _pumpDialog(tester);
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+
+      expect(await result, HintTourOfferResult.started);
+      controller.skip();
+      expect(controller.currentState.isIdle, isTrue);
+      expect(store.shouldShow('t'), isFalse,
+          reason: 'onAnyExit marks even on skip');
     });
 
     testWidgets('busy controller → the offer accept asserts (debug contract)',
         (tester) async {
       final store = InMemoryHintStore();
-      final controller = HintController(headless: true);
+      final controller = _controllerWith(store);
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
@@ -409,7 +429,6 @@ void main() {
         context: context,
         controller: controller,
         tour: _rectTour('t'),
-        store: store,
         pageId: 'Home',
       );
       await _pumpDialog(tester);

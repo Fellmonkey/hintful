@@ -126,4 +126,34 @@ class HintTourOfferLabels {
 
   /// "Apply to all pages" checkbox label.
   final String applyToAllPagesLabel;
+
+  /// Same labels with the given fields replaced (null — keep the current).
+  HintTourOfferLabels copyWith({
+    String? title,
+    String? body,
+    String? acceptLabel,
+    String? skipLabel,
+    String? applyToAllPagesLabel,
+  }) {
+    return HintTourOfferLabels(
+      title: title ?? this.title,
+      body: body ?? this.body,
+      acceptLabel: acceptLabel ?? this.acceptLabel,
+      skipLabel: skipLabel ?? this.skipLabel,
+      applyToAllPagesLabel: applyToAllPagesLabel ?? this.applyToAllPagesLabel,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is HintTourOfferLabels &&
+      other.title == title &&
+      other.body == body &&
+      other.acceptLabel == acceptLabel &&
+      other.skipLabel == skipLabel &&
+      other.applyToAllPagesLabel == applyToAllPagesLabel;
+
+  @override
+  int get hashCode =>
+      Object.hash(title, body, acceptLabel, skipLabel, applyToAllPagesLabel);
 }

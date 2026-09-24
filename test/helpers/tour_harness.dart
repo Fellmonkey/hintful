@@ -40,7 +40,10 @@ class DiagnosticsRecorder {
 /// final h = TourHarness(targets: [HarnessTarget('stats')]);
 /// await h.pump(tester);
 /// await h.start(tester, HintTour(id: 't', steps: [
-///   HintStep(targetId: 'stats', title: 'Title'),
+///   HintStep(
+///     targetId: 'stats',
+///     content: HintStepContent(title: 'Title'),
+///   ),
 /// ]));
 /// expect(find.text('Title'), findsOneWidget);
 /// await tester.tap(find.text('Done'));

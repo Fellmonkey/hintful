@@ -13,31 +13,36 @@ import 'package:hintful/hintful.dart';
 /// 600 ms after the step activates), scroll-into-view for list targets and
 /// the versioned-intro pattern: shown once per app version via the store
 /// gate in the app shell.
-HintTour introTour() => HintTour(
+HintTour introTour({String? minShowVersion}) => HintTour(
       id: 'intro',
       autoScroll: true,
+      minShowVersion: minShowVersion,
       steps: [
         HintStep(
           targetId: 'fab',
-          title: 'Quick log',
-          description: 'Add sets with one tap. '
-              'Next we show the day filter.',
+          content: HintStepContent(
+              title: 'Quick log',
+              description: 'Add sets with one tap. '
+                  'Next we show the day filter.'),
         ),
         HintStep(
           targetId: 'filter-daily',
-          title: 'Daily filter',
-          description: 'The day summary — the next tour step.',
+          content: HintStepContent(
+              title: 'Daily filter',
+              description: 'The day summary — the next tour step.'),
         ),
         HintStep(
           targetId: 'stats',
-          title: 'Summary card',
-          description: 'It appeared automatically — that is '
-              'wait-for-target for deferred sections.',
+          content: HintStepContent(
+              title: 'Summary card',
+              description: 'It appeared automatically — that is '
+                  'wait-for-target for deferred sections.'),
         ),
         HintStep(
           targetId: 'entry-0',
-          title: 'Workout list',
-          description: 'Every entry is a target too. Done!',
+          content: HintStepContent(
+              title: 'Workout list',
+              description: 'Every entry is a target too. Done!'),
         ),
       ],
     );
@@ -50,16 +55,18 @@ HintTour multiTargetTour() => HintTour(
       steps: [
         HintStep(
           targetId: 'filter-all',
+          content: HintStepContent(
+              title: 'Both filters at once',
+              description: 'One step can spotlight several targets — '
+                  'each has its own scrim hole, the tooltip avoids them all.'),
           moreTargets: ['filter-daily'],
-          title: 'Both filters at once',
-          description: 'One step can spotlight several targets — '
-              'each has its own scrim hole, the tooltip avoids them all.',
         ),
         HintStep(
           targetId: 'fab',
-          title: 'Back to one target',
-          description: 'This step spotlights a single target — '
-              'contrast it with the previous one.',
+          content: HintStepContent(
+              title: 'Back to one target',
+              description: 'This step spotlights a single target — '
+                  'contrast it with the previous one.'),
         ),
       ],
     );
@@ -72,8 +79,9 @@ HintTour multiContentTour() => HintTour(
       steps: [
         HintStep(
           targetId: 'fab',
-          title: 'Primary tooltip',
-          description: 'The primary tooltip — it owns the tour controls.',
+          content: HintStepContent(
+              title: 'Primary tooltip',
+              description: 'The primary tooltip — it owns the tour controls.'),
           moreTooltips: [
             HintTooltip(
               position: TooltipPosition.left,
@@ -100,10 +108,11 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
       steps: [
         HintStep(
           targetId: 'fab',
-          title: 'Tap target vs overlay',
-          description: 'Tap the button (target) or the dark area '
-              '(overlay) — each fires its own callback with the tap '
-              'position. Use Next to advance.',
+          content: HintStepContent(
+              title: 'Tap target vs overlay',
+              description: 'Tap the button (target) or the dark area '
+                  '(overlay) — each fires its own callback with the tap '
+                  'position. Use Next to advance.'),
           targetTap: HintTapBehavior.custom((ctx, details) => notify(
                 'Target tap at '
                 '${details.localPosition.dx.round()},'
@@ -115,10 +124,11 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
         ),
         HintStep(
           targetId: 'entry-0',
-          title: 'Overlay taps off',
-          description: 'This step ignores overlay taps '
-              '(overlayTap: HintTapBehavior.ignore()) — only a target tap '
-              'or the button advances.',
+          content: HintStepContent(
+              title: 'Overlay taps off',
+              description: 'This step ignores overlay taps '
+                  '(overlayTap: HintTapBehavior.ignore()) — only a target tap '
+                  'or the button advances.'),
           overlayTap: const HintTapBehavior.ignore(),
         ),
       ],
@@ -139,14 +149,17 @@ HintTour offerTour({String? minShowVersion}) => HintTour.fromEnum(
       stepFor: (step) => switch (step) {
         OfferStep.fab => HintStep(
             targetId: 'fab',
-            title: 'Quick log',
-            description: 'A tour built from an enum — the switch here is '
-                'exhaustive, so the steps can never drift from the enum.',
+            content: HintStepContent(
+                title: 'Quick log',
+                description: 'A tour built from an enum — the switch here is '
+                    'exhaustive, so the steps can never drift from the enum.'),
           ),
         OfferStep.filters => HintStep(
             targetId: 'filter-all',
-            title: 'All sets filter',
-            description: 'Declared order of the enum = order of the steps.',
+            content: HintStepContent(
+                title: 'All sets filter',
+                description:
+                    'Declared order of the enum = order of the steps.'),
           ),
       },
       minShowVersion: minShowVersion,
@@ -159,7 +172,7 @@ HintTour circleHoleTour() => HintTour(
       steps: [
         HintStep(
             targetId: 'fab',
-            title: 'Circle hole',
+            content: HintStepContent(title: 'Circle hole'),
             focusShape: FocusShape.circle)
       ],
     );
@@ -169,7 +182,7 @@ HintTour roundedHoleTour() => HintTour(
       steps: [
         HintStep(
             targetId: 'filter-all',
-            title: 'Rounded hole',
+            content: HintStepContent(title: 'Rounded hole'),
             focusShape: FocusShape.roundedRect)
       ],
     );
@@ -179,8 +192,8 @@ HintTour negativePaddingTour() => HintTour(
       steps: [
         HintStep(
             targetId: 'fab',
-            title: 'Shrink',
-            description: 'focusPadding -8',
+            content: HintStepContent(
+                title: 'Shrink', description: 'focusPadding -8'),
             focusPadding: -8)
       ],
     );
@@ -190,9 +203,10 @@ HintTour rectTargetTour() => HintTour(
       steps: [
         HintStep(
           targetId: 'fab',
+          content: HintStepContent(
+              title: 'Rect by coords',
+              description: 'targetRect — without HintTarget (test)'),
           targetRect: const Rect.fromLTWH(100, 300, 120, 40),
-          title: 'Rect by coords',
-          description: 'targetRect — without HintTarget (test)',
         ),
       ],
     );
@@ -202,8 +216,8 @@ HintTour sprungTour() => HintTour(
       steps: [
         HintStep(
             targetId: 'fab',
-            title: 'Sprung',
-            description: 'Sprung curve — bouncy',
+            content: HintStepContent(
+                title: 'Sprung', description: 'Sprung curve — bouncy'),
             transition: HintEntryAnimation.sprung,
             transitionDuration: const Duration(milliseconds: 350))
       ],
@@ -214,8 +228,9 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
       steps: [
         HintStep(
           targetId: 'fab',
-          title: 'Hooks',
-          description: 'onStepEnter/onStepExit - prepare scene',
+          content: HintStepContent(
+              title: 'Hooks',
+              description: 'onStepEnter/onStepExit - prepare scene'),
           onStepEnter: () async => notify('before hook'),
           onStepExit: () async => notify('after hook'),
         ),
@@ -233,8 +248,9 @@ HintTour fadeSlideTour() => HintTour(
       steps: [
         HintStep(
           targetId: 'fab',
-          title: 'Fade and rise',
-          description: 'Custom entry, custom button.',
+          content: HintStepContent(
+              title: 'Fade and rise',
+              description: 'Custom entry, custom button.'),
           tooltipBuilder: (context, step, ctx) {
             final theme = Theme.of(context).hintTheme;
             final duration = hintTransitionDuration(
@@ -353,14 +369,17 @@ HintTour l10nTour(BuildContext context) => HintTour(
       steps: [
         HintStep(
           targetId: 'entry-5',
-          titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
-          description: 'Localized via titleBuilder (no context in AppTours).',
+          content: HintStepContent(
+              titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
+              description:
+                  'Localized via titleBuilder (no context in AppTours).'),
           autoScroll: true,
         ),
         HintStep(
           targetId: 'fab',
-          title: 'withHint + target shape',
-          description: 'FAB uses withHint + target-level circle.',
+          content: HintStepContent(
+              title: 'withHint + target shape',
+              description: 'FAB uses withHint + target-level circle.'),
         ),
       ],
     );
@@ -370,13 +389,14 @@ HintTour autoScrollStepTour() => HintTour(
       id: 'feat-autoscroll-step',
       steps: [
         HintStep(
-            targetId: 'fab',
-            title: 'No scroll',
-            description: 'Already visible.'),
+          targetId: 'fab',
+          content: HintStepContent(
+              title: 'No scroll', description: 'Already visible.'),
+        ),
         HintStep(
             targetId: 'entry-5',
-            title: 'Scroll here',
-            description: 'This step autoScrolls.',
+            content: HintStepContent(
+                title: 'Scroll here', description: 'This step autoScrolls.'),
             autoScroll: true),
       ],
     );

@@ -18,9 +18,14 @@ void main() {
         id: 'flow',
         steps: [
           HintStep(
-              targetId: 'stats', title: 'Statistics', description: 'Step 1'),
+            targetId: 'stats',
+            content:
+                HintStepContent(title: 'Statistics', description: 'Step 1'),
+          ),
           HintStep(
-              targetId: 'records', title: 'Records', description: 'Step 2'),
+            targetId: 'records',
+            content: HintStepContent(title: 'Records', description: 'Step 2'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -75,7 +80,12 @@ void main() {
       );
       final tour = HintTour(
         id: 'scroll',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -146,7 +156,12 @@ void main() {
       await TourHarness.settle(tester);
       await controller.start(HintTour(
         id: 'cull',
-        steps: const [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: const [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       ));
       await TourHarness.settle(tester);
       expect(find.text('Statistics'), findsOneWidget);
@@ -181,8 +196,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -210,8 +231,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -247,8 +274,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -276,7 +309,12 @@ void main() {
       );
       final tour = HintTour(
         id: 'flip',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -318,12 +356,14 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Statistics',
-            // Tall enough to cross the home-indicator inset even without
-            // the action row (a single-step hint keeps no buttons).
-            description: 'A longer description so the tooltip is tall enough '
-                'to cross the bottom inset and must mirror above the target '
-                'instead of fitting below it on the bare screen.',
+            content: const HintStepContent(
+              title: 'Statistics',
+              // Tall enough to cross the home-indicator inset even without
+              // the action row (a single-step hint keeps no buttons).
+              description: 'A longer description so the tooltip is tall enough '
+                  'to cross the bottom inset and must mirror above the target '
+                  'instead of fitting below it on the bare screen.',
+            ),
             position: TooltipPosition.bottom,
           ),
         ],
@@ -349,7 +389,12 @@ void main() {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
       final tour = HintTour(
         id: 'tail',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -377,7 +422,12 @@ void main() {
       );
       final tour = HintTour(
         id: 'tail-off',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -409,8 +459,14 @@ void main() {
       final tour = HintTour(
         id: 'rm',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -440,7 +496,7 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Statistics',
+            content: HintStepContent(title: 'Statistics'),
             transition: HintEntryAnimation.sprung,
           ),
         ],
@@ -465,7 +521,7 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Statistics',
+            content: HintStepContent(title: 'Statistics'),
             transition: HintEntryAnimation.easeOut,
           ),
         ],
@@ -510,12 +566,13 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Statistics',
-            description: 'A deliberately long description that wraps into '
-                    'many lines at double the text scale, so the tooltip needs '
-                    'the height cap to stay on screen instead of overflowing '
-                    'past the bottom edge. ' *
-                3,
+            content: HintStepContent(
+                title: 'Statistics',
+                description: 'A deliberately long description that wraps into '
+                        'many lines at double the text scale, so the tooltip needs '
+                        'the height cap to stay on screen instead of overflowing '
+                        'past the bottom edge. ' *
+                    3),
           ),
         ],
       );
@@ -554,7 +611,12 @@ void main() {
       );
       final tour = HintTour(
         id: 'focus',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
 
@@ -586,8 +648,8 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
             moreTargets: const ['records'],
-            title: 'Statistics',
           ),
         ],
       );
@@ -610,7 +672,12 @@ void main() {
       final h = TourHarness(targets: [HarnessTarget('stats')]);
       final tour = HintTour(
         id: 'single',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -638,8 +705,8 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Primary',
-            description: 'The main tooltip',
+            content: HintStepContent(
+                title: 'Primary', description: 'The main tooltip'),
             moreTooltips: const [
               HintTooltip(
                 position: TooltipPosition.right,
@@ -678,8 +745,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -709,7 +782,12 @@ void main() {
       );
       final tour = HintTour(
         id: 'scroll',
-        steps: [HintStep(targetId: 'stats', title: 'Statistics')],
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          )
+        ],
       );
       await h.pump(tester);
       await h.start(tester, tour);
@@ -746,8 +824,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);
@@ -770,8 +854,14 @@ void main() {
       final tour = HintTour(
         id: 'flow',
         steps: [
-          HintStep(targetId: 'stats', title: 'Statistics'),
-          HintStep(targetId: 'records', title: 'Records'),
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
         ],
       );
       await h.pump(tester);

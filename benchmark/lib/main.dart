@@ -87,8 +87,14 @@ class _EngineAppState extends State<_EngineApp> {
   HintTour _tour() => HintTour(
         id: 'bench',
         steps: [
-          HintStep(targetId: 'fab', title: 'Step one', description: 'FAB'),
-          HintStep(targetId: 'entry-0', title: 'Step two', description: 'Row'),
+          HintStep(
+            targetId: 'fab',
+            content: HintStepContent(title: 'Step one', description: 'FAB'),
+          ),
+          HintStep(
+            targetId: 'entry-0',
+            content: HintStepContent(title: 'Step two', description: 'Row'),
+          ),
         ],
       );
 }

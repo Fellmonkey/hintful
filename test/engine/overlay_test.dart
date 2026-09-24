@@ -43,7 +43,9 @@ HintTour _tour(String targetId) => HintTour(
       id: 't',
       steps: [
         HintStep(
-            targetId: targetId, title: 'Title', description: 'Description'),
+          targetId: targetId,
+          content: HintStepContent(title: 'Title', description: 'Description'),
+        ),
       ],
     );
 
@@ -234,7 +236,10 @@ void main() {
         disableBackButton: true,
         steps: [
           HintStep(
-              targetId: 'stats', title: 'Title', description: 'Description'),
+            targetId: 'stats',
+            content:
+                HintStepContent(title: 'Title', description: 'Description'),
+          ),
         ],
       );
       engine.update(HintActive(tour: blocked, stepIndex: 0));
@@ -478,11 +483,13 @@ void main() {
         steps: [
           HintStep(
             targetId: 'primary',
+            content: const HintStepContent(
+              title: 'Title',
+              // Two lines: the tooltip is tall enough that auto-placement
+              // keeps it below the primary (a short tooltip would fit above).
+              description: 'A second line so the tooltip lands below',
+            ),
             moreTargets: const ['extra'],
-            title: 'Title',
-            // Two lines: the tooltip is tall enough that auto-placement
-            // keeps it below the primary (a short tooltip would fit above).
-            description: 'A second line so the tooltip lands below',
           ),
         ],
       );
@@ -533,7 +540,7 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Title',
+            content: HintStepContent(title: 'Title'),
             targetTap: HintTapBehavior.custom(
               (ctx, details) => targetTap = details.globalPosition,
             ),
@@ -586,7 +593,7 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Title',
+            content: HintStepContent(title: 'Title'),
             targetTap: const HintTapBehavior.ignore(),
           ),
         ],
@@ -660,7 +667,7 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            title: 'Primary',
+            content: HintStepContent(title: 'Primary'),
             moreTooltips: [
               HintTooltip(
                 position: TooltipPosition.right,

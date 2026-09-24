@@ -13,7 +13,10 @@ HintTour _tour({
       id: 't',
       steps: [
         for (var i = 0; i < steps; i++)
-          HintStep(targetId: 'target$i', title: 'Step $i'),
+          HintStep(
+            targetId: 'target$i',
+            content: HintStepContent(title: 'Step $i'),
+          ),
       ],
       stepTimeout: stepTimeout,
     );
@@ -348,10 +351,13 @@ void main() {
         steps: [
           HintStep(
             targetId: 'a',
-            title: 'A',
+            content: HintStepContent(title: 'A'),
             stepTimeout: const Duration(seconds: 7),
           ),
-          HintStep(targetId: 'b', title: 'B'),
+          HintStep(
+            targetId: 'b',
+            content: HintStepContent(title: 'B'),
+          ),
         ],
       );
       final machine = HintMachine();
@@ -383,8 +389,14 @@ void main() {
     final multiTour = HintTour(
       id: 'multi',
       steps: [
-        HintStep(targetId: 'a', moreTargets: const ['b'], title: 'A'),
-        HintStep(targetId: 'c', title: 'C'),
+        HintStep(
+            targetId: 'a',
+            content: HintStepContent(title: 'A'),
+            moreTargets: const ['b']),
+        HintStep(
+          targetId: 'c',
+          content: HintStepContent(title: 'C'),
+        ),
       ],
     );
     final waiting0 = HintWaiting(tour: multiTour, stepIndex: 0);
@@ -485,8 +497,14 @@ void main() {
       final tour = HintTour(
         id: 'multi-next',
         steps: [
-          HintStep(targetId: 'a', title: 'A'),
-          HintStep(targetId: 'b', moreTargets: const ['c'], title: 'B'),
+          HintStep(
+            targetId: 'a',
+            content: HintStepContent(title: 'A'),
+          ),
+          HintStep(
+              targetId: 'b',
+              content: HintStepContent(title: 'B'),
+              moreTargets: const ['c']),
         ],
       );
       final machine = HintMachine();
@@ -527,8 +545,14 @@ void main() {
           id: 'skip',
           missingTargetPolicy: HintMissingTargetPolicy.skipStep,
           steps: [
-            HintStep(targetId: 'target0', title: 'Step 0'),
-            HintStep(targetId: 'target1', title: 'Step 1'),
+            HintStep(
+              targetId: 'target0',
+              content: HintStepContent(title: 'Step 0'),
+            ),
+            HintStep(
+              targetId: 'target1',
+              content: HintStepContent(title: 'Step 1'),
+            ),
           ],
         );
 
@@ -605,41 +629,50 @@ void main() {
       );
     });
 
-    test('per-step override beats the tour default', () {
+    test('tour-level skipStep applies to every step (no per-step override)',
+        () {
       final tour = HintTour(
         id: 'mixed',
+        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
         steps: [
           HintStep(
             targetId: 'target0',
-            title: 'Step 0',
-            missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+            content: HintStepContent(title: 'Step 0'),
           ),
-          HintStep(targetId: 'target1', title: 'Step 1'),
+          HintStep(
+            targetId: 'target1',
+            content: HintStepContent(title: 'Step 1'),
+          ),
         ],
       );
       final machine = HintMachine();
       machine.dispatch(HintStart(tour: tour));
 
-      // Step 0 skips despite the tour default (abortTour).
-      final skipped = machine.dispatch(
+      // Both steps skip on timeout (tour-level skipStep).
+      final skipped0 = machine.dispatch(
         const WaitTimeout(),
         targetPresent: (_) => false,
       );
-      expect(skipped.state, HintWaiting(tour: tour, stepIndex: 1));
+      expect(skipped0.state, HintWaiting(tour: tour, stepIndex: 1));
 
-      // Step 1 aborts per the tour default.
-      final aborted = machine.dispatch(
+      final skipped1 = machine.dispatch(
         const WaitTimeout(),
         targetPresent: (_) => false,
       );
-      expect(aborted.state, const HintIdle());
+      // Last-step timeout under tour-level skipStep: skip the step, then
+      // normal finish — not an abort (abort is the default abortTour policy).
+      expect(skipped1.state, isA<HintIdle>());
       expect(
-        aborted.effects.last,
-        isA<AbortEffect>().having(
-          (e) => e.reason,
-          'reason',
-          HintSkipReason.timeout,
-        ),
+        skipped1.effects,
+        [
+          const ClearTimeoutEffect(),
+          isA<StepSkippedEffect>().having(
+            (e) => e.reason,
+            'reason',
+            HintSkipReason.timeout,
+          ),
+          const FinishedEffect(tourId: 'mixed'),
+        ],
       );
     });
 
@@ -648,10 +681,13 @@ void main() {
         _tour().missingTargetPolicy,
         HintMissingTargetPolicy.abortTour,
       );
-      expect(
-        const HintStep(targetId: 'x', title: 'X').missingTargetPolicy,
-        isNull,
+      // Steps no longer carry a policy field — the tour-level default is
+      // the single source of truth.
+      const step = HintStep(
+        targetId: 'x',
+        content: HintStepContent(title: 'X'),
       );
+      expect(step.content.title, 'X');
     });
   });
 

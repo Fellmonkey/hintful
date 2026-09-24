@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../engine/controller.dart';
@@ -16,10 +15,16 @@ enum HintTourOfferResult {
   /// The user accepted — the tour was started.
   started,
 
-  /// No dialog was shown (the tour already ran for this version, or a
-  /// previous decline) or the user declined (the decline is remembered in
-  /// the store).
+  /// The user declined (the decline is remembered in the store).
   declined,
+
+  /// No dialog was shown: the tour already ran for this version, or the
+  /// user declined this offer before (per-page or all-pages key).
+  alreadyShown,
+
+  /// The user accepted but another tour is running — nothing started;
+  /// retry when [HintController.isIdle] is true.
+  busy,
 }
 
 /// The offer's decline keys are namespaced apart from the tour's own
@@ -35,18 +40,16 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// Show the pre-tour offer dialog — "Want a tour?" with an
 /// "Apply to all pages" checkbox — and start [tour] on accept.
 ///
-/// Two gates skip the dialog entirely (returns [HintTourOfferResult.declined]):
-/// the tour itself should not show ([HintStore.shouldShow] with
-/// [HintTour.minShowVersion] — it already ran for this version), or the user
-/// declined before (for [pageId], or for all pages when they checked the
-/// checkbox).
+/// Two gates skip the dialog entirely (returns
+/// [HintTourOfferResult.alreadyShown]): the tour itself should not show
+/// ([HintStore.shouldShow] with [HintTour.minShowVersion] — it already ran
+/// for this version), or the user declined before (for [pageId], or for all
+/// pages when they checked the checkbox).
 ///
-/// The store is [store] when given, else `controller.store` — set
-/// `HintController(store: ...)` once and omit `store:` here. With no store
-/// anywhere the offer still shows, but **nothing persists**: the version
-/// gate and both decline keys are skipped, a decline is forgotten, and an
-/// accept records nothing (a debug print says so) — pass a store for the
-/// documented ask-once behavior.
+/// The store is always the controller's — [HintController.store] with the
+/// session fallback from [HintController.effectiveStore]; there is no
+/// per-call store. Assign `HintController(store: ...)` once for persistent
+/// once-per-version semantics (otherwise the state lives for this run only).
 ///
 /// [pageId] identifies the screen this offer belongs to (per-page decline
 /// key); omitted — defaults to `tour.id` (single entry point per tour).
@@ -55,11 +58,10 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// own shown-state key, so the tour remains reachable through other entry
 /// points (e.g. a settings screen). Dismissing the dialog (barrier tap)
 /// counts as a decline — "not now" should not nag again. On accept the tour
-/// is started and (with [markOnFinish], the default) the shown-state is
-/// recorded **on finish** via [HintController.startOnce] — skip/abort does
-/// not record, the tour may show again (best practices §6). Pass
-/// `markOnFinish: false` to record the shown-state yourself (any other
-/// policy — see best practices §6).
+/// is started via [HintController.startOnce] with [mark] (default
+/// [HintMarkPolicy.onFinish]: skip/abort does not record, the tour may show
+/// again — best practices §6). When the controller is busy at accept the
+/// result is [HintTourOfferResult.busy] (asserts in debug).
 ///
 /// [labels] overrides the dialog copy for this call; omitted — the design
 /// system's [HintTheme.tourOfferLabels].
@@ -67,29 +69,19 @@ Future<HintTourOfferResult> showHintTourOffer({
   required BuildContext context,
   required HintController controller,
   required HintTour tour,
-  HintStore? store,
   String? pageId,
-  bool markOnFinish = true,
+  HintMarkPolicy mark = HintMarkPolicy.onFinish,
   HintTourOfferLabels? labels,
 }) async {
-  final hintStore = store ?? controller.store;
-  if (kDebugMode && hintStore == null) {
-    debugPrint(
-      'hintful: showHintTourOffer without a HintStore — the version gate, '
-      'declines and the shown-state are not persisted (set '
-      'HintController.store or pass store:)',
-    );
-  }
+  final hintStore = controller.effectiveStore;
   final offerLabels = labels ?? Theme.of(context).hintTheme.tourOfferLabels;
   final page = pageId ?? tour.id;
-  if (hintStore != null) {
-    if (!hintStore.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
-      return HintTourOfferResult.declined; // already ran for this version
-    }
-    if (!hintStore.shouldShow(_pageDeclineKey(tour.id, page)) ||
-        !hintStore.shouldShow(_globalDeclineKey(tour.id))) {
-      return HintTourOfferResult.declined; // declined before
-    }
+  if (!hintStore.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
+    return HintTourOfferResult.alreadyShown; // ran for this version
+  }
+  if (!hintStore.shouldShow(_pageDeclineKey(tour.id, page)) ||
+      !hintStore.shouldShow(_globalDeclineKey(tour.id))) {
+    return HintTourOfferResult.alreadyShown; // declined before
   }
 
   var applyToAllPages = false;
@@ -128,35 +120,25 @@ Future<HintTourOfferResult> showHintTourOffer({
   );
 
   if (accepted ?? false) {
-    if (markOnFinish && hintStore != null) {
-      // startOnce: gate (already passed above, from tour.minShowVersion)
-      // + start + markShown on finish only; skip/abort leaves the tour
-      // re-showable (§6). The gate above already ran, so a false return
-      // here means busy.
+    if (!controller.isIdle) {
       assert(
-        controller.isIdle,
+        false,
         'hintful: offer accepted while a tour is active — '
         'one tour at a time',
       );
-      final started = await controller.startOnce(tour, store: hintStore);
-      return started
-          ? HintTourOfferResult.started
-          : HintTourOfferResult.declined;
+      return HintTourOfferResult.busy;
     }
-    // No store (nothing to record) or markOnFinish: false — start without
-    // recording; the app marks the shown-state itself if it has a policy
-    // (best practices §6 listener pattern).
-    // Awaited: start() validates synchronously (typo assert) and must not
-    // fail into an unhandled async error after we already reported success.
-    await controller.start(tour);
-    return HintTourOfferResult.started;
+    // Gate already passed above (from tour.minShowVersion) — a false return
+    // here means the tour was stripped as typos or busy raced in (release).
+    final started = await controller.startOnce(tour, mark: mark);
+    return started ? HintTourOfferResult.started : HintTourOfferResult.busy;
   }
   // Declined: remember it — per page, or for all pages when the checkbox
   // was on. The version string is arbitrary here: `shouldShow` without a
   // minVersion only asks "was it ever marked".
-  hintStore?.markShown(_pageDeclineKey(tour.id, page), 'true');
+  hintStore.markShown(_pageDeclineKey(tour.id, page), 'true');
   if (applyToAllPages) {
-    hintStore?.markShown(_globalDeclineKey(tour.id), 'true');
+    hintStore.markShown(_globalDeclineKey(tour.id), 'true');
   }
   return HintTourOfferResult.declined;
 }

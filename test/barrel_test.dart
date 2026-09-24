@@ -18,7 +18,10 @@ void main() {
   test('barrel: the whole public contract is reachable from one import point',
       () async {
     // Tour data (specs).
-    const step = HintStep(targetId: 'stats', title: 'Title');
+    const step = HintStep(
+      targetId: 'stats',
+      content: HintStepContent(title: 'Title'),
+    );
     final tour = HintTour(id: 'intro', steps: [step]);
     expect(step.position, TooltipPosition.auto);
     expect(tour.steps[0].targetId, 'stats');
@@ -29,7 +32,10 @@ void main() {
     final richTour = HintTour(
       id: 'rich',
       steps: [
-        HintStep(targetId: 'stats', title: 'Stats', moreTooltips: [extra]),
+        HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Stats'),
+            moreTooltips: [extra]),
       ],
     );
     final restored = HintTour.fromJson(richTour.toJson());
@@ -42,8 +48,7 @@ void main() {
     const content = HintStepContent(title: 'T', description: 'D');
     const sugarStep = HintStep(
       targetId: 'stats',
-      title: 'T',
-      description: 'D',
+      content: HintStepContent(title: 'T', description: 'D'),
     );
     expect(content.title, 'T');
     expect(sugarStep.title, 'T');
@@ -125,6 +130,7 @@ void main() {
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
     expect(HintStore.compareVersions('1.10.0', '1.9.0'), greaterThan(0));
     expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
+    expect(controller.effectiveStore, isA<HintStore>()); // session fallback
 
     // CallbackHintStore — the three-line persistent-store path.
     final backing = <String, String>{};
@@ -144,7 +150,21 @@ void main() {
 
     // Offer dialog — labels and result types (the call itself needs a context).
     expect(const HintTourOfferLabels().acceptLabel, 'Start');
-    expect(HintTourOfferResult.values, hasLength(2));
+    expect(
+      const HintTourOfferLabels().copyWith(acceptLabel: 'Go').acceptLabel,
+      'Go',
+    );
+    expect(
+      const HintTourOfferLabels(),
+      const HintTourOfferLabels(), // == / hashCode
+    );
+    expect(HintTourOfferResult.values, hasLength(4));
     expect(showHintTourOffer, isNotNull);
+
+    // Mark policy + overlay provider typedef — exported from the barrel.
+    expect(HintMarkPolicy.values, hasLength(3));
+    expect(HintMarkPolicy.onFinish, isA<HintMarkPolicy>());
+    HintOverlayProvider? provider;
+    expect(provider, isNull); // type resolves via barrel
   });
 }

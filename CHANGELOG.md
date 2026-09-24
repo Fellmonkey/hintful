@@ -2,6 +2,42 @@
 
 ## 1.0.0
 
+- **Offer result is four-valued:** **Breaking** — `HintTourOfferResult`
+  splits `declined` into `declined` (the user declined this dialog),
+  `alreadyShown` (gate closed: tour ran for this version, or a previous
+  decline — no dialog was shown) and `busy` (accept while another tour is
+  running — nothing started). Exhaustive `switch`es must handle the new
+  values.
+- **No per-call store:** **Breaking** — `startOnce(store:)` and
+  `showHintTourOffer(store:)` parameters are gone. The store is always
+  `HintController.store`; when unset, a session-scoped `InMemoryHintStore`
+  takes over (debug prints a one-time warning) — show-once works out of the
+  box, state lives for this run only. Assign a persistent store once
+  (`HintController(store: ...)` or the setter) for real once-per-version
+  semantics (`HintController.effectiveStore` exposes the resolved store).
+- **`HintMarkPolicy` replaces `markOnFinish`:** **Breaking** —
+  `startOnce(mark:)` and `showHintTourOffer(mark:)` take a closed
+  `HintMarkPolicy`: `onFinish` (default — Done/last step only, the old
+  `markOnFinish: true`), `onAnyExit` (finish, skip or timeout all count —
+  retires the hand-rolled idle-listener pattern), `manual` (never — the app
+  owns the shown-state; the old `markOnFinish: false`).
+- **`HintStep` takes `content:`:** **Breaking** — the constructor's
+  `title`/`description`/`titleBuilder`/`descriptionBuilder` sugar params
+  are gone; pass `content: HintStepContent(...)` (the getters `title`,
+  `description`, `titleBuilder`, `descriptionBuilder` remain as sugar over
+  `content`). JSON wire keeps the flat `title`/`description` keys.
+- **Per-step `missingTargetPolicy` is gone:** **Breaking** — the tour-level
+  `HintTour.missingTargetPolicy` is the single policy; the step-level field
+  and `resolveMissingPolicy` disappear (the wire key is ignored if present).
+  Pair conditionally-absent targets with a short per-step `stepTimeout`.
+- **`transitionDuration` without `transition` asserts:** passing
+  `transitionDuration` alone is a tour-authoring error (the duration only
+  shortens the entry-preset default).
+- **`HintOverlayProvider` typedef:** the constructor's `overlay:` parameter
+  is typed `typedef HintOverlayProvider = OverlayState? Function()` —
+  exported from the barrel.
+- **`HintTourOfferLabels` gets `copyWith` + `==`/`hashCode`:** matches
+  `HintTooltipLabels` (value semantics for theme overrides).
 - **Default rendering:** `HintController()` now renders out of the box — the
   default engine wiring runs instead of a headless mode. Migration: headless
   runs (tests, pure machines) must now pass `headless: true`;
@@ -11,8 +47,8 @@
   `defaultOverlayHost`, `HintPosition`/`PositionedHint`/`UnpositionedHint`/
   `HintPositionResolver` leave the public barrel. The constructor's
   `overlayHostBuilder:` parameter is replaced by the narrow
-  `overlay: OverlayState? Function()?` provider (zero-target `targetRect`
-  tours); test seams use `@internal HintController.withHost`.
+  `overlay:` provider (zero-target `targetRect` tours);
+  test seams use `@internal HintController.withHost`.
 - **Register-path is internal:** **Breaking** — `HintTargetRegistration` and
   `register`/`unregister`/`lookup` leave the barrel (an internal extension).
   Drive targets through `HintTarget`; the public registry exposes
@@ -28,15 +64,10 @@
   `DebugPrintDiagnostics` (class) is gone; `closestTargetIds`,
   `formatHintSkipped`, `debugPrintHintSkip` are internal. `kHintFocusPadding`
   and the internal `hintTourWithSteps` are also out of the barrel.
-- **Store on the controller:** `HintController(store: ...)` — set the
-  versioned-hints store once; `startOnce(store:)` and
-  `showHintTourOffer(store:)` become **optional** overrides (per-call wins,
-  otherwise the controller's store; neither → debug assert / no-persist
-  debug print). Backwards compatible: every existing `store:` call site keeps
-  compiling. New `CallbackHintStore(read:, write:, onClear:)` — the
+- **New `CallbackHintStore(read:, write:, onClear:)`** — the
   three-line persistent store over your storage, no subclass ceremony.
 - **Internal helpers leave the public class surface:** `HintStep.resolveTimeout` /
-  `resolveMissingPolicy` / `hasRectTarget` and `HintController.inScope` move
+  `hasRectTarget` and `HintController.inScope` move
   to unexported extensions (same pattern as the register-path) — they are
   engine machinery, not app-level API; barrel consumers cannot call them, and
   the members no longer freeze the class shape. Public read-only surface
@@ -63,17 +94,13 @@
   is logged, the chain continues). Target vanish/reappear no longer re-fires
   enter. Previously exit only ran on Active→Active (never on finish), enter
   could run before the previous exit, and vanish/reappear double-fired enter.
-- **Content is sugar-only:** **Breaking** — the `content:` parameter on
-  `HintStep`/`HintTooltip` is gone; pass `title`/`description` +
-  `titleBuilder`/`descriptionBuilder` on the constructor (they feed the
-  `content` getter). `HintStepContent` stays as the slot type the getter
-  returns and `DefaultTooltip.content` accepts (extra-slot override).
-  JSON wire keeps the flat `title`/`description` keys. The XOR assert
-  (`content:` vs sugar) disappears with the parameter.
+- **Content is the constructor path:** **Breaking** — see the
+  `HintStep(content:)` entry above; `HintStepContent` is the slot type the
+  getters return and `DefaultTooltip.content` accepts (extra-slot override).
+  JSON wire keeps the flat `title`/`description` keys.
 - **`startOnce` — show-once from the box:** `HintController.startOnce(tour,
-  store:, version:)` runs `shouldShow` → `start` →
-  `markShown` **on finish only** (skip/timeout abort without marking — the
-  tour may show again). The version gate comes from
+  mark:, version:)` runs `shouldShow` → `start` → `markShown` per the
+  `HintMarkPolicy` (see above). The version gate comes from
   `HintTour.minShowVersion` (new optional wire key). Replaces the
   hand-rolled gate + idle-listener glue.
 - **Offer `pageId` is optional:** `showHintTourOffer(pageId:)` defaults to
@@ -120,14 +147,13 @@
   `HintController.start` also refuses an empty tour in release (debug keeps
   the constructor assert).
 - **Offer records the shown-state:** `showHintTourOffer` now runs the
-  accept path through `startOnce` — an accepted tour is marked shown
-  **on finish** (skip does not record), out of the box. The documented
-  "record via `startOnce` after the offer" composition was impossible
-  (busy controller) and is gone. New parameter `markOnFinish` (default
-   `true`) restores the old hands-off behavior for apps with their own
-   recording policy. The `minVersion:` parameter is gone — declare
-   `HintTour.minShowVersion` on the tour instead (both the offer gate and
-   `startOnce` read it).
+  accept path through `startOnce` — an accepted tour is marked shown per
+  `mark:` (`HintMarkPolicy.onFinish` by default — skip does not record), out
+  of the box. The documented "record via `startOnce` after the offer"
+  composition was impossible (busy controller) and is gone.
+  The `minVersion:` parameter is gone — declare
+  `HintTour.minShowVersion` on the tour instead (both the offer gate and
+  `startOnce` read it).
 - **Offer labels are themeable:** new `HintTheme.tourOfferLabels` — the
   "Want a tour?" dialog's default copy joins the design system alongside
   `tooltipLabels`; `showHintTourOffer(labels:)` still overrides per call

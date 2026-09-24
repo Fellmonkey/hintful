@@ -38,6 +38,12 @@ typedef UnknownHintTarget = ({
   List<String> candidates
 });
 
+/// Lazy provider of the `OverlayState` the engine renders into — needed only
+/// for fully-deferred scenarios with zero mounted targets (`targetRect`-only
+/// tours): there is nothing to capture the root overlay from. Omitted — the
+/// engine finds the root overlay of the first registered target itself.
+typedef HintOverlayProvider = OverlayState? Function();
+
 /// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
 /// extras included) against the registry's known ids.
 ///
@@ -110,8 +116,11 @@ class HintController implements HintActions {
   /// alone, or is absent — zero cost.
   /// [store] is the default versioned-hints store for [startOnce] and the
   /// offer dialog — set it once (it may land after async init via the
-  /// [store] setter) and no call site needs `store:` again; per-call
-  /// `store:` overrides it. Omit both until you need show-once.
+  /// [store] setter) and no call site needs a per-call store. Omit it and a
+  /// session-scoped [InMemoryHintStore] takes over (debug builds print a
+  /// one-time warning) — show-once works out of the box, but state lives
+  /// only for this run; swap in a persistent store for real once-per-version
+  /// semantics (see [effectiveStore]).
   /// [overlay] is a lazy provider of the `OverlayState` the engine renders
   /// into — needed only for fully-deferred scenarios with zero mounted
   /// targets (`targetRect`-only tours): there is nothing to capture the root
@@ -122,7 +131,7 @@ class HintController implements HintActions {
   HintController({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    OverlayState? Function()? overlay,
+    HintOverlayProvider? overlay,
     bool headless = false,
     this.scopePrefix,
     this.store,
@@ -201,11 +210,36 @@ class HintController implements HintActions {
   HintOverlayHost? _builtHost;
 
   /// Default versioned-hints store — read by [startOnce] and the offer
-  /// dialog when no per-call `store:` override is passed. Settable at any
-  /// point before those calls (the usual shape: create the controller,
-  /// assign the store when async storage finishes loading).
-  /// Null — show-once paths need an explicit per-call store.
+  /// dialog. Settable at any point before those calls (the usual shape:
+  /// create the controller, assign the store when async storage finishes
+  /// loading).
+  /// Null — show-once paths fall back to a session-scoped
+  /// [InMemoryHintStore] (see [effectiveStore]).
   HintStore? store;
+
+  InMemoryHintStore? _sessionStore;
+  bool _warnedNoStore = false;
+
+  /// The store show-once paths actually use: [store] when set, else a
+  /// session-scoped [InMemoryHintStore] (debug builds print a one-time
+  /// warning the first time this fallback is taken). Never null — call
+  /// sites do not need a null-check. Assign [store] before the first
+  /// show-once call for persistent once-per-version semantics.
+  HintStore get effectiveStore {
+    final configured = store;
+    if (configured != null) return configured;
+    if (!_warnedNoStore) {
+      _warnedNoStore = true;
+      if (kDebugMode) {
+        debugPrint(
+          'hintful: no HintStore set — using an in-memory session store. '
+          'Show-once state lives for this run only; for persistence: '
+          'HintController(store: CallbackHintStore(read: ..., write: ...))',
+        );
+      }
+    }
+    return _sessionStore ??= InMemoryHintStore();
+  }
 
   /// Scope: which registry ids belong to this controller's screen.
   ///
@@ -230,9 +264,15 @@ class HintController implements HintActions {
   /// (`onStepExit` not yet fired). null — no open visit.
   ({HintTour tour, int index})? _hookedVisit;
 
-  /// Armed by [startOnce]: mark this tour's shown-state on finish only.
-  /// Cleared on abort/skip (no mark) or when the pending tour finishes.
-  ({String tourId, HintStore store, String version})? _pendingOnce;
+  /// Armed by [startOnce]: when and how to mark this tour's shown-state.
+  /// Cleared when the pending tour exits (finish or abort — the policy
+  /// decides whether that exit writes).
+  ({
+    String tourId,
+    HintStore store,
+    String version,
+    HintMarkPolicy mark,
+  })? _pendingOnce;
 
   /// Serialized lifecycle-hook runner: one hook at a time, FIFO. A hook may
   /// call `next()`/`finish()` — the nested transition enqueues its own hooks
@@ -324,43 +364,45 @@ class HintController implements HintActions {
   }
 
   /// Show-once from the box: [HintStore.shouldShow] → [start] →
-  /// [HintStore.markShown] **on finish** (normal completion).
+  /// [HintStore.markShown] under [mark] (default [HintMarkPolicy.onFinish]).
   ///
-  /// The store is [store] param when given, else the controller's [store]
+  /// The store is the controller's [store], falling back to [effectiveStore]
   /// — set `HintController(store: ...)` once and call `startOnce(tour)` with
-  /// no per-call store. Neither available: a debug assert and `false` (the
-  /// once-semantics cannot run without a store).
+  /// no per-call store (session-in-memory fallback works, but state lives
+  /// only for this run).
   ///
   /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
   ///   the version gate comes from [HintTour.minShowVersion];
-  /// - started → arms a one-shot mark for `tour.id`; when that tour emits
-  ///   [FinishedEffect] (Done / last step), `store.markShown` runs once;
-  /// - **skip / timeout / abort do not mark** — the tour may show again
-  ///   (pair with a short timeout if that is undesirable);
+  /// - started → arms a one-shot mark for `tour.id`; the policy decides
+  ///   when `store.markShown` runs:
+  ///   * [HintMarkPolicy.onFinish] — on [FinishedEffect] (Done / last step);
+  ///   * [HintMarkPolicy.onAnyExit] — on any exit (finish, skip, abort);
+  ///   * [HintMarkPolicy.manual] — never (the app owns the shown-state);
   /// - [version] is what gets recorded; defaults to
   ///   `tour.minShowVersion ?? 'true'`
   ///   (same convention as the offer dialog's decline keys).
   ///
   /// Prefer this over hand-rolled `shouldShow` + listener glue when the
-  /// "shown" definition is *finished* (see best practices §6).
+  /// "shown" definition is *finished* (see best practices §6); use
+  /// [HintMarkPolicy.onAnyExit] to retire the hand-rolled idle-listener
+  /// pattern.
   Future<bool> startOnce(
     HintTour tour, {
-    HintStore? store,
+    HintMarkPolicy mark = HintMarkPolicy.onFinish,
     String? version,
   }) async {
-    final effective = store ?? this.store;
-    assert(
-      effective != null,
-      'hintful: startOnce has no HintStore — pass store: or set '
-      'HintController(store: ...)',
-    );
-    if (effective == null) return false;
+    final effective = effectiveStore;
     if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
       return false;
     }
     if (!isIdle) return false;
     final record = version ?? tour.minShowVersion ?? 'true';
-    _pendingOnce = (tourId: tour.id, store: effective, version: record);
+    _pendingOnce = (
+      tourId: tour.id,
+      store: effective,
+      version: record,
+      mark: mark,
+    );
     await start(tour);
     if (isIdle) {
       // start() early-returned (all steps stripped as typos) — nothing
@@ -592,10 +634,15 @@ class HintController implements HintActions {
             reason,
             detail,
           );
-          // Abort/skip/timeout: disarm the startOnce mark without writing —
-          // the user did not finish, the tour may show again.
+          // Mark policy decides whether this exit writes: onAnyExit marks
+          // even on abort/skip/timeout; onFinish and manual leave the tour
+          // re-showable (the user did not finish).
           final pendingAbort = _pendingOnce;
           if (pendingAbort != null && before.tour?.id == pendingAbort.tourId) {
+            if (pendingAbort.mark == HintMarkPolicy.onAnyExit) {
+              pendingAbort.store
+                  .markShown(pendingAbort.tourId, pendingAbort.version);
+            }
             _pendingOnce = null;
           }
           break;
@@ -603,10 +650,14 @@ class HintController implements HintActions {
           break;
         case FinishedEffect(:final tourId):
           // Rendering follows the state (host.update); finish is not
-          // diagnosed. startOnce marks only on finish of its own tour.
+          // diagnosed. startOnce marks per its policy: onFinish and
+          // onAnyExit both count a normal finish as "shown"; manual never
+          // writes.
           final pendingFinish = _pendingOnce;
           if (pendingFinish != null && pendingFinish.tourId == tourId) {
-            pendingFinish.store.markShown(tourId, pendingFinish.version);
+            if (pendingFinish.mark != HintMarkPolicy.manual) {
+              pendingFinish.store.markShown(tourId, pendingFinish.version);
+            }
             _pendingOnce = null;
           }
           break;
