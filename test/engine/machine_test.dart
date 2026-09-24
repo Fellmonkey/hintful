@@ -11,6 +11,9 @@ HintTour _tour({
 }) =>
     HintTour(
       id: 't',
+      // These fixtures predate the 1.0 default (skipStep) and assert abort
+      // semantics, so they opt into abortTour explicitly.
+      missingTargetPolicy: HintMissingTargetPolicy.abortTour,
       steps: [
         for (var i = 0; i < steps; i++)
           HintStep(
@@ -385,14 +388,15 @@ void main() {
     });
   });
 
-  group('multi-target steps (HintStep.moreTargets)', () {
+  group('multi-target steps (HintStep.additionalTargets)', () {
     final multiTour = HintTour(
       id: 'multi',
+      missingTargetPolicy: HintMissingTargetPolicy.abortTour,
       steps: [
         HintStep(
             targetId: 'a',
             content: HintStepContent(title: 'A'),
-            moreTargets: const ['b']),
+            additionalTargets: const ['b']),
         HintStep(
           targetId: 'c',
           content: HintStepContent(title: 'C'),
@@ -504,7 +508,7 @@ void main() {
           HintStep(
               targetId: 'b',
               content: HintStepContent(title: 'B'),
-              moreTargets: const ['c']),
+              additionalTargets: const ['c']),
         ],
       );
       final machine = HintMachine();
@@ -676,10 +680,15 @@ void main() {
       );
     });
 
-    test('default policy is abortTour (historical behavior)', () {
+    test('default policy is skipStep (1.0 behavior)', () {
       expect(
-        _tour().missingTargetPolicy,
-        HintMissingTargetPolicy.abortTour,
+        HintTour(
+          id: 'defaults',
+          steps: const [
+            HintStep(targetId: 'a', content: HintStepContent(title: 'A')),
+          ],
+        ).missingTargetPolicy,
+        HintMissingTargetPolicy.skipStep,
       );
       // Steps no longer carry a policy field — the tour-level default is
       // the single source of truth.
@@ -843,10 +852,14 @@ void _expectInvariants(
         expect(state, isA<HintWaiting>(), reason: 'ArmTimeout ⇒ waiting');
         break;
       case ClearTimeoutEffect():
+        // Leaving waiting clears the timer; under skipStep a skip may
+        // immediately re-arm it for the next step (ArmTimeout follows in the
+        // same transition) — waiting is then still consistent.
+        final rearmed = transition.effects.any((e) => e is ArmTimeoutEffect);
         expect(
-          state.isWaiting,
+          state.isWaiting && !rearmed,
           isFalse,
-          reason: 'ClearTimeout only when leaving waiting',
+          reason: 'ClearTimeout leaves waiting unless a skip re-arms it',
         );
         break;
       case AbortEffect() || FinishedEffect():

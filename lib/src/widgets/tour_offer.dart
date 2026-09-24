@@ -46,10 +46,9 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// for this version), or the user declined before (for [pageId], or for all
 /// pages when they checked the checkbox).
 ///
-/// The store is always the controller's — [HintController.store] with the
-/// session fallback from [HintController.effectiveStore]; there is no
-/// per-call store. Assign `HintController(store: ...)` once for persistent
-/// once-per-version semantics (otherwise the state lives for this run only).
+/// The store is app-wide — `Hintful.configure(store: ...)` once at startup;
+/// there is no per-call store. Without one the state lives for this run only
+/// (a session fallback).
 ///
 /// [pageId] identifies the screen this offer belongs to (per-page decline
 /// key); omitted — defaults to `tour.id` (single entry point per tour).
@@ -59,8 +58,8 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// points (e.g. a settings screen). Dismissing the dialog (barrier tap)
 /// counts as a decline — "not now" should not nag again. On accept the tour
 /// is started via [HintController.startOnce] with [mark] (default
-/// [HintMarkPolicy.onFinish]: skip/abort does not record, the tour may show
-/// again — best practices §6). When the controller is busy at accept the
+/// [HintMarkPolicy.onAnyExit]: finish, skip and abort all count as "seen" —
+/// best practices §6). When the controller is busy at accept the
 /// result is [HintTourOfferResult.busy] (asserts in debug).
 ///
 /// [labels] overrides the dialog copy for this call; omitted — the design
@@ -70,10 +69,10 @@ Future<HintTourOfferResult> showHintTourOffer({
   required HintController controller,
   required HintTour tour,
   String? pageId,
-  HintMarkPolicy mark = HintMarkPolicy.onFinish,
+  HintMarkPolicy mark = HintMarkPolicy.onAnyExit,
   HintTourOfferLabels? labels,
 }) async {
-  final hintStore = controller.effectiveStore;
+  final hintStore = controller.store;
   final offerLabels = labels ?? Theme.of(context).hintTheme.tourOfferLabels;
   final page = pageId ?? tour.id;
   if (!hintStore.shouldShow(tour.id, minVersion: tour.minShowVersion)) {

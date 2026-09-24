@@ -25,24 +25,25 @@ void main() {
     final tour = HintTour(id: 'intro', steps: [step]);
     expect(step.position, TooltipPosition.auto);
     expect(tour.steps[0].targetId, 'stats');
-    expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
+    expect(tour.missingTargetPolicy, HintMissingTargetPolicy.skipStep);
 
     // Specs, part two: extra content, the shape/curve enums, JSON round-trip.
-    const extra = HintTooltip(position: TooltipPosition.left, title: 'Extra');
+    const extra = HintTooltip(
+        position: TooltipPosition.left,
+        content: HintStepContent(title: 'Extra'));
     final richTour = HintTour(
       id: 'rich',
       steps: [
         HintStep(
             targetId: 'stats',
             content: HintStepContent(title: 'Stats'),
-            moreTooltips: [extra]),
+            additionalTooltips: [extra]),
       ],
     );
     final restored = HintTour.fromJson(richTour.toJson());
-    expect(restored.steps.single.moreTooltips.single.position,
+    expect(restored.steps.single.additionalTooltips.single.position,
         TooltipPosition.left);
     expect(FocusShape.values, contains(FocusShape.circle));
-    expect(HintEntryAnimation.values, contains(HintEntryAnimation.sprung));
 
     // Content slot type + tap behaviors (1.0 merge of overlapping knobs).
     const content = HintStepContent(title: 'T', description: 'D');
@@ -51,9 +52,8 @@ void main() {
       content: HintStepContent(title: 'T', description: 'D'),
     );
     expect(content.title, 'T');
-    expect(sugarStep.title, 'T');
-    expect(sugarStep.description, 'D');
     expect(sugarStep.content.title, 'T');
+    expect(sugarStep.content.description, 'D');
     const targetTap = HintTapBehavior.ignore();
     const overlayTap = HintTapBehavior.advance();
     final customTap = HintTapBehavior.custom((ctx, details) {});
@@ -61,9 +61,9 @@ void main() {
     expect(overlayTap, const HintTapBehavior.advance());
     expect(customTap, isA<HintTapBehavior>()); // custom carries a closure
 
-    // Registry + controller (headless: no overlay host).
+    // Registry + controller (the public constructor; the host is lazy).
     final registry = HintTargetRegistry();
-    final controller = HintController(registry: registry, headless: true);
+    final controller = HintController(registry: registry);
     addTearDown(controller.dispose);
     expect(controller.registry, same(registry));
     expect(registry.ids, isEmpty);
@@ -97,16 +97,6 @@ void main() {
     );
     expect(ctx.isLast, isTrue);
 
-    // Reduce-motion helper — shared by the entry presets and custom tooltips.
-    expect(
-        hintTransitionDuration(const MediaQueryData(disableAnimations: true),
-            const Duration(milliseconds: 120)),
-        Duration.zero);
-    expect(
-        hintTransitionDuration(
-            const MediaQueryData(), const Duration(milliseconds: 120)),
-        const Duration(milliseconds: 120));
-
     // Theme — zero-config default from ColorScheme.
     final theme = HintTheme.minimal(
       ColorScheme.fromSeed(seedColor: Colors.teal),
@@ -128,9 +118,15 @@ void main() {
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
     store.markShown('intro', '1.0.0');
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
-    expect(HintStore.compareVersions('1.10.0', '1.9.0'), greaterThan(0));
     expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
-    expect(controller.effectiveStore, isA<HintStore>()); // session fallback
+
+    // App-wide configuration — the store is installed once, not per controller.
+    Hintful.configure(store: store);
+    addTearDown(Hintful.reset);
+    expect(Hintful.store, same(store));
+    expect(controller.store, same(store));
+    Hintful.reset();
+    expect(controller.store, isA<InMemoryHintStore>()); // session fallback
 
     // CallbackHintStore — the three-line persistent-store path.
     final backing = <String, String>{};
@@ -161,10 +157,8 @@ void main() {
     expect(HintTourOfferResult.values, hasLength(4));
     expect(showHintTourOffer, isNotNull);
 
-    // Mark policy + overlay provider typedef — exported from the barrel.
+    // Mark policy — exported from the barrel.
     expect(HintMarkPolicy.values, hasLength(3));
     expect(HintMarkPolicy.onFinish, isA<HintMarkPolicy>());
-    HintOverlayProvider? provider;
-    expect(provider, isNull); // type resolves via barrel
   });
 }

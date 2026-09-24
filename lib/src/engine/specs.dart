@@ -42,33 +42,6 @@ enum FocusShape {
   roundedRect,
 }
 
-/// Tooltip entry animation — the preset ladder, rung 2 of the animation
-/// ladder.
-///
-/// - null — no entry animation: the tooltip simply appears (the default);
-/// - [HintEntryAnimation.easeOut] — the quiet preset: fade + a whisper of scale
-///   (0.96 → 1) on `Curves.easeOut`, 200 ms;
-/// - [HintEntryAnimation.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
-///   (the overshoot is the bounce), 800 ms.
-///
-/// Each preset's length is overridable per step with
-/// [HintStep.transitionDuration], and every preset is skipped under the system
-/// reduce-motion setting. Anything beyond a preset (slide, staggered content,
-/// a custom button) is rung 3: a `tooltipBuilder` with its own animation
-/// widgets — the engine places the built tooltip, the builder owns how it
-/// enters.
-///
-/// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
-/// code are safe.
-enum HintEntryAnimation {
-  /// Fade + a whisper of scale (0.96 → 1) on `Curves.easeOut`, 200 ms.
-  easeOut,
-
-  /// Scale 0.8 → 1 on `Curves.elasticOut` (the overshoot is the bounce),
-  /// 800 ms.
-  sprung,
-}
-
 /// Actions available to a step's content (custom tooltips).
 ///
 /// Published instead of the concrete controller: the data contract (specs)
@@ -129,19 +102,20 @@ class HintTooltipContext {
 
 /// What to do when a step's target never appears within its wait timeout.
 ///
-/// - [abortTour] (default) — the tour ends with a `timeout` diagnosis.
-/// - [skipStep] — the step is diagnosed and the tour continues with the next
-///   one; skipping the last step finishes the tour. For conditionally-absent
-///   targets pair with a short per-step `stepTimeout` (`Duration.zero` skips
-///   instantly, no waiting flash).
+/// - [skipStep] (default) — the step is diagnosed and the tour continues with
+///   the next one; skipping the last step finishes the tour. For
+///   conditionally-absent targets pair with a short per-step `stepTimeout`
+///   (`Duration.zero` skips instantly, no waiting flash).
+/// - [abortTour] — the tour ends with a `timeout` diagnosis.
 ///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
 enum HintMissingTargetPolicy {
-  /// The tour ends with a `timeout` diagnosis (the default).
+  /// The tour ends with a `timeout` diagnosis.
   abortTour,
 
-  /// The step is diagnosed and the tour continues with the next step.
+  /// The step is diagnosed and the tour continues with the next step
+  /// (the default).
   skipStep,
 }
 
@@ -276,8 +250,8 @@ class HintStep {
   const HintStep({
     required this.targetId,
     this.content = const HintStepContent(),
-    this.moreTargets = const [],
-    this.moreTooltips = const [],
+    this.additionalTargets = const [],
+    this.additionalTooltips = const [],
     this.position = TooltipPosition.auto,
     this.stepTimeout,
     this.showSkip = true,
@@ -287,17 +261,9 @@ class HintStep {
     this.focusShape,
     this.focusPadding,
     this.autoScroll,
-    this.transitionDuration,
-    this.transition,
-    this.targetRect,
     this.onStepEnter,
     this.onStepExit,
-  })  : assert(targetId != '', 'HintStep.targetId must not be empty'),
-        assert(
-          transition != null || transitionDuration == null,
-          'HintStep.transitionDuration is ignored without '
-          'HintStep.transition — pass both or neither',
-        );
+  }) : assert(targetId != '', 'HintStep.targetId must not be empty');
 
   /// Key in the target registry — not a GlobalKey.
   final String targetId;
@@ -309,27 +275,13 @@ class HintStep {
   /// step: several elements highlighted at once, one tooltip anchored to the
   /// primary [targetId]). The step enters the active phase only when ALL of
   /// [targetIds] are mounted; a scrim hole is cut over each of them.
-  final List<String> moreTargets;
+  final List<String> additionalTargets;
 
   /// Additional tooltips (multi-content): placed around the primary
   /// target alongside the primary tooltip, each on its own side. The engine
   /// guarantees they do not overlap each other or the spotlighted targets
   /// (keep-in-safe-area applies to every slot).
-  final List<HintTooltip> moreTooltips;
-
-  /// Sugar over [content]'s `title` — prefer reading [content] when both
-  /// are relevant.
-  String? get title => content.title;
-
-  /// Sugar over [content]'s `description`.
-  String? get description => content.description;
-
-  /// Sugar over [content]'s `titleBuilder`.
-  String Function(BuildContext)? get titleBuilder => content.titleBuilder;
-
-  /// Sugar over [content]'s `descriptionBuilder`.
-  String Function(BuildContext)? get descriptionBuilder =>
-      content.descriptionBuilder;
+  final List<HintTooltip> additionalTooltips;
 
   /// Preferred side for the primary tooltip — see [TooltipPosition].
   final TooltipPosition position;
@@ -375,32 +327,6 @@ class HintStep {
   /// the engine never moves content unless you opt in.
   final bool? autoScroll;
 
-  /// Effective title/description for the overlay's BuildContext at show
-  /// time — delegates to [content] (builders take precedence).
-  String? effectiveTitle(BuildContext context) =>
-      content.effectiveTitle(context);
-
-  /// Effective description for the overlay's BuildContext at show
-  /// time — delegates to [content] (builders take precedence).
-  String? effectiveDescription(BuildContext context) =>
-      content.effectiveDescription(context);
-
-  /// Entry-animation length for [transition]; null — the preset's own
-  /// default (200 ms for [HintEntryAnimation.easeOut], 800 ms for
-  /// [HintEntryAnimation.sprung]).
-  /// Ignored without a curve.
-  final Duration? transitionDuration;
-
-  /// Entry-animation preset, see [HintEntryAnimation] (rung 2 of the animation
-  /// ladder); null — no animation. Rung 3 (anything custom) is a
-  /// [tooltipBuilder] with its own animation widgets.
-  final HintEntryAnimation? transition;
-
-  /// Explicit spotlight rect instead of a registry target: the step is
-  /// entered immediately (no waiting) and spotlights these coordinates
-  /// statically.
-  final Rect? targetRect;
-
   /// Lifecycle: fires once when this step first becomes active — the start
   /// of a *visit*. Async; hooks run serialized (`onStepExit` of the previous
   /// step completes first). Target vanish/reappear does not re-fire it.
@@ -410,15 +336,18 @@ class HintStep {
   /// or abort. Async; ordered before the next step's [onStepEnter].
   final Future<void> Function()? onStepExit;
 
-  /// All target ids of the step: the primary [targetId] + [moreTargets].
-  List<String> get targetIds => [targetId, ...moreTargets];
+  /// All target ids of the step: the primary [targetId] +
+  /// [additionalTargets].
+  List<String> get targetIds => [targetId, ...additionalTargets];
 
   /// Serializes the step to the frozen JSON wire format (see `fromJson`).
   Map<String, dynamic> toJson() => {
         'targetId': targetId,
-        if (moreTargets.isNotEmpty) 'moreTargets': moreTargets,
-        if (moreTooltips.isNotEmpty)
-          'moreTooltips': moreTooltips.map((t) => t.toJson()).toList(),
+        if (additionalTargets.isNotEmpty)
+          'additionalTargets': additionalTargets,
+        if (additionalTooltips.isNotEmpty)
+          'additionalTooltips':
+              additionalTooltips.map((t) => t.toJson()).toList(),
         if (content.title != null) 'title': content.title,
         if (content.description != null) 'description': content.description,
         'position': position.name,
@@ -431,16 +360,6 @@ class HintStep {
         if (focusShape != null) 'focusShape': focusShape!.name,
         if (focusPadding != null) 'focusPadding': focusPadding,
         if (autoScroll != null) 'autoScroll': autoScroll,
-        if (transitionDuration != null)
-          'transitionDurationMs': transitionDuration!.inMilliseconds,
-        if (transition != null) 'transitionCurve': transition!.name,
-        if (targetRect != null)
-          'targetRect': {
-            'left': targetRect!.left,
-            'top': targetRect!.top,
-            'width': targetRect!.width,
-            'height': targetRect!.height
-          },
       };
 
   /// Parses a step payload.
@@ -463,8 +382,9 @@ class HintStep {
         title: json['title'] as String?,
         description: json['description'] as String?,
       ),
-      moreTargets: (json['moreTargets'] as List?)?.cast<String>() ?? const [],
-      moreTooltips: (json['moreTooltips'] as List?)
+      additionalTargets:
+          (json['additionalTargets'] as List?)?.cast<String>() ?? const [],
+      additionalTooltips: (json['additionalTooltips'] as List?)
               ?.map((e) => HintTooltip.fromJson(
                     e as Map<String, dynamic>,
                     onWarning: onWarning,
@@ -488,19 +408,6 @@ class HintStep {
           field: 'focusShape', onWarning: onWarning),
       focusPadding: (json['focusPadding'] as num?)?.toDouble(),
       autoScroll: json['autoScroll'] as bool?,
-      transitionDuration: json['transitionDurationMs'] == null
-          ? null
-          : Duration(milliseconds: json['transitionDurationMs'] as int),
-      transition: _enumOrNull(
-          HintEntryAnimation.values, json['transitionCurve'],
-          field: 'transitionCurve', onWarning: onWarning),
-      targetRect: json['targetRect'] == null
-          ? null
-          : Rect.fromLTWH(
-              (json['targetRect']['left'] as num).toDouble(),
-              (json['targetRect']['top'] as num).toDouble(),
-              (json['targetRect']['width'] as num).toDouble(),
-              (json['targetRect']['height'] as num).toDouble()),
     );
   }
 }
@@ -510,30 +417,20 @@ class HintStep {
 /// primary tooltip. Informational by default — no action buttons (the primary
 /// tooltip owns the tour controls); use [tooltipBuilder] for an interactive
 /// slot (it receives the same context as the primary's builder).
+///
+/// The content slot is the same [HintStepContent] type [HintStep] takes —
+/// one authoring shape for every content slot in the contract.
 @immutable
 class HintTooltip {
-  /// Creates a slot with content or a [tooltipBuilder], on its own
-  /// [position] around the primary target.
+  /// Creates a slot with [content] or a [tooltipBuilder], on its own
+  /// [position] around the primary target. Empty content with no builder
+  /// renders nothing useful — same authoring rule (and the same
+  /// not-asserted rationale) as [HintStep].
   const HintTooltip({
     this.position = TooltipPosition.auto,
-    String? title,
-    String? description,
-    String Function(BuildContext)? titleBuilder,
-    String Function(BuildContext)? descriptionBuilder,
+    this.content = const HintStepContent(),
     this.tooltipBuilder,
-  })  : assert(
-          tooltipBuilder != null ||
-              title != null ||
-              description != null ||
-              titleBuilder != null ||
-              descriptionBuilder != null,
-          'HintTooltip must have content (title/description/builders) '
-          'or tooltipBuilder (custom tooltip)',
-        ),
-        _title = title,
-        _description = description,
-        _titleBuilder = titleBuilder,
-        _descriptionBuilder = descriptionBuilder;
+  });
 
   /// Preferred side relative to the primary target. An explicit side is
   /// recommended — auto re-picks by free space and may fight the primary
@@ -541,39 +438,8 @@ class HintTooltip {
   /// (and the engine guarantees slots never overlap each other).
   final TooltipPosition position;
 
-  final String? _title;
-  final String? _description;
-  final String Function(BuildContext)? _titleBuilder;
-  final String Function(BuildContext)? _descriptionBuilder;
-
   /// Copy for this slot — same contract as [HintStep.content].
-  HintStepContent get content => HintStepContent(
-        title: _title,
-        description: _description,
-        titleBuilder: _titleBuilder,
-        descriptionBuilder: _descriptionBuilder,
-      );
-
-  /// Sugar over [content]'s `title`.
-  String? get title => content.title;
-
-  /// Sugar over [content]'s `description`.
-  String? get description => content.description;
-
-  /// Sugar over [content]'s `titleBuilder`.
-  String Function(BuildContext)? get titleBuilder => content.titleBuilder;
-
-  /// Sugar over [content]'s `descriptionBuilder`.
-  String Function(BuildContext)? get descriptionBuilder =>
-      content.descriptionBuilder;
-
-  /// Effective title for [context] — builders take precedence.
-  String? effectiveTitle(BuildContext context) =>
-      content.effectiveTitle(context);
-
-  /// Effective description for [context] — builders take precedence.
-  String? effectiveDescription(BuildContext context) =>
-      content.effectiveDescription(context);
+  final HintStepContent content;
 
   /// Fully custom content.
   final Widget Function(
@@ -586,8 +452,8 @@ class HintTooltip {
   /// copy; builders are code-side only).
   Map<String, dynamic> toJson() => {
         'position': position.name,
-        if (title != null) 'title': title,
-        if (description != null) 'description': description,
+        if (content.title != null) 'title': content.title,
+        if (content.description != null) 'description': content.description,
       };
 
   /// Parses a slot payload; an unknown `position` falls back to
@@ -600,8 +466,7 @@ class HintTooltip {
         position: _enumOrDefault(
             TooltipPosition.values, json['position'], TooltipPosition.auto,
             field: 'position', onWarning: onWarning),
-        title: json['title'] as String?,
-        description: json['description'] as String?,
+        content: HintStepContent.fromJson(json),
       );
 }
 
@@ -617,7 +482,7 @@ class HintTour {
     required this.steps,
     this.stepTimeout = const Duration(seconds: 3),
     this.disableBackButton = false,
-    this.missingTargetPolicy = HintMissingTargetPolicy.abortTour,
+    this.missingTargetPolicy = HintMissingTargetPolicy.skipStep,
     this.autoScroll = false,
     this.minShowVersion,
   })  : assert(id != '', 'HintTour.id must not be empty'),
@@ -656,37 +521,6 @@ class HintTour {
   /// `false` by default — the engine never moves content unless you opt in.
   /// Per-step [HintStep.autoScroll] overrides this tour default.
   final bool autoScroll;
-
-  /// A tour whose steps come from an enum: the enum values (in declaration
-  /// order) ARE the steps — [stepFor] maps each value to its [HintStep].
-  ///
-  /// The value is compile-time completeness: the switch in [stepFor] is
-  /// exhaustive, so adding or removing an enum value breaks the build and
-  /// the tour can never silently drift from the enum. (Dart cannot
-  /// enumerate the values of a type parameter — constructors cannot be
-  /// generic either — so [values] is passed explicitly: pass
-  /// `MyEnum.values`, the type is inferred.)
-  static HintTour fromEnum<T extends Enum>({
-    required String id,
-    required List<T> values,
-    required HintStep Function(T value) stepFor,
-    Duration stepTimeout = const Duration(seconds: 3),
-    bool disableBackButton = false,
-    HintMissingTargetPolicy missingTargetPolicy =
-        HintMissingTargetPolicy.abortTour,
-    bool autoScroll = false,
-    String? minShowVersion,
-  }) {
-    return HintTour(
-      id: id,
-      steps: [for (final value in values) stepFor(value)],
-      stepTimeout: stepTimeout,
-      disableBackButton: disableBackButton,
-      missingTargetPolicy: missingTargetPolicy,
-      autoScroll: autoScroll,
-      minShowVersion: minShowVersion,
-    );
-  }
 
   /// Target ids referenced by more than one step — a tour-authoring error
   /// (one tour at a time, a duplicated target is ambiguous). Counts
@@ -766,9 +600,6 @@ class HintTour {
 /// the registry's register-path extension; reachable by the engine and the
 /// package's own tests through `lib/src`.
 extension HintStepInternal on HintStep {
-  /// Whether the step is rect-anchored ([HintStep.targetRect] is set).
-  bool get hasRectTarget => targetRect != null;
-
   /// The step's timeout, honoring inheritance.
   Duration resolveTimeout(Duration fallback) => stepTimeout ?? fallback;
 }

@@ -11,8 +11,8 @@
 ///   targets through [HintTarget]);
 /// - observable machine state ([HintState] + subtypes) — the public
 ///   observable; events/effects/the machine itself are NOT exported;
-/// - motion ([hintTransitionDuration]) — the reduce-motion helper the entry
-///   presets and custom tooltips share;
+/// - app-wide configuration ([Hintful]) — the single place to install the
+///   versioned-hints store (`Hintful.configure(store: ...)`);
 /// - controller ([HintController]) — the single control point; the render
 ///   contract (`HintOverlayHost`, position types, the overlay factory) is
 ///   deliberately internal and can change without breaking changes;
@@ -22,9 +22,8 @@
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [CallbackHintStore], [HintMarkPolicy], [HintStore.compareVersions]) —
-///   the "show once per app version" service; set it once via
-///   `HintController(store: ...)`.
+///   [CallbackHintStore], [HintMarkPolicy]) — the "show once per app version"
+///   service; configure it once app-wide via `Hintful.configure(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, position value types
@@ -32,7 +31,7 @@
 /// `HintPositionResolver`), the register-path
 /// (`HintTargetRegistration`/`register`/`unregister`/`lookup`), the
 /// inheritance-scope helpers (`HintStepInternal` /
-/// `resolveTimeout`/`hasRectTarget`,
+/// `resolveTimeout`,
 /// `HintControllerScope` / `inScope`), the diagnostics helpers
 /// (`formatHintSkipped`, `debugPrintHintSkip`, `closestTargetIds`,
 /// `editDistance`), the focus-padding fallback constant `kHintFocusPadding`,
@@ -47,19 +46,18 @@
 /// and is only reachable through this barrel.
 library;
 
-export 'src/engine/controller.dart' show HintController, HintOverlayProvider;
+export 'src/engine/config.dart' show Hintful;
+export 'src/engine/controller.dart' show HintController;
 export 'src/engine/diagnostics.dart'
     show HintDiagnosticsHandler, HintSkipEvent, HintSkipReason;
 export 'src/engine/labels.dart' show HintTourOfferLabels, HintTooltipLabels;
 export 'src/engine/machine.dart'
     show HintActive, HintIdle, HintState, HintWaiting;
-export 'src/engine/motion.dart' show hintTransitionDuration;
 export 'src/engine/registry.dart' show HintTargetRegistry;
 export 'src/engine/specs.dart'
     show
         FocusShape,
         HintActions,
-        HintEntryAnimation,
         HintMissingTargetPolicy,
         HintStep,
         HintStepContent,

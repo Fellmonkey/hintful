@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show OverlayState;
 
+import 'config.dart';
 import 'diagnostics.dart';
 import 'machine.dart';
 import 'overlay/overlay_engine.dart' show defaultOverlayHost;
@@ -37,12 +37,6 @@ typedef UnknownHintTarget = ({
   String typoId,
   List<String> candidates
 });
-
-/// Lazy provider of the `OverlayState` the engine renders into — needed only
-/// for fully-deferred scenarios with zero mounted targets (`targetRect`-only
-/// tours): there is nothing to capture the root overlay from. Omitted — the
-/// engine finds the root overlay of the first registered target itself.
-typedef HintOverlayProvider = OverlayState? Function();
 
 /// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
 /// extras included) against the registry's known ids.
@@ -100,7 +94,7 @@ bool _differsOnlyInDigits(String a, String b) {
 
 /// The single public point for controlling a tour.
 ///
-/// Owns the machine, registry, timer and (optionally) the overlay. State is
+/// Owns the machine, registry, timer and (when rendering) the overlay. State is
 /// published as a [ValueListenable] — the vanilla Flutter default without any
 /// state-management dependency; app-side adapters build on this same
 /// contract. No contexts/singletons are stored — the ValueNotifier state
@@ -114,40 +108,46 @@ class HintController implements HintActions {
   /// builds print the same event as one line **before** invoking it, so a
   /// custom handler never silences the console; in release the callback runs
   /// alone, or is absent — zero cost.
-  /// [store] is the default versioned-hints store for [startOnce] and the
-  /// offer dialog — set it once (it may land after async init via the
-  /// [store] setter) and no call site needs a per-call store. Omit it and a
-  /// session-scoped [InMemoryHintStore] takes over (debug builds print a
-  /// one-time warning) — show-once works out of the box, but state lives
-  /// only for this run; swap in a persistent store for real once-per-version
-  /// semantics (see [effectiveStore]).
-  /// [overlay] is a lazy provider of the `OverlayState` the engine renders
-  /// into — needed only for fully-deferred scenarios with zero mounted
-  /// targets (`targetRect`-only tours): there is nothing to capture the root
-  /// overlay from. Omitted — the engine finds the root overlay of the first
-  /// registered target itself: `HintController()` renders out of the box.
-  /// [headless] — no render mechanics at all (tests, pure machines); cannot
-  /// be combined with [overlay].
+  /// The store read by [startOnce] and `showHintTourOffer` is app-wide:
+  /// configure it once with `Hintful.configure(store: ...)`. Without one,
+  /// show-once works for this run through a session-scoped
+  /// [InMemoryHintStore] (debug prints a one-time warning) — configure a
+  /// persistent store for real once-per-version semantics.
+  ///
+  /// `HintController()` renders out of the box: the default engine wiring
+  /// runs (the host is built lazily on the first non-idle state).
   HintController({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    HintOverlayProvider? overlay,
-    bool headless = false,
     this.scopePrefix,
-    this.store,
-  })  : assert(
-          !(headless && overlay != null),
-          'hintful: headless: true cannot be combined with overlay:',
-        ),
-        _registry = registry ?? HintTargetRegistry.defaultInstance,
+  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics = _composeDiagnostics(diagnostics),
-        _overlayHostBuilder =
-            headless ? null : defaultOverlayHost(overlay: overlay) {
+        _storeOverride = null,
+        _overlayHostBuilder = defaultOverlayHost() {
+    _init();
+  }
+
+  /// Test seam — not part of the public contract. [headless] (default true)
+  /// runs the machine with no render mechanics; pass `headless: false` to
+  /// render through the default engine. [store] overrides the app-wide
+  /// `Hintful` store for this one controller. The production path is the
+  /// unnamed constructor plus `Hintful.configure`.
+  @visibleForTesting
+  HintController.test({
+    HintTargetRegistry? registry,
+    HintDiagnosticsHandler? diagnostics,
+    this.scopePrefix,
+    HintStore? store,
+    bool headless = true,
+  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
+        _diagnostics = _composeDiagnostics(diagnostics),
+        _storeOverride = store,
+        _overlayHostBuilder = headless ? null : defaultOverlayHost() {
     _init();
   }
 
   /// Implementation seam for engine tests — not part of the public
-  /// contract; use `headless:` + registry instead. Injects a custom
+  /// contract; use `HintController.test(headless: ...)`. Injects a custom
   /// [HintOverlayHost] without going through the public constructor.
   @internal
   HintController.withHost(
@@ -155,9 +155,10 @@ class HintController implements HintActions {
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     this.scopePrefix,
-    this.store,
+    HintStore? store,
   })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics = _composeDiagnostics(diagnostics),
+        _storeOverride = store,
         _overlayHostBuilder = host {
     _init();
   }
@@ -190,6 +191,10 @@ class HintController implements HintActions {
   final HintDiagnosticsHandler? _diagnostics;
   final HintOverlayHost Function(HintController)? _overlayHostBuilder;
 
+  /// Per-controller store override (tests / [HintController.test]); null —
+  /// the app-wide [Hintful.store] (or the session fallback) is used.
+  final HintStore? _storeOverride;
+
   /// The registry this controller's wait logic runs over — and the registry
   /// the default overlay host ([defaultOverlayHost]) renders from. Set once
   /// via the constructor; never desynced from the rendering.
@@ -209,32 +214,29 @@ class HintController implements HintActions {
   HintDiagnosticsHandler? get diagnostics => _diagnostics;
   HintOverlayHost? _builtHost;
 
-  /// Default versioned-hints store — read by [startOnce] and the offer
-  /// dialog. Settable at any point before those calls (the usual shape:
-  /// create the controller, assign the store when async storage finishes
-  /// loading).
-  /// Null — show-once paths fall back to a session-scoped
-  /// [InMemoryHintStore] (see [effectiveStore]).
-  HintStore? store;
-
   InMemoryHintStore? _sessionStore;
   bool _warnedNoStore = false;
 
-  /// The store show-once paths actually use: [store] when set, else a
-  /// session-scoped [InMemoryHintStore] (debug builds print a one-time
-  /// warning the first time this fallback is taken). Never null — call
-  /// sites do not need a null-check. Assign [store] before the first
-  /// show-once call for persistent once-per-version semantics.
-  HintStore get effectiveStore {
-    final configured = store;
+  /// The store show-once paths use: the test override when set, else the
+  /// app-wide [Hintful.store], else a session-scoped [InMemoryHintStore]
+  /// (debug builds print a one-time warning the first time this fallback is
+  /// taken). Never null — call sites do not need a null-check.
+  ///
+  /// Internal: configure the store app-wide with `Hintful.configure`; this
+  /// getter exists for the package's own offer dialog and tests.
+  @internal
+  HintStore get store {
+    final override = _storeOverride;
+    if (override != null) return override;
+    final configured = Hintful.store;
     if (configured != null) return configured;
     if (!_warnedNoStore) {
       _warnedNoStore = true;
       if (kDebugMode) {
         debugPrint(
-          'hintful: no HintStore set — using an in-memory session store. '
-          'Show-once state lives for this run only; for persistence: '
-          'HintController(store: CallbackHintStore(read: ..., write: ...))',
+          'hintful: no HintStore configured — using an in-memory session '
+          'store. Show-once state lives for this run only; for persistence: '
+          'Hintful.configure(store: CallbackHintStore(read: ..., write: ...))',
         );
       }
     }
@@ -364,11 +366,11 @@ class HintController implements HintActions {
   }
 
   /// Show-once from the box: [HintStore.shouldShow] → [start] →
-  /// [HintStore.markShown] under [mark] (default [HintMarkPolicy.onFinish]).
+  /// [HintStore.markShown] under [mark] (default [HintMarkPolicy.onAnyExit]).
   ///
-  /// The store is the controller's [store], falling back to [effectiveStore]
-  /// — set `HintController(store: ...)` once and call `startOnce(tour)` with
-  /// no per-call store (session-in-memory fallback works, but state lives
+  /// The store is app-wide: configure it once with
+  /// `Hintful.configure(store: ...)` and call `startOnce(tour)` with no
+  /// per-call store (the session-in-memory fallback works, but state lives
   /// only for this run).
   ///
   /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
@@ -388,10 +390,10 @@ class HintController implements HintActions {
   /// pattern.
   Future<bool> startOnce(
     HintTour tour, {
-    HintMarkPolicy mark = HintMarkPolicy.onFinish,
+    HintMarkPolicy mark = HintMarkPolicy.onAnyExit,
     String? version,
   }) async {
-    final effective = effectiveStore;
+    final effective = store;
     if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
       return false;
     }

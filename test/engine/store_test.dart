@@ -2,28 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/store.dart';
 
 void main() {
-  group('compareVersions', () {
-    test('numeric segments', () {
-      expect(HintStore.compareVersions('2.3.0', '2.3.1'), lessThan(0));
-      expect(HintStore.compareVersions('2.3.1', '2.3.0'), greaterThan(0));
-      expect(HintStore.compareVersions('2.3.0', '2.3.0'), 0);
-    });
-
-    test('multi-digit segments compare numerically (2.10 > 2.9)', () {
-      expect(HintStore.compareVersions('2.10.0', '2.9.0'), greaterThan(0));
-    });
-
-    test('missing segments are zero (2.3 == 2.3.0)', () {
-      expect(HintStore.compareVersions('2.3', '2.3.0'), 0);
-      expect(HintStore.compareVersions('2', '2.0.0'), 0);
-    });
-
-    test('non-numeric segments compare lexically', () {
-      expect(HintStore.compareVersions('1.0.0+1', '1.0.0+2'), lessThan(0));
-      expect(HintStore.compareVersions('1.0.0', '1.0.0+1'), lessThan(0));
-    });
-  });
-
   group('InMemoryHintStore', () {
     test('never shown → shouldShow true', () {
       final store = InMemoryHintStore();
@@ -98,30 +76,6 @@ void main() {
       store.markShown('other', '2.0.0');
       expect(store.shouldShow('intro', minVersion: '1.1.0'), isTrue);
       expect(store.shouldShow('other', minVersion: '2.0.0'), isFalse);
-    });
-
-    test('clear without onClear is a no-op (kv store cannot enumerate)', () {
-      final backing = <String, String>{};
-      final store = CallbackHintStore(
-        read: (key) => backing[key],
-        write: (key, version) => backing[key] = version,
-      );
-      store.markShown('intro', '1.0.0');
-      store.clear(); // no onClear — must not throw
-      expect(store.shouldShow('intro'), isFalse);
-    });
-
-    test('onClear runs on clear()', () {
-      final backing = <String, String>{};
-      final store = CallbackHintStore(
-        read: (key) => backing[key],
-        write: (key, version) => backing[key] = version,
-        onClear: backing.clear,
-      );
-      store.markShown('intro', '1.0.0');
-      store.clear();
-      expect(backing, isEmpty);
-      expect(store.shouldShow('intro'), isTrue);
     });
 
     test('multi-digit version segments compare numerically', () {

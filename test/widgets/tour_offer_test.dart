@@ -18,23 +18,23 @@ HintTour _tour(String id, {String? minShowVersion}) => HintTour(
       minShowVersion: minShowVersion,
     );
 
-/// Rect-target tour: the headless machine enters HintActive immediately
-/// (no registry, no wait timer) — the pump/dispose shape stays simple.
-HintTour _rectTour(String id) => HintTour(
+/// A one-step tour. The headless controller has no registry targets, so the
+/// machine waits for 'x' — the offer/store flow under test does not depend on
+/// a rendered step.
+HintTour _oneStepTour(String id) => HintTour(
       id: id,
       steps: [
         HintStep(
           targetId: 'x',
           content: HintStepContent(title: 'X'),
-          targetRect: const Rect.fromLTWH(10, 10, 50, 50),
         ),
       ],
     );
 
-/// Headless controller wired to [store] — the offer always reads
-/// controller.effectiveStore (no per-call store).
+/// Headless controller wired to [store] — the offer always reads the
+/// controller's resolved store (no per-call store).
 HintController _controllerWith(HintStore store) =>
-    HintController(headless: true, store: store);
+    HintController.test(store: store);
 
 /// A MaterialApp + a context under it (the dialog needs a Navigator).
 Future<BuildContext> _pumpApp(WidgetTester tester) async {
@@ -317,8 +317,7 @@ void main() {
   });
 
   group('HintMarkPolicy (offer accept path)', () {
-    testWidgets('onFinish (default): accept + finish → marked shown',
-        (tester) async {
+    testWidgets('onFinish: accept + finish → marked shown', (tester) async {
       final store = InMemoryHintStore();
       final controller = _controllerWith(store);
       addTearDown(controller.dispose);
@@ -327,8 +326,9 @@ void main() {
       final result = showHintTourOffer(
         context: context,
         controller: controller,
-        tour: _rectTour('t'),
+        tour: _oneStepTour('t'),
         pageId: 'Home',
+        mark: HintMarkPolicy.onFinish,
       );
       await _pumpDialog(tester);
       await tester.tap(find.text('Start'));
@@ -337,14 +337,13 @@ void main() {
       expect(await result, HintTourOfferResult.started);
       expect(controller.currentState.isIdle, isFalse);
 
-      controller.next(); // single step → finish
+      controller.finish(); // the one step's target never mounts → finish
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isFalse,
           reason: 'finish marks the tour shown');
     });
 
-    testWidgets('onFinish (default): accept + skip → not marked',
-        (tester) async {
+    testWidgets('onFinish: accept + skip → not marked', (tester) async {
       final store = InMemoryHintStore();
       final controller = _controllerWith(store);
       addTearDown(controller.dispose);
@@ -353,8 +352,9 @@ void main() {
       final result = showHintTourOffer(
         context: context,
         controller: controller,
-        tour: _rectTour('t'),
+        tour: _oneStepTour('t'),
         pageId: 'Home',
+        mark: HintMarkPolicy.onFinish,
       );
       await _pumpDialog(tester);
       await tester.tap(find.text('Start'));
@@ -377,7 +377,7 @@ void main() {
       final result = showHintTourOffer(
         context: context,
         controller: controller,
-        tour: _rectTour('t'),
+        tour: _oneStepTour('t'),
         pageId: 'Home',
         mark: HintMarkPolicy.manual,
       );
@@ -386,7 +386,7 @@ void main() {
       await tester.pump();
 
       expect(await result, HintTourOfferResult.started);
-      controller.next();
+      controller.finish();
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
           reason: 'manual: the app records the shown-state itself');
@@ -401,7 +401,7 @@ void main() {
       final result = showHintTourOffer(
         context: context,
         controller: controller,
-        tour: _rectTour('t'),
+        tour: _oneStepTour('t'),
         pageId: 'Home',
         mark: HintMarkPolicy.onAnyExit,
       );
@@ -423,13 +423,14 @@ void main() {
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
-      await controller.start(_rectTour('other')); // one tour at a time
+      await controller.start(_oneStepTour('other')); // one tour at a time
 
       final result = showHintTourOffer(
         context: context,
         controller: controller,
-        tour: _rectTour('t'),
+        tour: _oneStepTour('t'),
         pageId: 'Home',
+        mark: HintMarkPolicy.onFinish,
       );
       await _pumpDialog(tester);
       expect(find.text('Want a tour?'), findsOneWidget);
@@ -441,6 +442,8 @@ void main() {
       await tester.tap(find.text('Start'));
       await tester.pump();
       await expectation;
+      // The waiting tour holds a timeout timer — release before the check.
+      controller.finish();
 
       expect(store.shouldShow('t'), isTrue,
           reason: 'the rejected accept must not mark anything');

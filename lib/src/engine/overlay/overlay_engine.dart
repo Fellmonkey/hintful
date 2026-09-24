@@ -8,7 +8,6 @@ import '../../widgets/default_tooltip.dart';
 import '../controller.dart' show HintController, HintOverlayHost;
 import '../diagnostics.dart';
 import '../machine.dart';
-import '../motion.dart' show hintTransitionDuration;
 import '../position_resolver.dart';
 import '../registry.dart';
 import '../specs.dart';
@@ -33,22 +32,12 @@ double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
 /// registry (`HintController(registry: ...)` — one source of truth, the wait
 /// logic and the rendering cannot desync).
 ///
-/// Internal factory: `HintController()` wires it out of the box; the
-/// controller passes the constructor's `overlay:` provider through here. Not
+/// Internal factory: `HintController()` wires it out of the box. Not
 /// part of the public barrel contract — custom hosts are a test seam
 /// (`HintController.withHost`), not a supported extension point.
 ///
 /// ```dart
 /// final controller = HintController(); // renders through this host
-/// ```
-///
-/// Pass `overlay:` on the controller for targetRect-only tours with zero
-/// mounted targets (nothing to capture the root overlay from — see
-/// `targetRect`):
-///
-/// ```dart
-/// final overlayKey = GlobalKey<OverlayState>();
-/// HintController(overlay: () => overlayKey.currentState);
 /// ```
 ///
 /// The factory also hands the engine the controller's diagnostics handler
@@ -57,13 +46,10 @@ double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
 ///
 /// The engine itself and its internals (scrim, placement delegate) stay
 /// hidden: they can change without breaking, while this contract is stable.
-HintOverlayHost Function(HintController) defaultOverlayHost({
-  OverlayState? Function()? overlay,
-}) {
+HintOverlayHost Function(HintController) defaultOverlayHost() {
   return (controller) => HintOverlayEngine(
         registry: controller.registry,
         input: controller,
-        overlay: overlay?.call(),
         diagnostics: controller.diagnostics,
       );
 }
@@ -75,26 +61,22 @@ HintOverlayHost Function(HintController) defaultOverlayHost({
 /// Implements the [HintOverlayHost] contract from controller.dart: the
 /// controller does not know what the overlay looks like or where the
 /// `OverlayState` comes from — the engine captures it itself (the root
-/// overlay of the first registered target), or receives it explicitly via
-/// `overlay` for fully-deferred scenarios (zero mounted targets). User input
-/// (next/skip/finish) goes into [HintActions] — the controller implements it.
+/// overlay of the first registered target). User input (next/skip/finish)
+/// goes into [HintActions] — the controller implements it.
 class HintOverlayEngine implements HintOverlayHost {
-  /// Creates the engine over [registry], driven by [input], on [overlay]
-  /// (captured from the first mounted target when null).
+  /// Creates the engine over [registry], driven by [input]; the overlay is
+  /// captured from the first mounted target.
   HintOverlayEngine({
     required HintTargetRegistry registry,
     required HintActions input,
-    OverlayState? overlay,
     HintDiagnosticsHandler? diagnostics,
   })  : _registry = registry,
         _input = input,
-        _overlay = overlay,
         _diagnostics = diagnostics;
 
   final HintTargetRegistry _registry;
   final HintActions _input;
   final HintDiagnosticsHandler? _diagnostics;
-  OverlayState? _overlay;
   OverlayEntry? _entry;
   HintState? _pendingState;
   bool _disposed = false;
@@ -110,15 +92,13 @@ class HintOverlayEngine implements HintOverlayHost {
       return;
     }
 
-    final overlay = _overlay ?? _captureOverlay();
+    final overlay = _captureOverlay();
     if (overlay == null) {
-      // Neither an explicit OverlayState nor a mounted target to capture
-      // from: nowhere to draw — say so honestly (otherwise "why isn't it
-      // visible" stays silent).
+      // No mounted target to capture a root overlay from: nowhere to draw —
+      // say so honestly (otherwise "why isn't it visible" stays silent).
       _reportOverlayUnavailable();
       return;
     }
-    _overlay = overlay;
 
     if (_entry == null) {
       _entry = _createEntry(overlay);
@@ -171,9 +151,8 @@ class HintOverlayEngine implements HintOverlayHost {
       stepIndex: stepIndex,
       targetId: targetId,
       reason: HintSkipReason.overlayUnavailable,
-      detail: 'overlay unavailable: no OverlayState and no mounted target to'
-          ' capture from (pass overlay: explicitly for fully-deferred'
-          ' scenarios)',
+      detail: 'overlay unavailable: no mounted target to capture the root'
+          ' overlay from',
     ));
   }
 
@@ -306,23 +285,15 @@ class _HintOverlayViewState extends State<_HintOverlayView>
     // hole + "preparing". No tap handling: the pointer passes through to the
     // app (the page stays scrollable while preparing), and taps are a no-op
     // anyway while waiting (the machine ignores next until the target is up).
-    final body = step.hasRectTarget
-        ? _RectTargetContent(
-            step: step,
+    final body = widget.state is! HintActive
+        ? _buildWaitingMode(hintTheme)
+        : _buildTargetMode(
+            context,
+            step,
             stepIndex: stepIndex,
             totalSteps: tour.steps.length,
-            actions: widget.input,
             theme: hintTheme,
-          )
-        : widget.state is! HintActive
-            ? _buildWaitingMode(hintTheme)
-            : _buildTargetMode(
-                context,
-                step,
-                stepIndex: stepIndex,
-                totalSteps: tour.steps.length,
-                theme: hintTheme,
-              );
+          );
 
     return FocusScope(
       node: _scopeNode,
@@ -747,14 +718,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       totalSteps: widget.totalSteps,
     );
     final slots = _tooltipSlots(context, ctx);
-    final extras = widget.step.moreTooltips;
+    final extras = widget.step.additionalTooltips;
     if (extras.isEmpty) {
       // The cached slot stays identical across movement frames (no text
       // re-layout while scrolling); only the placement delegate rebuilds.
       return _placedPrimaryTooltip(
         context: context,
         step: widget.step,
-        stepIndex: widget.stepIndex,
         content: slots.single,
         hole: holeLocal,
         screen: screen,
@@ -779,12 +749,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
               child: slots[i + 1]),
       ],
     );
-    return _tooltipEntry(
-      context: context,
-      step: widget.step,
-      stepIndex: widget.stepIndex,
-      child: content,
-    );
+    return content;
   }
 
   /// The cached slot contents (primary + extra slots, RAW — `LayoutId` is
@@ -797,7 +762,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     if (cache == null ||
         !identical(cache.step, widget.step) ||
         cache.index != widget.stepIndex) {
-      final extras = widget.step.moreTooltips;
+      final extras = widget.step.additionalTooltips;
       cache = _slotCache = (
         step: widget.step,
         index: widget.stepIndex,
@@ -833,11 +798,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     if (extra.tooltipBuilder != null) {
       content = extra.tooltipBuilder!(context, widget.step, ctx);
     } else {
-      content = DefaultTooltip(
+      content = HintSlotTooltip(
         step: widget.step,
         ctx: ctx,
         content: extra.content,
-        showActions: false,
       );
     }
     return widget.theme.showTail
@@ -1222,20 +1186,21 @@ Widget _primaryTooltipSlot({
       : content;
 }
 
-/// One primary tooltip: placed around [hole] with an entry transition.
-/// The [content] widget is supplied by the caller — the follower path passes
-/// its cached slot (identical instances across movement frames skip text
-/// re-layout while scrolling).
+/// One primary tooltip: placed around [hole]. The [content] widget is
+/// supplied by the caller — the follower path passes its cached slot
+/// (identical instances across movement frames skip text re-layout while
+/// scrolling). Entry animation is the `tooltipBuilder`'s business: wrap the
+/// built content in your own `AnimatedScale`/`FadeTransition` if you want
+/// one.
 Widget _placedPrimaryTooltip({
   required BuildContext context,
   required HintStep step,
-  required int stepIndex,
   required Widget content,
   required Rect hole,
   required Size screen,
   required List<Rect> extraHoles,
 }) {
-  final placed = CustomSingleChildLayout(
+  return CustomSingleChildLayout(
     delegate: TooltipPlacementDelegate(
       screenLocal: Offset.zero & screen,
       holeLocal: hole,
@@ -1245,185 +1210,6 @@ Widget _placedPrimaryTooltip({
     ),
     child: content,
   );
-  return _tooltipEntry(
-    context: context,
-    step: step,
-    stepIndex: stepIndex,
-    child: placed,
-  );
-}
-
-/// Entry transition (`D5`/`22`) for a step's tooltip — rung 2 of the
-/// animation ladder, one arm per [HintEntryAnimation] preset:
-///
-/// - [HintEntryAnimation.easeOut] — the quiet preset: a plain fade with a whisper of
-///   scale (0.96 → 1) on `Curves.easeOut`;
-/// - [HintEntryAnimation.sprung] — the bounce: scale 0.8 → 1 on `Curves.elasticOut`
-///   (the overshoot is the bounce).
-///
-/// Each preset has its own default length ([_presetDuration]), overridable per
-/// step with [HintStep.transitionDuration], and all of them are skipped
-/// (instant) under the system reduce-motion setting. Adding a preset is one
-/// [HintEntryAnimation] value, one arm here and its default in [_presetDuration];
-/// anything richer stays rung 3 (`tooltipBuilder`).
-Widget _tooltipEntry({
-  required BuildContext context,
-  required HintStep step,
-  required int stepIndex,
-  required Widget child,
-}) {
-  final preset = step.transition;
-  if (preset == null) return child; // rung 1: the tooltip simply appears
-  final duration = hintTransitionDuration(
-    MediaQuery.of(context),
-    step.transitionDuration ?? _presetDuration(preset),
-  );
-  if (duration == Duration.zero) return child; // reduce motion
-
-  final key = ValueKey('$stepIndex-${step.hashCode}');
-  return switch (preset) {
-    HintEntryAnimation.easeOut => TweenAnimationBuilder<double>(
-        key: key,
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: duration,
-        curve: Curves.easeOut,
-        builder: (context, t, child) => Opacity(
-          opacity: t,
-          child: Transform.scale(
-            scale: 0.96 + 0.04 * t,
-            alignment: Alignment.center,
-            child: child,
-          ),
-        ),
-        child: child,
-      ),
-    HintEntryAnimation.sprung => TweenAnimationBuilder<double>(
-        key: key,
-        tween: Tween(begin: 0.8, end: 1.0),
-        duration: duration,
-        curve: Curves.elasticOut,
-        builder: (context, scale, child) => Transform.scale(
-          scale: scale,
-          alignment: Alignment.center,
-          child: Opacity(opacity: scale.clamp(0.0, 1.0), child: child),
-        ),
-        child: child,
-      ),
-  };
-}
-
-/// Default length of each preset — the preset's own timing, overridable per
-/// step with [HintStep.transitionDuration].
-Duration _presetDuration(HintEntryAnimation preset) => switch (preset) {
-      HintEntryAnimation.easeOut => const Duration(milliseconds: 200),
-      HintEntryAnimation.sprung => const Duration(milliseconds: 800),
-    };
-
-/// Rect-anchored step content ([HintStep.targetRect]): a static spotlight at
-/// explicit overlay coordinates — no registry targets, no followers, no
-/// position watching.
-///
-/// The scrim is a full-screen global layer ([RectScrimPainter]) and the
-/// tooltip is placed once against the static hole (nothing moves, so there
-/// is no reposition listener and no slot cache). Primary tooltip only: extra
-/// slots ([HintStep.moreTooltips]) and the pulse ring need live targets and
-/// are not rendered in this mode.
-class _RectTargetContent extends StatefulWidget {
-  const _RectTargetContent({
-    required this.step,
-    required this.stepIndex,
-    required this.totalSteps,
-    required this.actions,
-    required this.theme,
-  });
-
-  final HintStep step;
-  final int stepIndex;
-  final int totalSteps;
-  final HintActions actions;
-  final HintTheme theme;
-
-  @override
-  State<_RectTargetContent> createState() => _RectTargetContentState();
-}
-
-class _RectTargetContentState extends State<_RectTargetContent> {
-  TapDownDetails? _lastTap;
-
-  FocusShape _effectiveShape() => resolveFocusShape(widget.step);
-
-  Rect get _hole =>
-      widget.step.targetRect!.inflate(resolveFocusPadding(widget.step));
-
-  @override
-  Widget build(BuildContext context) {
-    return _TapShell(
-      onTapDown: (details) => _lastTap = details,
-      onTap: _dispatchTap,
-      builder: (context, screen) {
-        final hole = _hole;
-        final Widget scrim = widget.theme.imageFilter != null
-            ? _blurScrim(
-                screen: screen,
-                holes: [hole],
-                focusShape: _effectiveShape(),
-                theme: widget.theme,
-              )
-            : CustomPaint(
-                painter: RectScrimPainter(
-                  holes: [hole],
-                  color: widget.theme.scrimColor,
-                  focusShape: _effectiveShape(),
-                ),
-                child: const SizedBox.expand(),
-              );
-        return Stack(
-          children: [
-            Positioned.fill(child: IgnorePointer(child: scrim)),
-            _rectTooltip(context, hole, screen),
-          ],
-        );
-      },
-    );
-  }
-
-  void _dispatchTap() {
-    final details = _lastTap;
-    if (details == null) return;
-    _dispatchStepTap(
-      step: widget.step,
-      actions: widget.actions,
-      stepIndex: widget.stepIndex,
-      totalSteps: widget.totalSteps,
-      holes: [_hole],
-      details: details,
-    );
-  }
-
-  /// The primary tooltip slot at the static hole: shared content, placed
-  /// once (nothing moves, so no slot cache and no hole listener).
-  Widget _rectTooltip(BuildContext context, Rect hole, Size screen) {
-    final ctx = HintTooltipContext(
-      actions: widget.actions,
-      stepIndex: widget.stepIndex,
-      totalSteps: widget.totalSteps,
-    );
-    return _placedPrimaryTooltip(
-      context: context,
-      step: widget.step,
-      stepIndex: widget.stepIndex,
-      content: _primaryTooltipSlot(
-        context: context,
-        step: widget.step,
-        ctx: ctx,
-        theme: widget.theme,
-        holeOf: () => hole,
-      ),
-      hole: hole,
-      screen: screen,
-      extraHoles: const [],
-    );
-  }
 }
 
 /// Clip to a prebuilt even-odd path (screen minus holes, see

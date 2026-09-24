@@ -392,7 +392,6 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
     HintStep step,
   ) =>
-      step.hasRectTarget ||
       step.targetIds.every((id) => _present(targetPresent, id));
 
   /// The single entry point. Returns the transition and applies it to the
@@ -430,25 +429,9 @@ class HintMachine {
 
   HintState _reduceIdle(HintEvent event, List<HintEffect> effects) =>
       switch (event) {
-        HintStart(:final tour) => tour.steps[0].hasRectTarget
-            // Explicit coordinates need no waiting: enter immediately, with
-            // no timeout armed (there is nothing to wait for — the overlay
-            // spotlights the rect statically).
-            ? _enterActive(tour, 0, effects)
-            : _armWaiting(tour, 0, effects),
+        HintStart(:final tour) => _armWaiting(tour, 0, effects),
         _ => const HintIdle(),
       };
-
-  /// Enter [index] as an active step (no waiting involved): used for
-  /// rect-anchored starts. No timeout to clear — none was armed.
-  HintState _enterActive(
-    HintTour tour,
-    int index,
-    List<HintEffect> effects,
-  ) {
-    effects.add(EnterStepEffect(stepIndex: index));
-    return HintActive(tour: tour, stepIndex: index);
-  }
 
   HintState _armWaiting(HintTour tour, int index, List<HintEffect> effects) {
     effects.add(
@@ -557,7 +540,7 @@ class HintMachine {
     final step = tour.steps[index];
     switch (event) {
       case TargetVanished(:final targetId)
-          when !step.hasRectTarget && step.targetIds.contains(targetId):
+          when step.targetIds.contains(targetId):
         // Any spotlighted target vanished on an active step (scroll
         // recycling, a collapsed tab) → re-wait for all of them instead of
         // aborting: the tour survives a transient unmount and continues when

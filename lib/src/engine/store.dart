@@ -6,11 +6,12 @@ import 'dart:math' as math;
 /// Closed in 1.x: no new values before 2.0.
 enum HintMarkPolicy {
   /// Mark when the tour finishes normally (Done / last step). Skip, timeout
-  /// and abort do **not** mark — the tour may show again (the default).
+  /// and abort do **not** mark — the tour may show again. Use this when only
+  /// a completed tour counts as "seen".
   onFinish,
 
   /// Mark on any exit after the tour started: finish, skip or timeout all
-  /// count as "the user has seen it". Replaces a hand-rolled
+  /// count as "the user has seen it" (the default). Replaces a hand-rolled
   /// `state.addListener` + `markShown` on idle.
   onAnyExit,
 
@@ -32,12 +33,14 @@ enum HintMarkPolicy {
 /// flags — the old `resetAll()`-style flag reset is replaced by
 /// `{key: lastShownVersion}` bookkeeping.
 ///
-/// **Contract for the whole 1.x line (a conscious 1.0 decision):** the three
+/// **Contract for the whole 1.x line (a conscious 1.0 decision):** the two
 /// abstract members below are the complete interface — apps that
 /// `implements HintStore` will not break on a 1.x upgrade. Growth happens
 /// through Dart extension methods on [HintStore] (non-breaking for every
-/// implementor), never through a new abstract member; a fourth abstract
-/// member is a 2.0 change.
+/// implementor), never through a new abstract member; a third abstract
+/// member is a 2.0 change. (Debug/dev clearing is not part of the contract —
+/// a concrete store may expose its own `clear()`; the shipped
+/// `hintful_prefs` package does.)
 ///
 /// The interface is abstract and storage-agnostic — the engine core knows
 /// only this contract, so a server can substitute its own
@@ -49,33 +52,16 @@ enum HintMarkPolicy {
 /// either way the storage stays OUTSIDE the core package to keep it
 /// dependency-free — see the example app.
 ///
-/// Typical use: set it once on the controller (`HintController(store: ...)`)
+/// Typical use: configure it once at startup (`Hintful.configure(store: ...)`)
 /// and call `startOnce` with no per-call store — or the manual gate
 /// `shouldShow` before start + `markShown` on the exit you choose.
-///
-/// Version ordering lives on the class: [HintStore.compareVersions] is the
-/// shared dotted-version comparator (reusable by app-side stores).
 abstract class HintStore {
-  /// Compare dotted versions (`"2.3.0"` vs `"2.10.0"`) segment-wise,
-  /// numerically; missing segments count as `"0"` (`"2.3"` == `"2.3.0"`);
-  /// non-numeric segments (build labels etc.) compare lexically — plain
-  /// semver-prerelease ordering (`2.0.0-dev` < `2.0.0`) is intentionally out
-  /// of scope. Returns negative/zero/positive.
-  ///
-  /// Shared by [shouldShow] implementations; kept public so app-side
-  /// stores can reuse it.
-  static int compareVersions(String a, String b) => _compareVersions(a, b);
-
   /// Whether the hint should show (see class doc). [minVersion] — the app
   /// version the hint targets; null — "show once ever".
   bool shouldShow(String key, {String? minVersion});
 
   /// Record that the hint was shown at app [version].
   void markShown(String key, String version);
-
-  /// Forget everything. A debug/dev tool — the production "re-show" is a
-  /// version bump, but a hard clear is handy in debug builds and tests.
-  void clear();
 }
 
 int _compareVersions(String a, String b) {
@@ -114,7 +100,9 @@ class InMemoryHintStore implements HintStore {
   @override
   void markShown(String key, String version) => _shown[key] = version;
 
-  @override
+  /// Forget everything — a debug/dev tool, not part of the [HintStore]
+  /// contract (the production "re-show" is a version bump). Concrete
+  /// stores expose their own; the shipped `hintful_prefs` store does.
   void clear() => _shown.clear();
 }
 
@@ -125,41 +113,33 @@ class InMemoryHintStore implements HintStore {
 /// final store = CallbackHintStore(
 ///   read: (key) => prefs.getString('hintful.$key'),
 ///   write: (key, version) => prefs.setString('hintful.$key', version),
-///   clear: () { /* optional: wipe the namespaced keys */ },
 /// );
-/// final controller = HintController(store: store);
+/// Hintful.configure(store: store);
 /// ```
 ///
 /// Same version semantics as [InMemoryHintStore] (this is the shipping
-/// implementation of those rules over your storage). [clear] is the
-/// debug/dev tool of the [HintStore] contract — with [onClear] omitted it
-/// is a no-op (a key-value store usually cannot enumerate its keys).
+/// implementation of those rules over your storage). For a ready-made
+/// `shared_preferences` store (plus a `clear()` dev tool) use the
+/// `hintful_prefs` package.
 class CallbackHintStore implements HintStore {
-  /// Wires the store over [read] (null — never shown), [write] and the
-  /// optional [onClear] used by [clear].
+  /// Wires the store over [read] (null — never shown) and [write].
   CallbackHintStore({
     required String? Function(String key) read,
     required void Function(String key, String version) write,
-    void Function()? onClear,
   })  : _read = read,
-        _write = write,
-        _onClear = onClear;
+        _write = write;
 
   final String? Function(String key) _read;
   final void Function(String key, String version) _write;
-  final void Function()? _onClear;
 
   @override
   bool shouldShow(String key, {String? minVersion}) {
     final last = _read(key);
     if (last == null) return true;
     if (minVersion == null) return false;
-    return HintStore.compareVersions(last, minVersion) < 0;
+    return _compareVersions(last, minVersion) < 0;
   }
 
   @override
   void markShown(String key, String version) => _write(key, version);
-
-  @override
-  void clear() => _onClear?.call();
 }

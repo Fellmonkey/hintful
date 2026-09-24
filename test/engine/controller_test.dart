@@ -10,6 +10,9 @@ import 'package:hintful/src/engine/store.dart';
 
 HintTour _tour2() => HintTour(
       id: 't',
+      // This suite predates the 1.0 default (skipStep): it asserts abort
+      // semantics, so it opts into abortTour explicitly.
+      missingTargetPolicy: HintMissingTargetPolicy.abortTour,
       steps: [
         HintStep(
           targetId: 'target0',
@@ -56,19 +59,9 @@ class _RecordingHost implements HintOverlayHost {
 
 void main() {
   group('HintController', () {
-    test('headless + overlay is an assert (the two exclude each other)', () {
-      expect(
-        () => HintController(
-          headless: true,
-          overlay: () => null,
-        ),
-        throwsA(isA<AssertionError>()),
-      );
-    });
-
     test('registry getter is the one the controller wires over', () {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
       expect(controller.registry, same(registry));
     });
@@ -77,10 +70,9 @@ void main() {
         'diagnostics getter reports to the given handler (composed with '
         'the debug print in debug builds)', () {
       final diag = _DiagRecorder();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: HintTargetRegistry(),
         diagnostics: diag.call,
-        headless: true,
       );
       addTearDown(controller.dispose);
       // Not same(diag): the getter is the composed handler (debug print +
@@ -100,7 +92,7 @@ void main() {
         'defaultOverlayHost wires controller.diagnostics into the engine '
         '(overlay failures are reported)', () {
       final diag = _DiagRecorder();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: HintTargetRegistry(), // empty: nothing to capture from
         diagnostics: diag.call,
       );
@@ -279,7 +271,7 @@ void main() {
     testWidgets('showHint: deferred target — the same waiting with id prefix',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
 
       await controller.showHint(HintStep(
         targetId: 'never',
@@ -331,7 +323,7 @@ void main() {
         (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -362,10 +354,9 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
         diagnostics: diag.call,
-        headless: true,
       );
       final tour = _tour2();
       addTearDown(controller.dispose);
@@ -390,7 +381,7 @@ void main() {
 
     testWidgets('no-op events do not notify state listeners', (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       var notifications = 0;
@@ -408,7 +399,7 @@ void main() {
         'debug', (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -458,7 +449,7 @@ void main() {
     testWidgets('tryStart while busy — false, no assert, tour untouched',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       await controller.start(_tour2());
@@ -474,7 +465,7 @@ void main() {
     testWidgets('tryStart while idle — starts and returns true',
         (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       expect(controller.isIdle, isTrue);
@@ -489,10 +480,9 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
         diagnostics: diag.call,
-        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -529,7 +519,7 @@ void main() {
 
     testWidgets('restart while idle — equivalent to start', (tester) async {
       final registry = HintTargetRegistry();
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       await controller.restart(_tour2());
@@ -542,6 +532,9 @@ void main() {
   group('startOnce (show-once: mark only on finish)', () {
     HintTour oneStep({String? minShowVersion}) => HintTour(
           id: 'intro',
+          // Historical abort semantics: these tests assert that a timeout
+          // does not mark (the 1.0 default is skipStep).
+          missingTargetPolicy: HintMissingTargetPolicy.abortTour,
           steps: const [
             HintStep(
               targetId: 'target0',
@@ -553,9 +546,8 @@ void main() {
 
     testWidgets('gate closed — false, stays idle, no mark', (tester) async {
       final store = InMemoryHintStore()..markShown('intro', '1.0.0');
-      final controller = HintController(
+      final controller = HintController.test(
         registry: HintTargetRegistry(),
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -563,6 +555,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isFalse,
       );
@@ -574,9 +567,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -589,6 +581,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isTrue,
       );
@@ -605,9 +598,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -620,6 +612,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isTrue,
       );
@@ -631,9 +624,8 @@ void main() {
 
     testWidgets('timeout abort does not mark', (tester) async {
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: HintTargetRegistry(),
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -641,6 +633,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isTrue,
       );
@@ -654,9 +647,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -670,6 +662,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isFalse,
       );
@@ -684,9 +677,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -701,6 +693,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.0.0'),
+          mark: HintMarkPolicy.onFinish,
         ),
         isTrue,
       );
@@ -719,9 +712,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -733,6 +725,7 @@ void main() {
 
       await controller.startOnce(
         oneStep(minShowVersion: '1.0.0'),
+        mark: HintMarkPolicy.onFinish,
         version: '1.0.0',
       );
       controller.finish();
@@ -741,6 +734,7 @@ void main() {
       expect(
         await controller.startOnce(
           oneStep(minShowVersion: '1.1.0'),
+          mark: HintMarkPolicy.onFinish,
           version: '1.1.0',
         ),
         isTrue,
@@ -754,9 +748,8 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final store = InMemoryHintStore();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
-        headless: true,
         store: store,
       );
       addTearDown(controller.dispose);
@@ -767,7 +760,8 @@ void main() {
       ));
 
       expect(
-        await controller.startOnce(oneStep(minShowVersion: '1.0.0')),
+        await controller.startOnce(oneStep(minShowVersion: '1.0.0'),
+            mark: HintMarkPolicy.onFinish),
         isTrue,
       );
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
@@ -778,21 +772,21 @@ void main() {
 
     testWidgets('session fallback store — startOnce with no configured store',
         (tester) async {
-      final controller =
-          HintController(registry: HintTargetRegistry(), headless: true);
+      final controller = HintController.test(registry: HintTargetRegistry());
       addTearDown(controller.dispose);
 
       // No store: falls back to a session InMemoryHintStore — starts and
       // records in-memory (state lives for this run only).
       expect(
-        await controller.startOnce(oneStep(minShowVersion: '1.0.0')),
+        await controller.startOnce(oneStep(minShowVersion: '1.0.0'),
+            mark: HintMarkPolicy.onFinish),
         isTrue,
       );
       expect(controller.isIdle, isFalse);
-      expect(controller.effectiveStore, isA<InMemoryHintStore>());
+      expect(controller.store, isA<InMemoryHintStore>());
       controller.finish();
       expect(
-        controller.effectiveStore.shouldShow('intro', minVersion: '1.0.0'),
+        controller.store.shouldShow('intro', minVersion: '1.0.0'),
         isFalse,
         reason: 'finish marks in the session store',
       );
@@ -803,10 +797,9 @@ void main() {
     testWidgets('out-of-scope targets do not activate steps', (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
         scopePrefix: 'greenhouse-',
-        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -842,10 +835,9 @@ void main() {
     testWidgets('typo candidates ignore out-of-scope ids', (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
-      final controller = HintController(
+      final controller = HintController.test(
         registry: registry,
         scopePrefix: 'greenhouse-',
-        headless: true,
       );
       addTearDown(controller.dispose);
 
@@ -905,7 +897,7 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final log = <String>[];
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       for (final id in ['target0', 'target1']) {
@@ -956,7 +948,7 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final log = <String>[];
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       for (final id in ['target0', 'target1']) {
@@ -992,7 +984,7 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final log = <String>[];
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       final reg = HintTargetRegistration(
@@ -1034,7 +1026,7 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final log = <String>[];
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       for (final id in ['target0', 'target1']) {
@@ -1079,7 +1071,7 @@ void main() {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
       final log = <String>[];
-      final controller = HintController(registry: registry, headless: true);
+      final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       for (final id in ['target0', 'target1']) {
@@ -1254,7 +1246,7 @@ void main() {
         steps: [
           const HintStep(
             targetId: 'addSet',
-            moreTargets: ['statsPeriodSelectr'], // the typo is the extra
+            additionalTargets: ['statsPeriodSelectr'], // the typo is the extra
             content: HintStepContent(title: 'multi'),
           ),
         ],

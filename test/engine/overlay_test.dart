@@ -120,7 +120,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       final tour = _tour('stats');
@@ -157,7 +156,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
@@ -188,7 +186,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
@@ -221,7 +218,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
 
@@ -255,20 +251,26 @@ void main() {
     testWidgets(
         'waiting: full scrim without a hole (no target yet), no follower',
         (tester) async {
+      final anchorLink = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
-      final registry = HintTargetRegistry(); // empty — the target is deferred
+      final registry = HintTargetRegistry(); // no 'deferredTarget' — deferred
       final input = _FakeInput();
 
       await tester.pumpWidget(_harness(
-        link: LayerLink(),
+        link: anchorLink,
         overlayKey: overlayKey,
+      ));
+      // An unrelated mounted target is the overlay-capture anchor; the tour's
+      // own target stays deferred.
+      registry.register(HintTargetRegistration(
+        id: 'anchor',
+        link: anchorLink,
+        context: tester.element(find.byType(CompositedTransformTarget)),
       ));
 
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState, // explicit overlay: no mounted
-        // targets to capture from (a fully deferred scenario).
       );
       addTearDown(engine.dispose);
       final tour = _tour('deferredTarget');
@@ -298,7 +300,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       final tour = _tour('stats');
 
@@ -330,7 +331,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       final tour = _tour('stats');
       engine.update(HintActive(tour: tour, stepIndex: 0));
@@ -366,7 +366,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
@@ -400,7 +399,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
 
@@ -432,7 +430,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: null,
       );
       addTearDown(engine.dispose);
       final tour = _tour('deferredTarget');
@@ -475,7 +472,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       final tour = HintTour(
@@ -489,7 +485,7 @@ void main() {
               // keeps it below the primary (a short tooltip would fit above).
               description: 'A second line so the tooltip lands below',
             ),
-            moreTargets: const ['extra'],
+            additionalTargets: const ['extra'],
           ),
         ],
       );
@@ -529,7 +525,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
 
@@ -585,7 +580,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       final tour = HintTour(
@@ -630,7 +624,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
@@ -659,7 +652,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       final tour = HintTour(
@@ -668,7 +660,7 @@ void main() {
           HintStep(
             targetId: 'stats',
             content: HintStepContent(title: 'Primary'),
-            moreTooltips: [
+            additionalTooltips: [
               HintTooltip(
                 position: TooltipPosition.right,
                 tooltipBuilder: (context, step, ctx) =>
@@ -713,7 +705,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
@@ -754,7 +745,6 @@ void main() {
       final engine = HintOverlayEngine(
         registry: registry,
         input: input,
-        overlay: overlayKey.currentState,
       );
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));

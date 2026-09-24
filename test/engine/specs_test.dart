@@ -1,110 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/specs.dart';
 
-enum _TourStep { drawer, settings, records }
-
-HintStep _stepFor(_TourStep step) => switch (step) {
-      _TourStep.drawer => HintStep(
-          targetId: 'drawer',
-          content: HintStepContent(title: 'Drawer'),
-        ),
-      _TourStep.settings => HintStep(
-          targetId: 'settings',
-          content: HintStepContent(title: 'Settings'),
-        ),
-      _TourStep.records => HintStep(
-          targetId: 'records',
-          content: HintStepContent(title: 'Records'),
-        ),
-    };
-
 void main() {
-  group('HintTour.fromEnum', () {
-    test('steps follow the enum declaration order', () {
-      final tour = HintTour.fromEnum(
-        id: 'home',
-        values: _TourStep.values,
-        stepFor: _stepFor,
-      );
-
-      expect(tour.id, 'home');
-      expect(
-        [for (final s in tour.steps) s.targetId],
-        ['drawer', 'settings', 'records'],
-      );
-    });
-
-    test('stepFor maps each value to its own step content', () {
-      final tour = HintTour.fromEnum(
-        id: 'home',
-        values: _TourStep.values,
-        stepFor: _stepFor,
-      );
-
-      expect(tour.steps[0].title, 'Drawer');
-      expect(tour.steps[1].title, 'Settings');
-      expect(tour.steps[2].title, 'Records');
-    });
-
-    test('stepTimeout and disableBackButton pass through', () {
-      final tour = HintTour.fromEnum(
-        id: 'home',
-        values: _TourStep.values,
-        stepFor: _stepFor,
-        stepTimeout: const Duration(seconds: 7),
-        disableBackButton: true,
-      );
-
-      expect(tour.stepTimeout, const Duration(seconds: 7));
-      expect(tour.disableBackButton, isTrue);
-    });
-
-    test('missingTargetPolicy passes through fromEnum', () {
-      final tour = HintTour.fromEnum(
-        id: 'home',
-        values: _TourStep.values,
-        stepFor: _stepFor,
-        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
-      );
-
-      expect(
-        tour.missingTargetPolicy,
-        HintMissingTargetPolicy.skipStep,
-      );
-    });
-
-    test('the built tour participates in duplicate detection', () {
-      final tour = HintTour.fromEnum(
-        id: 'dup',
-        values: _TourStep.values,
-        stepFor: (step) => HintStep(
-          content: HintStepContent(title: step.name),
-          // Every step spotlighting the same target — a tour-authoring
-          // error the engine would flag at start.
-          targetId: 'x',
-        ),
-      );
-
-      expect(tour.duplicateTargetIds, {'x'});
-    });
-
-    test('empty values produce an empty-steps assertion (base contract)', () {
-      // The base constructor asserts steps.length > 0; fromEnum with no
-      // values hits the same contract.
-      expect(
-        () => HintTour.fromEnum<Never>(
-          id: 'empty',
-          values: const [],
-          stepFor: (value) => throw UnimplementedError(),
-        ),
-        throwsAssertionError,
-      );
-    });
-  });
-
   group('missingTargetPolicy JSON round-trip (tour-level only)', () {
     test('tour policy survives toJson/fromJson; step key ignored', () {
       final tour = HintTour(
@@ -353,7 +252,7 @@ void main() {
   });
 
   group('toJson→fromJson field round-trip', () {
-    test('six never-covered fields + tour-level autoScroll survive', () {
+    test('focus/autoScroll fields + tour-level autoScroll survive', () {
       final tour = HintTour(
         id: 't',
         autoScroll: true,
@@ -361,12 +260,9 @@ void main() {
           HintStep(
             targetId: 'a',
             content: HintStepContent(title: 'A'),
-            targetRect: Rect.fromLTWH(1, 2, 3, 4),
             focusShape: FocusShape.circle,
             focusPadding: 8,
             autoScroll: true,
-            transitionDuration: Duration(milliseconds: 123),
-            transition: HintEntryAnimation.sprung,
           ),
         ],
       );
@@ -374,12 +270,9 @@ void main() {
       final restored = HintTour.fromJson(tour.toJson());
       final step = restored.steps.single;
 
-      expect(step.targetRect, const Rect.fromLTWH(1, 2, 3, 4));
       expect(step.focusShape, FocusShape.circle);
       expect(step.focusPadding, 8);
       expect(step.autoScroll, isTrue);
-      expect(step.transitionDuration, const Duration(milliseconds: 123));
-      expect(step.transition, HintEntryAnimation.sprung);
       expect(restored.autoScroll, isTrue);
     });
   });
@@ -396,9 +289,11 @@ void main() {
           HintStep(
             targetId: 'b',
             content: HintStepContent(title: 'Second'),
-            moreTargets: ['c'],
-            moreTooltips: [
-              HintTooltip(position: TooltipPosition.top, title: 'Extra')
+            additionalTargets: ['c'],
+            additionalTooltips: [
+              HintTooltip(
+                  position: TooltipPosition.top,
+                  content: HintStepContent(title: 'Extra'))
             ],
             position: TooltipPosition.top,
             stepTimeout: const Duration(milliseconds: 500),
@@ -413,10 +308,11 @@ void main() {
       expect(back.id, tour.id);
       expect(back.steps.length, tour.steps.length);
       expect(back.steps[0].targetId, 'a');
-      expect(back.steps[0].title, 'Hello');
+      expect(back.steps[0].content.title, 'Hello');
       expect(back.steps[0].position, TooltipPosition.bottom);
-      expect(back.steps[1].moreTargets, ['c']);
-      expect(back.steps[1].moreTooltips.first.position, TooltipPosition.top);
+      expect(back.steps[1].additionalTargets, ['c']);
+      expect(
+          back.steps[1].additionalTooltips.first.position, TooltipPosition.top);
       expect(back.steps[1].stepTimeout, const Duration(milliseconds: 500));
       expect(back.steps[1].showSkip, false);
       expect(back.stepTimeout, const Duration(seconds: 5));
@@ -429,10 +325,11 @@ void main() {
 
     test('HintTooltip toJson/fromJson', () {
       final t = HintTooltip(
-          position: TooltipPosition.left, title: 'T', description: 'D');
+          position: TooltipPosition.left,
+          content: HintStepContent(title: 'T', description: 'D'));
       final back = HintTooltip.fromJson(t.toJson());
       expect(back.position, TooltipPosition.left);
-      expect(back.title, 'T');
+      expect(back.content.title, 'T');
     });
   });
 
@@ -449,9 +346,9 @@ void main() {
               'title': 'Hello',
               'position': 'middle',
               'focusShape': 'hexagon',
-              'transitionCurve': 'wobble',
+              'transitionCurve': 'wobble', // removed field → ignored, no warn
               'missingTargetPolicy': 'explode-too',
-              'moreTooltips': [
+              'additionalTooltips': [
                 {'position': 'sideways', 'title': 'Extra'},
               ],
             },
@@ -464,18 +361,18 @@ void main() {
       expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
       expect(step.position, TooltipPosition.auto);
       expect(step.focusShape, isNull); // unknown → inherit the target's
-      expect(step.transition, isNull); // unknown → no entry animation
       // Step-level missingTargetPolicy is ignored (field removed) — no warn
-      // from that key; the tour-level 'explode' still warns.
-      expect(step.moreTooltips.single.position, TooltipPosition.auto);
-      expect(step.moreTooltips.single.title, 'Extra'); // the rest survives
-      expect(warnings, hasLength(5));
+      // from that key; the tour-level 'explode' still warns. Removed fields
+      // (transitionCurve) are ignored silently too.
+      expect(step.additionalTooltips.single.position, TooltipPosition.auto);
+      expect(step.additionalTooltips.single.content.title, 'Extra');
+      expect(warnings, hasLength(4));
       expect(warnings.every((w) => w.startsWith('hintful: unknown ')), isTrue);
       // The order follows argument evaluation — assert membership, not order.
       expect(warnings.any((w) => w.contains("missingTargetPolicy 'explode'")),
           isTrue);
       expect(
-          warnings.any((w) => w.contains("transitionCurve 'wobble'")), isTrue);
+          warnings.any((w) => w.contains("transitionCurve 'wobble'")), isFalse);
     });
 
     test('an absent field is not a warning', () {
@@ -490,7 +387,6 @@ void main() {
         onWarning: warnings.add,
       );
       expect(tour.steps.single.position, TooltipPosition.auto);
-      expect(tour.steps.single.transition, isNull);
       expect(warnings, isEmpty);
     });
   });
