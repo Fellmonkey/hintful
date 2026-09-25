@@ -44,7 +44,7 @@ void main() {
       expect(withLegacy.steps.single.content.title, 'A');
     });
 
-    test('absent keys default to abortTour (old payloads)', () {
+    test('absent key defaults to skipStep (the Dart default)', () {
       final restored = HintTour.fromJson({
         'id': 't',
         'steps': [
@@ -54,7 +54,7 @@ void main() {
 
       expect(
         restored.missingTargetPolicy,
-        HintMissingTargetPolicy.abortTour,
+        HintMissingTargetPolicy.skipStep,
       );
       expect(restored.steps.single.content.title, 'A');
     });
@@ -358,7 +358,7 @@ void main() {
       );
 
       final step = tour.steps.single;
-      expect(tour.missingTargetPolicy, HintMissingTargetPolicy.abortTour);
+      expect(tour.missingTargetPolicy, HintMissingTargetPolicy.skipStep);
       expect(step.position, TooltipPosition.auto);
       expect(step.focusShape, isNull); // unknown → inherit the target's
       // Step-level missingTargetPolicy is ignored (field removed) — no warn

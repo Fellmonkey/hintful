@@ -153,13 +153,6 @@ class HintStepContent {
   /// (same contract as [titleBuilder]).
   final String Function(BuildContext)? descriptionBuilder;
 
-  /// No strings and no builders — the slot renders nothing.
-  bool get isEmpty =>
-      title == null &&
-      description == null &&
-      titleBuilder == null &&
-      descriptionBuilder == null;
-
   /// Effective title for [context] — builders take precedence.
   String? effectiveTitle(BuildContext context) =>
       titleBuilder?.call(context) ?? title;
@@ -338,6 +331,12 @@ class HintStep {
 
   /// All target ids of the step: the primary [targetId] +
   /// [additionalTargets].
+  ///
+  /// Builds a fresh list on each access — deliberately not cached: a cached
+  /// list would need a lazy (non-`const`) field, costing [HintStep] its
+  /// `const` constructor. Every caller is event-driven (a start, a step
+  /// change, a target registration/removal), never per frame, so the small
+  /// allocation is not worth that trade.
   List<String> get targetIds => [targetId, ...additionalTargets];
 
   /// Serializes the step to the frozen JSON wire format (see `fromJson`).
@@ -586,7 +585,7 @@ class HintTour {
       disableBackButton: json['disableBackButton'] as bool? ?? false,
       autoScroll: json['autoScroll'] as bool? ?? false,
       missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
-          json['missingTargetPolicy'], HintMissingTargetPolicy.abortTour,
+          json['missingTargetPolicy'], HintMissingTargetPolicy.skipStep,
           field: 'missingTargetPolicy', onWarning: onWarning),
       minShowVersion: json['minShowVersion'] as String?,
     );
