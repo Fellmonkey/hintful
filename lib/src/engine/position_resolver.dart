@@ -1,19 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-/// Target position for rendering the scrim/tooltip.
+/// A target's position for rendering the scrim/tooltip: its top-left corner
+/// in overlay coordinates plus its size.
 ///
-/// [PositionedHint] — the target is mounted and the compositor knows its
-/// position; [UnpositionedHint] — the target is not in the tree (yet/already),
-/// there is no position.
+/// A resolver returns `null` instead when the target has no position (not in
+/// the tree yet/already) — there is nothing to point at.
 @immutable
-sealed class HintPosition {
-  const HintPosition();
-}
-
-/// The target is mounted; the compositor knows its position.
-@immutable
-class PositionedHint extends HintPosition {
+class PositionedHint {
   /// Creates a positioned hint from overlay-space [translation] + [size].
   const PositionedHint({required this.translation, required this.size});
 
@@ -28,34 +22,14 @@ class PositionedHint extends HintPosition {
   String toString() => 'PositionedHint($translation, $size)';
 }
 
-/// The target is not in the tree (yet/already) — there is no position.
-@immutable
-class UnpositionedHint extends HintPosition {
-  /// Creates an unpositioned hint.
-  const UnpositionedHint();
-
-  @override
-  String toString() => 'UnpositionedHint()';
-}
-
 /// Source of target positions.
 ///
 /// The abstraction exists so the engine does not depend directly on Flutter's
 /// internal layer APIs: if `FollowerLayer.getLastTransform()` breaks or gets
 /// renamed, one implementation is fixed instead of the whole overlay.
 abstract class HintPositionResolver {
-  /// Current position of the target (or [UnpositionedHint]).
-  HintPosition resolve();
-}
-
-/// A resolver that never yields a position: used in waiting mode when the
-/// target does not exist yet and the scrim is drawn fully (no hole).
-class UnpositionedHintResolver implements HintPositionResolver {
-  /// Creates the never-positioned resolver.
-  const UnpositionedHintResolver();
-
-  @override
-  HintPosition resolve() => const UnpositionedHint();
+  /// Current position of the target, or null when it has none.
+  PositionedHint? resolve();
 }
 
 /// Target position **from the compositor** — the engine's main resolver.
@@ -79,11 +53,11 @@ class CompositorHintResolver implements HintPositionResolver {
   final RenderFollowerLayer _follower;
 
   @override
-  HintPosition resolve() {
+  PositionedHint? resolve() {
     final size = _follower.link.leaderSize;
     final transform = _follower.layer?.getLastTransform();
     if (size == null || transform == null) {
-      return const UnpositionedHint();
+      return null;
     }
     assert(
         _isAxisAligned(transform),

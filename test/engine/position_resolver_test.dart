@@ -53,9 +53,7 @@ void main() {
       final resolver = await _resolverInside(tester);
       await tester.pump(); // the scene is built — _lastTransform is filled
 
-      final position = resolver.resolve();
-      expect(position, isA<PositionedHint>());
-      final p = position as PositionedHint;
+      final p = resolver.resolve()!;
       expect(p.translation, const Offset(40, 60));
       expect(p.size, const Size(100, 50));
 
@@ -109,8 +107,7 @@ void main() {
       ));
       await tester.pump();
 
-      final before = resolver.resolve();
-      expect(before, isA<PositionedHint>());
+      final before = resolver.resolve()!;
 
       // Scroll 60 up via the scroll position: the compositor itself
       // recomputes the leader's position — no engine tracking code.
@@ -120,22 +117,18 @@ void main() {
           .jumpTo(60);
       await tester.pump();
 
-      final after = resolver.resolve();
-      expect(after, isA<PositionedHint>());
-      final beforePos = before as PositionedHint;
-      final afterPos = after as PositionedHint;
+      final after = resolver.resolve()!;
       expect(
-        afterPos.translation.dy,
-        closeTo(beforePos.translation.dy - 60, 0.2),
+        after.translation.dy,
+        closeTo(before.translation.dy - 60, 0.2),
       );
-      expect(afterPos.translation.dx, closeTo(beforePos.translation.dx, 0.2));
-      expect(afterPos.size, beforePos.size);
+      expect(after.translation.dx, closeTo(before.translation.dx, 0.2));
+      expect(after.size, before.size);
     });
   });
 
-  group('UnpositionedHintResolver', () {
-    testWidgets('without a leader — UnpositionedHint (target not mounted)',
-        (tester) async {
+  group('CompositorHintResolver without a leader', () {
+    testWidgets('no transform — null (target not mounted)', (tester) async {
       // A bare render object without a tree: the layer is not created (or no
       // transform has arrived) — no position from the compositor, like an
       // unregistered target.
@@ -144,7 +137,7 @@ void main() {
         showWhenUnlinked: false,
       );
       final resolver = CompositorHintResolver(follower);
-      expect(resolver.resolve(), isA<UnpositionedHint>());
+      expect(resolver.resolve(), isNull);
     });
   });
 }

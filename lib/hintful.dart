@@ -26,18 +26,17 @@
 ///   service; configure it once app-wide via `Hintful.configure(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
-/// `HintOverlayHost`, `defaultOverlayHost`, position value types
-/// `HintPosition`/`PositionedHint`/`UnpositionedHint`/
-/// `HintPositionResolver`), the register-path
+/// `HintOverlayHost`, `defaultOverlayHost`, the position value type
+/// `PositionedHint` and `HintPositionResolver`), the register-path
 /// (`HintTargetRegistration`/`register`/`unregister`/`lookup`), the
 /// inheritance-scope helpers (`HintStepInternal` /
 /// `resolveTimeout`,
 /// `HintControllerScope` / `inScope`), the diagnostics helpers
 /// (`formatHintSkipped`, `debugPrintHintSkip`, `closestTargetIds`,
 /// `editDistance`), the focus-padding fallback constant `kHintFocusPadding`,
-/// the internal `hintTourWithSteps`, and the concrete resolvers
-/// `CompositorHintResolver` / `UnpositionedHintResolver` (they touch
-/// Flutter's layer internals). They stay public inside `lib/src/` for the
+/// the internal `hintTourWithSteps`, and the concrete resolver
+/// `CompositorHintResolver` (it touches Flutter's layer internals). They stay
+/// public inside `lib/src/` for the
 /// package's own tests — a public member of an exported *class* is API by
 /// definition, so engine-only helpers live in unexported *extensions*.
 ///

@@ -7,12 +7,12 @@ import 'package:hintful/hintful.dart';
 /// compiling — the symbol simply stops resolving here.
 ///
 /// What stays outside the barrel on purpose (the render contract
-/// `HintOverlayHost`/`defaultOverlayHost`/position types, the register-path
+/// `HintOverlayHost`/`defaultOverlayHost`/`PositionedHint`, the register-path
 /// `HintTargetRegistration`, the diagnostics helpers `formatHintSkipped`/
 /// `debugPrintHintSkip`/`closestTargetIds`, `kHintFocusPadding`,
 /// `hintTourWithSteps`, the scope/inheritance helpers
 /// `HintControllerScope`/`HintStepInternal`, and the concrete
-/// `CompositorHintResolver` / `UnpositionedHintResolver`) is covered through
+/// `CompositorHintResolver`) is covered through
 /// its source path in the engine tests.
 void main() {
   test('barrel: the whole public contract is reachable from one import point',

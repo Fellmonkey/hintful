@@ -42,7 +42,7 @@ class PulsePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final position = resolver?.resolve();
-    if (position is! PositionedHint) return;
+    if (position == null) return;
     final hole = (Offset.zero & position.size)
         .inflate(focusPadding)
         .shift(position.translation);

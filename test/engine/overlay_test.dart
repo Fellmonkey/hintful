@@ -316,6 +316,43 @@ void main() {
       engine.dispose();
     });
 
+    testWidgets(
+        'a state change repaints even with no mounted target (the overlay is '
+        'captured once)', (tester) async {
+      final link = LayerLink();
+      final overlayKey = GlobalKey<OverlayState>();
+      final registry = HintTargetRegistry();
+      final input = _FakeInput();
+
+      await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
+      final ctx = tester.element(find.byType(CompositedTransformTarget));
+      final registration = HintTargetRegistration(
+        id: 'stats',
+        link: link,
+        context: ctx,
+      );
+      registry.register(registration);
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
+      addTearDown(engine.dispose);
+      final tour = _tour('stats');
+
+      engine.update(HintActive(tour: tour, stepIndex: 0));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Title'), findsOneWidget);
+
+      // The only target unmounts — the machine would move the step to Waiting.
+      // The entry is already hosted, so the update must rebuild it as-is; there
+      // is no mounted target left to re-capture a root overlay from.
+      registry.unregister(registration);
+      engine.update(HintWaiting(tour: tour, stepIndex: 0));
+      await tester.pump();
+
+      expect(find.text('Preparing…'), findsOneWidget);
+      expect(find.text('Title'), findsNothing);
+    });
+
     testWidgets('dispose removes the entry while the tour is still active',
         (tester) async {
       final link = LayerLink();

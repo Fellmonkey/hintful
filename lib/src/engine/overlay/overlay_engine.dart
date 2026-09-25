@@ -19,7 +19,7 @@ import 'tooltip_tail.dart';
 
 /// Single focus-geometry chain: step override → target default → package
 /// default ([FocusShape.rectangle] / [kHintFocusPadding]). Shared by the
-/// active, waiting and rect render paths — one place for the fallback order.
+/// active and waiting render paths — one place for the fallback order.
 FocusShape resolveFocusShape(HintStep step, [HintTargetRegistration? reg]) =>
     step.focusShape ?? reg?.focusShape ?? FocusShape.rectangle;
 
@@ -92,18 +92,23 @@ class HintOverlayEngine implements HintOverlayHost {
       return;
     }
 
-    final overlay = _captureOverlay();
-    if (overlay == null) {
-      // No mounted target to capture a root overlay from: nowhere to draw —
-      // say so honestly (otherwise "why isn't it visible" stays silent).
-      _reportOverlayUnavailable();
-      return;
-    }
-
     if (_entry == null) {
+      // Capture once per tour: while the entry lives its overlay is already
+      // known, so re-deriving it on every state change would walk the registry
+      // (an id-set copy, a lookup and an `Overlay.maybeOf` per id) for nothing.
+      final overlay = _captureOverlay();
+      if (overlay == null) {
+        // No mounted target to capture a root overlay from: nowhere to draw —
+        // say so honestly (otherwise "why isn't it visible" stays silent).
+        _reportOverlayUnavailable();
+        return;
+      }
       _entry = _createEntry(overlay);
       overlay.insert(_entry!);
     } else {
+      // The overlay already hosts the entry — the state change only needs a
+      // rebuild. (A vanished primary still lands in the waiting view: the
+      // machine is the source of truth, the view guards the same-frame race.)
       _entry!.markNeedsBuild();
     }
   }
@@ -826,9 +831,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// regions).
   List<Rect> _extraHoleRects() => [
         for (final r in widget.registrations.skip(1))
-          if (_resolvers[r.id]?.resolve()
-              case PositionedHint(:final translation, :final size))
-            translation & size,
+          if (_resolvers[r.id]?.resolve() case final position?)
+            position.translation & position.size,
       ];
 
   /// Global rects of ALL spotlighted targets (primary + extras) — tap
@@ -920,7 +924,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       final primary = _resolvers[widget.registrations.first.id];
       if (primary != null) {
         var position = primary.resolve();
-        if (position is! PositionedHint) {
+        if (position == null) {
           // The compositor has no transform for the target: it is outside the
           // visible region (a ListView cache-band child is built and laid out
           // but never painted), or the follower has not been composited yet.
@@ -932,8 +936,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
           final measured = _measureSync(widget.registrations.first);
           if (measured != null) position = measured;
         }
-        if (position is PositionedHint &&
-            _translation != position.translation) {
+        if (position != null && _translation != position.translation) {
           if (_translation == null) {
             // First snapshot after mount/target-change: the scrim painter
             // was built with an empty resolver snapshot, so rebuild once
@@ -949,7 +952,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
               _scrimPaintKey.currentContext?.findRenderObject();
           (renderObject as RenderCustomPaint?)?.markNeedsPaint();
           _holeNotifier.value = _translation;
-        } else if (position is! PositionedHint && _translation != null) {
+        } else if (position == null && _translation != null) {
           // The target cannot be measured at all any more (its render object
           // is gone or not laid out — it left the tree/cache) while a position
           // was known: retract the spotlight instead of freezing it on the
@@ -991,7 +994,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (position != null) _resolvers[r.id] = _StaticPosition(position);
     }
     final primary = _resolvers[widget.registrations.first.id]?.resolve();
-    if (primary is PositionedHint) {
+    if (primary != null) {
       _translation = primary.translation;
       _holeNotifier.value = primary.translation;
     }
@@ -1069,13 +1072,12 @@ class _StaticPosition implements HintPositionResolver {
   final PositionedHint _position;
 
   @override
-  HintPosition resolve() => _position;
+  PositionedHint resolve() => _position;
 }
 
 /// Shared overlay shell: translucent tap handling over a full-screen
-/// layout box. Both contents (follower-anchored and rect-anchored) share
-/// this tap contract — taps dispatched by region, drags passing through to
-/// the page below (scroll-through) — so it cannot drift between the two.
+/// layout box. The tap contract — taps dispatched by region, drags passing
+/// through to the page below (scroll-through) — lives in exactly one place.
 class _TapShell extends StatelessWidget {
   const _TapShell({
     required this.onTapDown,
@@ -1110,7 +1112,6 @@ class _TapShell extends StatelessWidget {
 
 /// One blur scrim for any hole list: a global `BackdropFilter` clipped to
 /// the screen minus the holes (even-odd clip — no boolean geometry).
-/// Shared by the follower-anchored and rect-anchored content.
 Widget _blurScrim({
   required Size screen,
   required List<Rect> holes,
@@ -1132,10 +1133,10 @@ Widget _blurScrim({
   );
 }
 
-/// Tap dispatch by hole region, shared by the follower-anchored content and
-/// the rect-anchored content: inside any hole — the target region, otherwise
-/// the overlay region. Each region carries one [HintTapBehavior] (advance /
-/// ignore / custom); the machine still only sees `UserNext` from advance.
+/// Tap dispatch by hole region: inside any hole — the target region,
+/// otherwise the overlay region. Each region carries one [HintTapBehavior]
+/// (advance / ignore / custom); the machine still only sees `UserNext` from
+/// advance.
 void _dispatchStepTap({
   required HintStep step,
   required HintActions actions,
@@ -1161,8 +1162,7 @@ void _dispatchStepTap({
   }
 }
 
-/// Primary tooltip content: default or custom, with tail. Shared by the
-/// follower-anchored slots and the rect-anchored content — one source for
+/// Primary tooltip content: default or custom, with tail — one source for
 /// what a primary slot looks like.
 Widget _primaryTooltipSlot({
   required BuildContext context,

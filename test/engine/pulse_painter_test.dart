@@ -7,10 +7,10 @@ import 'package:hintful/src/engine/specs.dart' show FocusShape;
 class _FakeResolver implements HintPositionResolver {
   _FakeResolver(this.position);
 
-  final HintPosition position;
+  final PositionedHint? position;
 
   @override
-  HintPosition resolve() => position;
+  PositionedHint? resolve() => position;
 }
 
 void main() {
@@ -119,7 +119,7 @@ void main() {
         resolver: resolver,
         color: const Color(0xFFFF0000),
       );
-      final otherResolver = _FakeResolver(const UnpositionedHint());
+      final otherResolver = _FakeResolver(null);
       final other = PulsePainter(
         animation: controller,
         resolver: otherResolver,
