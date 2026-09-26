@@ -79,6 +79,15 @@ int _compareVersions(String a, String b) {
   return 0;
 }
 
+/// Shared [HintStore.shouldShow] rule used by both shipped stores: never
+/// shown → show; no [minVersion] → a previous show is final (never again);
+/// else show when the last shown version is OLDER than [minVersion].
+bool _shouldShowVersioned(String? lastShown, String? minVersion) {
+  if (lastShown == null) return true;
+  if (minVersion == null) return false;
+  return _compareVersions(lastShown, minVersion) < 0;
+}
+
 /// Zero-dependency default: everything held in memory.
 ///
 /// Also the reference implementation — the same semantics any persistent
@@ -90,12 +99,8 @@ class InMemoryHintStore implements HintStore {
   final Map<String, String> _shown = {};
 
   @override
-  bool shouldShow(String key, {String? minVersion}) {
-    final last = _shown[key];
-    if (last == null) return true;
-    if (minVersion == null) return false;
-    return _compareVersions(last, minVersion) < 0;
-  }
+  bool shouldShow(String key, {String? minVersion}) =>
+      _shouldShowVersioned(_shown[key], minVersion);
 
   @override
   void markShown(String key, String version) => _shown[key] = version;
@@ -133,12 +138,8 @@ class CallbackHintStore implements HintStore {
   final void Function(String key, String version) _write;
 
   @override
-  bool shouldShow(String key, {String? minVersion}) {
-    final last = _read(key);
-    if (last == null) return true;
-    if (minVersion == null) return false;
-    return _compareVersions(last, minVersion) < 0;
-  }
+  bool shouldShow(String key, {String? minVersion}) =>
+      _shouldShowVersioned(_read(key), minVersion);
 
   @override
   void markShown(String key, String version) => _write(key, version);
