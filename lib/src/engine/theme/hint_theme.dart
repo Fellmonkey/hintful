@@ -61,8 +61,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// it is what visually ties the tooltip to the hole; set false for a
   /// floating-callout look.
   ///
-  /// The engine wraps it around every tooltip slot — the default tooltip, a
-  /// custom `tooltipBuilder` and multi-content slots (`moreTooltips`) — and
+  /// The engine wraps it around every tooltip slot — the default tooltip, a    /// custom `tooltipBuilder` and multi-content slots (`additionalTooltips`) — and
   /// it always points at the primary target's hole. A custom tooltip that
   /// draws its own pointer should turn it off.
   final bool showTail;
@@ -173,6 +172,38 @@ class HintTheme extends ThemeExtension<HintTheme> {
       tourOfferLabels: t < 0.5 ? tourOfferLabels : other.tourOfferLabels,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is HintTheme &&
+      other.tooltipBackground == tooltipBackground &&
+      other.tooltipForeground == tooltipForeground &&
+      other.scrimColor == scrimColor &&
+      other.tooltipRadius == tooltipRadius &&
+      other.tooltipPadding == tooltipPadding &&
+      other.tooltipTitleStyle == tooltipTitleStyle &&
+      other.tooltipDescriptionStyle == tooltipDescriptionStyle &&
+      other.showTail == showTail &&
+      other.imageFilter == imageFilter &&
+      other.showPulse == showPulse &&
+      other.tooltipLabels == tooltipLabels &&
+      other.tourOfferLabels == tourOfferLabels;
+
+  @override
+  int get hashCode => Object.hash(
+        tooltipBackground,
+        tooltipForeground,
+        scrimColor,
+        tooltipRadius,
+        tooltipPadding,
+        tooltipTitleStyle,
+        tooltipDescriptionStyle,
+        showTail,
+        imageFilter,
+        showPulse,
+        tooltipLabels,
+        tourOfferLabels,
+      );
 }
 
 /// Access to the hint theme from [ThemeData]: `Theme.of(context).hintTheme`.
