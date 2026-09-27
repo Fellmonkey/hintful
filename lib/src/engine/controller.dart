@@ -15,9 +15,10 @@ import 'store.dart';
 /// The controller does not know what the overlay looks like: it only asks to
 /// show the machine's current state and hide it on completion. The
 /// implementation is `HintOverlayEngine`. In headless runs
-/// (`HintController(headless: true)`) the host is absent and tours run
-/// without rendering: the machine, timers and diagnostics always work —
-/// this is what makes the engine a testable artifact.
+/// (`HintController.test()` — the `@visibleForTesting` factory) the host is
+/// absent and tours run without rendering: the machine, timers and
+/// diagnostics always work — this is what makes the engine a testable
+/// artifact.
 abstract class HintOverlayHost {
   /// Show/update the UI for [state] (waiting — scrim without a hole, active —
   /// hole + tooltip); on [HintIdle] — remove the overlay.
@@ -119,13 +120,14 @@ class HintController implements HintActions {
   HintController({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    this.scopePrefix,
-  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
-        _diagnostics = _composeDiagnostics(diagnostics),
-        _storeOverride = null,
-        _overlayHostBuilder = defaultOverlayHost() {
-    _init();
-  }
+    String? scopePrefix,
+  }) : this._(
+          registry: registry,
+          diagnostics: diagnostics,
+          scopePrefix: scopePrefix,
+          store: null,
+          overlayHostBuilder: defaultOverlayHost(),
+        );
 
   /// Test seam — not part of the public contract. [headless] (default true)
   /// runs the machine with no render mechanics; pass `headless: false` to
@@ -136,15 +138,16 @@ class HintController implements HintActions {
   HintController.test({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
-    this.scopePrefix,
+    String? scopePrefix,
     HintStore? store,
     bool headless = true,
-  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
-        _diagnostics = _composeDiagnostics(diagnostics),
-        _storeOverride = store,
-        _overlayHostBuilder = headless ? null : defaultOverlayHost() {
-    _init();
-  }
+  }) : this._(
+          registry: registry,
+          diagnostics: diagnostics,
+          scopePrefix: scopePrefix,
+          store: store,
+          overlayHostBuilder: headless ? null : defaultOverlayHost(),
+        );
 
   /// Implementation seam for engine tests — not part of the public
   /// contract; use `HintController.test(headless: ...)`. Injects a custom
@@ -154,12 +157,29 @@ class HintController implements HintActions {
     HintOverlayHost Function(HintController) host, {
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
+    String? scopePrefix,
+    HintStore? store,
+  }) : this._(
+          registry: registry,
+          diagnostics: diagnostics,
+          scopePrefix: scopePrefix,
+          store: store,
+          overlayHostBuilder: host,
+        );
+
+  /// The single initializer behind [HintController], [HintController.test]
+  /// and [HintController.withHost]: resolves the registry default, composes
+  /// the diagnostics handler and wires the registry listener.
+  HintController._({
+    HintTargetRegistry? registry,
+    HintDiagnosticsHandler? diagnostics,
     this.scopePrefix,
     HintStore? store,
+    required HintOverlayHost Function(HintController)? overlayHostBuilder,
   })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
         _diagnostics = _composeDiagnostics(diagnostics),
         _storeOverride = store,
-        _overlayHostBuilder = host {
+        _overlayHostBuilder = overlayHostBuilder {
     _init();
   }
 
