@@ -546,8 +546,6 @@ class HintMachine {
         // aborting: the tour survives a transient unmount and continues when
         // the target comes back; the re-armed timeout still guards against a
         // permanent loss (a vanished target that never returns times out).
-        // Rect-anchored steps are exempt: their spotlight is static
-        // coordinates, registry targets (if any) are not rendered.
         effects.add(
           ArmTimeoutEffect(
             timeout: step.resolveTimeout(tour.stepTimeout),

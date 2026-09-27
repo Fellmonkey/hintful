@@ -22,7 +22,7 @@ import '../engine/theme/hint_theme.dart';
 /// This is the public composition surface for custom tooltips — call back
 /// into `DefaultTooltip(step:, ctx:)` from a `tooltipBuilder` to keep the
 /// default look and animate around it. Multi-content slots
-/// ([HintStep.moreTooltips]) render through the engine's internal
+/// ([HintStep.additionalTooltips]) render through the engine's internal
 /// [HintSlotTooltip] (informational, no action row) — that slot machinery
 /// is deliberately not part of this widget's public contract.
 ///
@@ -66,7 +66,7 @@ class DefaultTooltip extends StatelessWidget {
       );
 }
 
-/// Informational multi-content slot ([HintStep.moreTooltips]): the same
+/// Informational multi-content slot ([HintStep.additionalTooltips]): the same
 /// rendering as [DefaultTooltip] with the action row removed (the primary
 /// tooltip owns the tour controls) and the slot's own [content].
 ///

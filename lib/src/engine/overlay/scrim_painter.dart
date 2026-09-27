@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 import '../specs.dart' show FocusShape;
 
 /// Screen dimming with holes over explicit screen-space rects — the single
-/// scrim painter for every mode (active spotlight, rect target, waiting).
+/// scrim painter for every mode (active spotlight and waiting).
 ///
 /// The painter lives in a full-screen global box and cuts [holes] exactly
 /// where given. Empty/inverted rects cut nothing (full dim — the waiting

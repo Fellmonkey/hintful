@@ -29,7 +29,7 @@ const double _kEpsilon = 0.5;
 /// layout phase, where the child's final offset is not known yet).
 ///
 /// Returns null when the tooltip overlaps the hole in both axes — the
-/// degenerate \"nothing fits\" fallback corner: an arrow would point at
+/// degenerate "nothing fits" fallback corner: an arrow would point at
 /// nothing, so no tail is drawn.
 TailSide? tailSideFor(Rect tooltip, Rect hole) {
   if (tooltip.bottom <= hole.top + _kEpsilon) return TailSide.bottom;

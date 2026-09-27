@@ -17,15 +17,15 @@ import 'package:flutter/foundation.dart';
 enum HintSkipReason {
   /// The render host could not be mounted: no `OverlayState` was reachable
   /// and no mounted target was available to capture the root overlay from.
-  /// Matters for fully-deferred scenarios — pass `overlay:` to
-  /// `HintController`.
+  /// Matters for fully-deferred scenarios — the root overlay is captured
+  /// from the first mounted `HintTarget` (there is no `overlay:` parameter).
   overlayUnavailable,
 
   /// Wait-for-target: the target did not appear within the configured timeout.
   timeout,
 
-  /// targetId is unknown to the registry and no close candidates exist
-  /// (likely a typo).
+  /// `targetId` is unknown to the registry while close candidates exist
+  /// (a likely typo — the detail lists the closest ids).
   unknownTarget,
 
   /// The user skipped the tour.

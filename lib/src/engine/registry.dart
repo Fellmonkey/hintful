@@ -83,6 +83,12 @@ class HintTargetRegistry {
   final Map<String, HintTargetRegistration> _byId = {};
 
   /// All registered ids (unmodifiable copy; used for typo candidates).
+  ///
+  /// Copies on each access — deliberately not cached: registrations come and
+  /// go (list recycling during a tour), so a cache would need invalidation on
+  /// every mutation, and a live view would risk concurrent modification.
+  /// Callers iterate immediately, and the calls are event-driven (a start, a
+  /// registry change), never per frame.
   Set<String> get ids => Set.unmodifiable(_byId.keys);
 
   void _notifyChanged() {

@@ -22,8 +22,9 @@ enum HintTourOfferResult {
   /// user declined this offer before (per-page or all-pages key).
   alreadyShown,
 
-  /// The user accepted but another tour is running — nothing started;
-  /// retry when [HintController.isIdle] is true.
+  /// The user accepted but nothing started: another tour is running (retry
+  /// when [HintController.isIdle] is true), or the accepted tour had no
+  /// valid steps left after typo filtering.
   busy,
 }
 
