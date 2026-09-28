@@ -2,243 +2,98 @@
 
 ## 1.0.0
 
-### Release-candidate API slimming (the final 1.0 surface)
+The first stable release. The 1.x API is frozen: the supported import is the
+single `package:hintful/hintful.dart`, and every type documented as "closed in
+1.x" (`HintSkipReason`, `TooltipPosition`, `FocusShape`,
+`HintMissingTargetPolicy`, `HintTourOfferResult`, `HintStore`,
+`HintMarkPolicy`) will not grow before 2.0.
 
-The nine-point pre-tag slim-down toward the "install and forget" ideal. The
-rest of this section is the accumulated dev log — entries below that touch
-the same areas describe the final state as amended here.
+Upgrading from **0.7.0** — the whole migration in one list.
 
-- **Sugar getters are gone (final):** `HintStep`/`HintTooltip` expose only
-  the `content` slot — the `title`/`description`/`titleBuilder`/
-  `descriptionBuilder` getters are removed; read `step.content.title` etc.
-  (amends the `content:` entries below).
-- **Animation is `tooltipBuilder`'s job (final):** `HintEntryAnimation`,
-  `HintStep.transition`/`transitionDuration` and the exported
-  `hintTransitionDuration` helper are removed — a custom builder animates
-  its own entry (honor `MediaQuery.disableAnimations` inline). (Amends the
-  preset entries below.)
-- **Rect targets are gone (final):** `HintStep.targetRect`, the machine's
-  rect branches, the `overlay:` constructor parameter and the
-  `HintOverlayProvider` typedef are removed — every step anchors to
-  registered `HintTarget`s. (Amends the rect entries below.)
-- **Headless is a test seam (final):** `HintController()` always renders.
-  Headless runs (tests, pure machines) move to the `@visibleForTesting`
-  factory `HintController.test({headless = true, registry, diagnostics,
-  scopePrefix, store})`. (Amends the `headless: true` note below.)
-- **App-wide store config (final):** the mutable `HintController.store`
-  field and `effectiveStore` are gone. Configure once at startup:
-  `Hintful.configure(store: ...)` — the new `Hintful` class (exported from
-  the barrel); controllers read `Hintful.store`, falling back to a
-  session-scoped `InMemoryHintStore` (debug prints a one-time warning).
-  (Amends the "No per-call store" entry below.)
-- **`HintStore` contract frozen at two members:** `clear()` leaves the
-  abstract contract (a concrete store may expose its own dev tool); the
-  public `compareVersions` leaves the core. The shipped **`hintful_prefs`
-  companion package** (new) provides `SharedPreferencesHintStore`
-  (namespaced keys, `clear()`) and a public `compareVersions()`.
-- **Defaults changed:** `HintMarkPolicy.onAnyExit` is the default mark
-  policy for `startOnce` and `showHintTourOffer` (was `onFinish` — skip
-  counts as "seen"); `HintMissingTargetPolicy.skipStep` is the tour default
-  (was `abortTour` — a missing target no longer kills the tour).
-- **Renames and removals:** `moreTargets` → `additionalTargets`,
-  `moreTooltips` → `additionalTooltips` (the JSON wire keys rename with
-  them — a coordinated wire change at 1.0); `HintTour.fromEnum` is removed —
-  declare the steps list directly (a private helper over your enum works
-  the same).
+### Breaking — public surface
 
-### Engine and contract work (dev log)
+- **One import.** `lib/engine/` and `lib/widgets/` moved under `lib/src/`;
+  deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
+  no longer resolve. Every barrel export names its symbols, so a new public
+  class can no longer leak in by accident.
+- **Content is the constructor path.** `HintStep`/`HintTooltip` lost the flat
+  `title`/`description`/`titleBuilder`/`descriptionBuilder` params and the
+  matching getters — pass `content: HintStepContent(...)` and read
+  `step.content.title`. JSON keeps the flat `title`/`description` keys.
+- **No rect targets.** `HintStep.targetRect`, the `overlay:` constructor
+  parameter, `HintOverlayProvider` and the machine's rect branches are gone —
+  every step anchors to a registered `HintTarget`.
+- **Tap config is one sealed type.** `tapOnTarget`/`onTapTarget` and the
+  overlay pair collapse into `HintTapBehavior` per region:
+  `targetTap`/`overlayTap` with `advance()` / `ignore()` / `custom(onTap)`.
+  The JSON wire keeps the historical bools (`true` ⇔ advance).
+- **`HintTourOfferResult` is four-valued.** `declined` splits into `declined`
+  (this dialog), `alreadyShown` (gate closed) and `busy` (accept while another
+  tour is running; nothing started).
+- **Removed:** `HintTour.fromEnum`; the factory trio
+  (`HintTourFactory`/`InMemoryHintTourFactory`/`FetcherHintTourFactory` — use
+  `HintTour.fromJson` + your own HTTP client); the adapter stubs; the
+  `DebugPrintDiagnostics` class; and the animation presets
+  (`HintEntryAnimation`, `HintStep.transition`, `hintTransitionDuration`) —
+  entry animation is the `tooltipBuilder`'s job now.
+- **Renames:** `HintStep.waitTimeout` → `stepTimeout`; `moreTargets` →
+  `additionalTargets`; `moreTooltips` → `additionalTooltips` (the JSON wire
+  keys rename with them); `onBeforeAction`/`onAfterAction` →
+  `onStepEnter`/`onStepExit`; `HintSkipReason.targetNotRendered` →
+  `overlayUnavailable`.
+- **Internalised (leave the barrel):** the render contract
+  (`HintOverlayHost`, `defaultOverlayHost`, the position types), the
+  register-path, the inheritance/scope helpers, the diagnostics helpers and
+  `kHintFocusPadding`.
+- **`HintStore` is frozen at two members.** `shouldShow`/`markShown` are the
+  whole contract; `clear()` is a concrete store's own dev tool (the shipped
+  `hintful_prefs` store has one).
 
-- **Offer result is four-valued:** **Breaking** — `HintTourOfferResult`
-  splits `declined` into `declined` (the user declined this dialog),
-  `alreadyShown` (gate closed: tour ran for this version, or a previous
-  decline — no dialog was shown) and `busy` (accept while another tour is
-  running — nothing started). Exhaustive `switch`es must handle the new
-  values.
-- **No per-call store:** **Breaking** — `startOnce(store:)` and
-  `showHintTourOffer(store:)` parameters are gone. The store is configured
-  app-wide via `Hintful.configure(store: ...)` (see the slimming block
-  above); when unset, a session-scoped `InMemoryHintStore` takes over
-  (debug prints a one-time warning) — show-once works out of the box, state
-  lives for this run only.
-- **`HintMarkPolicy` replaces `markOnFinish`:** **Breaking** —
-  `startOnce(mark:)` and `showHintTourOffer(mark:)` take a closed
-  `HintMarkPolicy`: `onAnyExit` (default — finish, skip or timeout all
-  count, the slimming default above; retires the hand-rolled
-  idle-listener pattern), `onFinish` (Done/last step only, the old
-  `markOnFinish: true`), `manual` (never — the app owns the shown-state;
-  the old `markOnFinish: false`).
-- **`HintStep` takes `content:`:** **Breaking** — the constructor's
-  `title`/`description`/`titleBuilder`/`descriptionBuilder` sugar params
-  are gone; pass `content: HintStepContent(...)` (the sugar getters over
-  `content` are removed by the slimming block above — read
-  `step.content.title` etc.). JSON wire keeps the flat `title`/`description`
-  keys.
-- **`HintTooltip` takes `content:`:** **Breaking** — the multi-content slot
-  drops its flat `title`/`description`/`titleBuilder`/`descriptionBuilder`
-  constructor params and matches `HintStep`: pass
-  `content: HintStepContent(...)` (sugar getters removed — see the
-  slimming block). One content slot type across the contract; JSON wire
-  keys are unchanged.
-- **Per-step `missingTargetPolicy` is gone:** **Breaking** — the tour-level
-  `HintTour.missingTargetPolicy` is the single policy; the step-level field
-  and `resolveMissingPolicy` disappear (the wire key is ignored if present).
-  Pair conditionally-absent targets with a short per-step `stepTimeout`.
-- **Transition presets and rect targets:** both systems were removed by
-  the slimming block above — see those entries.
-- **`HintTourOfferLabels` gets `copyWith` + `==`/`hashCode`:** matches
-  `HintTooltipLabels` (value semantics for theme overrides).
-- **Default rendering:** `HintController()` now renders out of the box — the
-  default engine wiring runs instead of a headless mode. Migration: headless
-  runs (tests, pure machines) use the `@visibleForTesting` factory
-  `HintController.test()` (see the slimming block above).
-- **Render contract is internal:** **Breaking** — `HintOverlayHost`,
-  `defaultOverlayHost`,  `HintPosition`/`PositionedHint`/`UnpositionedHint`/
-  `HintPositionResolver` leave the public barrel. The constructor's
-  `overlayHostBuilder:` parameter is gone (rect tours are removed — see
-  the slimming block); test seams use `@internal HintController.withHost`.
-- **Register-path is internal:** **Breaking** — `HintTargetRegistration` and
-  `register`/`unregister`/`lookup` leave the barrel (an internal extension).
-  Drive targets through `HintTarget`; the public registry exposes
-  `defaultInstance`, `onWarning`, `addListener`, `removeListener`, `ids`.
-- **Diagnostics as an event object:** **Breaking** —
-  `HintDiagnosticsHandler` is now a plain function type
-  (`void Function(HintSkipEvent)`) — one callback per controller, passed as
-  `diagnostics:`; attach several sinks inside the function. The event carries
-  `tourId`, `stepIndex`, `targetId`, `reason`, `detail`; new fields can be
-  added in 1.x (optional-only — a new `required` field would break event
-  construction). Debug builds **always print** the `[hintful] …` line first,
-  then invoke your callback; release runs the callback alone (or nothing).
-  `DebugPrintDiagnostics` (class) is gone; `closestTargetIds`,
-  `formatHintSkipped`, `debugPrintHintSkip` are internal. `kHintFocusPadding`
-  and the internal `hintTourWithSteps` are also out of the barrel.
-- **New `CallbackHintStore(read:, write:)`** — the
-  three-line persistent store over your storage, no subclass ceremony
-  (`onClear` is gone with the contract freeze — concrete stores expose
-  their own `clear()`; the `hintful_prefs` store does).
-- **Internal helpers leave the public class surface:** `HintStep.resolveTimeout` /
-  `hasRectTarget` and `HintController.inScope` move
-  to unexported extensions (same pattern as the register-path) — they are
-  engine machinery, not app-level API; barrel consumers cannot call them, and
-  the members no longer freeze the class shape. Public read-only surface
-  stays: `targetIds`, `duplicateTargetIds`, `scopePrefix`.
-- **Single registry source:** the default host reads
-  `HintController.registry` (public getter), so a custom host and the engine
-  can no longer desync.
-- **Diagnostics reach the engine:** the default host hands the engine the
-  controller's handler (`HintController.diagnostics`, public getter) —
-  overlay failures are no longer silent in the default wiring.
-- **Breaking:** `HintSkipReason.targetNotRendered` → `overlayUnavailable`
-  (label `target-not-rendered` → `overlay-unavailable`) — the check is about
-  the overlay, not a particular target. Update exhaustive `switch`es and any
-  log scrapers matching the old label.
-- **Typo filtering preserves tour fields:** release-path typo filtering
-  (`_withoutTypoSteps`) used a partial reconstruction that silently dropped
-  `autoScroll` — fixed by routing through the internal `hintTourWithSteps`
-  (not part of the public API).
-- **Step lifecycle hooks, visit semantics:** **Breaking** rename
-  `onBeforeAction`/`onAfterAction` → `onStepEnter`/`onStepExit`. They now
-  bracket a *step visit* — enter once on first activation, exit once when the
-  visit ends (step change, finish, skip, abort). Order is
-  `old.exit → new.enter`; hooks are serialized and awaited (a throwing hook
-  is logged, the chain continues). Target vanish/reappear no longer re-fires
-  enter. Previously exit only ran on Active→Active (never on finish), enter
-  could run before the previous exit, and vanish/reappear double-fired enter.
-- **Content is the constructor path:** **Breaking** — see the
-  `HintStep(content:)` entry above; `HintStepContent` is the slot type the
-  getters return and every content slot takes (`HintStep.content`,
-  `HintTooltip.content`). JSON wire keeps the flat `title`/`description`
-  keys.
-- **`DefaultTooltip` loses its slot params:** **Breaking** — `content:` and
-  `showActions:` leave the public constructor (they were the engine's
-  multi-content slot machinery). The public surface is `step`/`ctx`/
-  `labels` — what a `tooltipBuilder` composes with; informational
-  `additionalTooltips` slots render through the internal `HintSlotTooltip`
-  (not exported).
-- **`startOnce` — show-once from the box:** `HintController.startOnce(tour,
-  mark:, version:)` runs `shouldShow` → `start` → `markShown` per the
-  `HintMarkPolicy` (see above). The version gate comes from
-  `HintTour.minShowVersion` (new optional wire key). Replaces the
-  hand-rolled gate + idle-listener glue.
-- **Offer `pageId` is optional:** `showHintTourOffer(pageId:)` defaults to
-  `tour.id` (per-page decline key `offer:<tourId>@<tourId>`). Explicit
-  call sites are unchanged.
-- **Enums closed in 1.x:** dartdoc on `HintSkipReason`, `TooltipPosition`,
-  `FocusShape`, `HintMissingTargetPolicy` and
-  `HintTourOfferResult` — no new values before 2.0; exhaustive app-side
-  `switch`es are safe. (`HintSkipEvent` fields stay extensible.)
-- **Tap behaviors (`HintTapBehavior`):** **Breaking** — `tapOnTarget: bool` +
-  `onTapTarget:` (and the overlay pair) collapse into one sealed
-  `HintTapBehavior` per region: `targetTap`/`overlayTap` with
-  `advance()` (default) / `ignore()` / `custom(onTap)`.
-  Migration: `tapOnTarget: false` → `targetTap: const HintTapBehavior.ignore()`;
-  `onTapTarget: cb` → `targetTap: HintTapBehavior.custom(cb)`.
-  JSON wire keeps the historical bool keys (`true` ⇔ advance, `false` ⇔ ignore).
-- **One scrim painter:** resolver-anchored `ScrimHolePainter` is gone;
-  `RectScrimPainter` is the single painter (waiting = empty holes = full dim).
-  `holeShape`/`scrimClipPath` live on `RectScrimPainter`. Focus fallback
-  order is one chain (`resolveFocusShape`/`resolveFocusPadding` →
-  the internal focus-padding default).
-- **Overlay trusts the machine for waiting/active:** the overlay reads
-  `HintActive` vs waiting from the machine state instead of re-deriving from
-  the registry alone (same-frame unregistration still falls back to waiting
-  as a desync-guard).
-- **Internals under `lib/src/`:** `lib/engine/` and `lib/widgets/` moved to
-  `lib/src/engine/` and `lib/src/widgets/` — deep imports
-  `package:hintful/engine/...` / `package:hintful/widgets/...` no longer
-  resolve. The only supported import is `package:hintful/hintful.dart`.
-- **Removed adapter stubs:** the comment-only `lib/src/adapters/*` recipes
-  (bloc/riverpod/provider/getx) are gone — wire via `controller.state`
-  (`ValueListenable<HintState>`) in your app; see README/`doc/`.
-- **Explicit barrel `show` lists:** every export names its symbols — a new
-  public class in an existing file can no longer leak into the API by
-  accident. `HintStepContent`, `HintTapBehavior` (the `advance()` /
-  `ignore()` / `custom()` factories — the concrete subclasses are internal)
-  and `HintSkipEvent` are in; render internals, the register-path,
-  diagnostics helpers and `kHintFocusPadding` are out.
-- **Structural JSON validation:** `HintTour.fromJson`/`HintStep.fromJson`
-  throw a `FormatException` (with the offending tour/step in the message)
-  on missing or empty `id`/`steps`/`targetId` instead of a raw `TypeError`
-  — or, for empty `steps`, a release-only `RangeError` from the machine.
-  Unknown enum names stay tolerant (warn + default, unchanged).
-  `HintController.start` also refuses an empty tour in release (debug keeps
-  the constructor assert).
-- **Offer records the shown-state:** `showHintTourOffer` now runs the
-  accept path through `startOnce` — an accepted tour is marked shown per
-  `mark:` (`HintMarkPolicy.onAnyExit` by default — see the slimming block),
-  out of the box. The documented "record via `startOnce` after the offer"
-  composition was impossible (busy controller) and is gone.
-  The `minVersion:` parameter is gone — declare
-  `HintTour.minShowVersion` on the tour instead (both the offer gate and
-  `startOnce` read it).
-- **Offer labels are themeable:** new `HintTheme.tourOfferLabels` — the
-  "Want a tour?" dialog's default copy joins the design system alongside
-  `tooltipLabels`; `showHintTourOffer(labels:)` still overrides per call
-  (omitted — the theme's labels; zero-config English unchanged).
-- **Honest diagnostics:** a busy `start` in release now no-ops *before*
-  typo classification — it no longer emits `unknownTarget` skip events for
-  a tour that never ran, nor clobbers the running tour's registry diff;
-  and a throwing `onStepEnter`/`onStepExit` hook is logged unconditionally
-  (was debug-only), honoring the "a throwing hook is logged" contract.
-- **One `overlayUnavailable` per tour:** a persistent "nowhere to draw"
-  condition now reports a single skip event per tour (was: one per state
-  change) — consumer analytics no longer double-count it. Failures inside
-  the opt-in `autoScroll` path are logged in debug instead of being
-  swallowed by a blanket catch.
-- **Slimmer barrel:** **Breaking** — the factory trio (`HintTourFactory`,
-  `InMemoryHintTourFactory`, `FetcherHintTourFactory`) is removed; the
-  server-driven path is `HintTour.fromJson` + your HTTP client. Top-level
-  `compareVersions` leaves the core (the `hintful_prefs` companion exposes
-  a public one). The concrete tap
-  subclasses (`HintTapAdvance`/`HintTapIgnore`/`HintTapCustom`) and
-  `HintController.withHost` are internal — use the `HintTapBehavior.*`
-  factories and `HintController.test` instead.
-- **Naming freeze (pre-tag):** **Breaking** — `HintStep.waitTimeout` →
-  `stepTimeout` (symmetric with the tour-level `stepTimeout`),
-  `HintTooltip.position` now defaults to
-  `TooltipPosition.auto` (was required). JSON wire key `waitTimeoutMs`
-  is unchanged — old payloads keep parsing. (The transition preset rename
-  `HintCurve` → `HintEntryAnimation` happened during development; the whole
-  system is removed by the slimming block above.)
+### Breaking — behaviour
+
+- **The store is app-wide.** The `store:` parameters and the
+  `HintController.store` field are gone — configure once with
+  `Hintful.configure(store: ...)`. Without one, a session-scoped
+  `InMemoryHintStore` keeps show-once working for this run (debug prints a
+  one-time warning).
+- **Headless is a test seam.** `HintController()` always renders; the
+  `@visibleForTesting` factory is `HintController.test()`.
+- **`HintMarkPolicy` replaces `markOnFinish`** (on `startOnce` and
+  `showHintTourOffer`): `onAnyExit` (the default — finish, skip and timeout
+  all count), `onFinish`, `manual`.
+- **`skipStep` is the tour default** (was `abortTour`) and is tour-level only —
+  the per-step field is gone. The JSON default is aligned: an absent
+  `missingTargetPolicy` now parses as `skipStep`, matching the Dart default and
+  the documented contract.
+- **`HintTooltip.position` defaults to `TooltipPosition.auto`** (was required).
+- **Step hooks bracket a visit:** `onStepEnter`/`onStepExit` fire once per
+  visit, serialized, with `old.exit` before `new.enter` (target
+  vanish/reappear does not re-fire `enter`).
+- **Diagnostics are a plain function** (`HintDiagnosticsHandler`), one per
+  controller; debug builds always print the line before invoking it.
+
+### Added
+
+- `Hintful` (app-wide configuration), `CallbackHintStore` (a store in three
+  lines over your own storage), the session `InMemoryHintStore` fallback and
+  `startOnce` (show-once from the box).
+- `HintStepContent`, `HintTapBehavior`, `HintTheme.tourOfferLabels`,
+  `HintTarget(focusShape/focusPadding)`, the `withHint` sugar, `autoScroll`,
+  the multi-content `additionalTooltips`, and structural JSON validation
+  (`FormatException` on a missing/empty `id`/`steps`/`targetId`).
+- **`hintful_prefs` 1.0.0** — the new companion package: a
+  `shared_preferences`-backed `HintStore` (namespaced keys, `clear()` dev tool,
+  public `compareVersions`). The core stays dependency-free.
+
+### Fixed
+
+- Diagnostics tell the truth: `overlayUnavailable` is reported once per tour
+  (not once per state change), a busy `start` no longer emits phantom
+  `unknownTarget` events, typo filtering preserves tour-level fields, and a
+  throwing step hook is logged in release too.
+- `showHintTourOffer` records an accepted tour through `startOnce` (`mark:`),
+  keeps its decline keys namespaced apart from the tour's own key, and takes an
+  optional `pageId` (defaults to `tour.id`).
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 
