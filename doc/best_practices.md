@@ -23,12 +23,14 @@ Put every tour in `lib/app_tours.dart` as plain data — no `BuildContext`, no w
 ```dart
 // app_tours.dart
 abstract class AppTours {
-  static HintTour intro() => HintTour(id: 'intro', autoScroll: true, steps: [
+  static HintTour intro(String appVersion) => HintTour(
+    id: 'intro', minShowVersion: appVersion, autoScroll: true, steps: [
     HintStep(targetId: 'fab', content: HintStepContent(titleBuilder: (c) => c.l10n.introFab)),
     HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
   ]);
 
-  static HintTour settings() => HintTour(id: 'settings', steps: [...]);
+  static HintTour settings(String appVersion) => HintTour(
+    id: 'settings', minShowVersion: appVersion, steps: [...]);
 }
 ```
 
@@ -116,6 +118,7 @@ Don't thread `BuildContext` through `AppTours`:
 
 ```dart
 HintStep(
+  targetId: 'intro',
   content: HintStepContent(
     titleBuilder: (c) => AppLocalizations.of(c)!.introTitle,
     descriptionBuilder: (c) => AppLocalizations.of(c)!.introBody,
@@ -135,10 +138,10 @@ A spotlight can teach in 5 seconds or annoy for 5 seconds. Aim for the first.
 
 ```dart
 // ❌ feature
-HintStep(content: HintStepContent(title: 'Filters', description: 'Filter by muscle, equipment.'))
+HintStep(targetId: 'filters', content: HintStepContent(title: 'Filters', description: 'Filter by muscle, equipment.'))
 
 // ✅ outcome — what I get
-HintStep(content: HintStepContent(title: 'Find it in seconds', description: 'Filter by muscle or equipment — no scrolling.'))
+HintStep(targetId: 'filters', content: HintStepContent(title: 'Find it in seconds', description: 'Filter by muscle or equipment — no scrolling.'))
 ```
 
 **Be specific:**
@@ -153,7 +156,7 @@ HintStep(content: HintStepContent(title: 'Find it in seconds', description: 'Fil
 
 ```dart
 // ❌ two ideas in one
-HintStep(content: HintStepContent(title: 'Filters and summary', description: 'Filter and see stats.'))
+HintStep(targetId: 'filters', content: HintStepContent(title: 'Filters and summary', description: 'Filter and see stats.'))
 
 // ✅ two steps, each one job
 HintStep(targetId: 'filters', content: HintStepContent(title: 'Narrow it down'))
@@ -165,8 +168,13 @@ HintStep(targetId: 'stats', content: HintStepContent(title: 'See the total'))
 Default `Next`/`Done`/`Skip` come from `HintTooltipLabels` — localize once in `HintTheme`. For a custom `tooltipBuilder`, use the same verb as the title:
 
 ```dart
-titleBuilder: (c) => c.l10n.hintAddSetTitle, // "Log your first set"
-// (inside HintStepContent) button: "Log it" — not "Next"
+HintStep(
+  targetId: 'addSet',
+  content: HintStepContent(
+    titleBuilder: (c) => c.l10n.hintAddSetTitle, // "Log your first set"
+    // custom tooltipBuilder: the button reads "Log it" — not "Next"
+  ),
+)
 ```
 
 **Keep it short:** 8 words for title, 20 for description. Need more? Use `additionalTooltips` or a second step. Test at `2.0` text scale — hintful caps and scrolls, but short copy never needs it.
@@ -317,7 +325,8 @@ HintStep(targetId: 'avatar', focusShape: FocusShape.circle)
 
 `FocusShape.rectangle` (default) / `roundedRect` / `circle`, and `focusPadding`
 (default `4.0`, logical px) inflates the target rect — negative shrinks it.
-Over-shrunk (`isEmpty`) → full dim, never a crash. Corner radius is clamped to
+Over-shrunk (negative padding beyond the target size) inverts the hole rect and
+is skipped → full dim, never a crash. Corner radius is clamped to
 `shortestSide/2`.
 
 Shape and padding come from the primary target on a multi-target step — see §1.
@@ -326,10 +335,11 @@ Shape and padding come from the primary target on a multi-target step — see §
 
 ## 11. Custom — `tooltipBuilder` is the escape hatch
 
-`easeOut` and `sprung` are the presets (§17). Everything else is your builder:
+There are no built-in presets — the builder is the whole customization path:
 
 ```dart
 HintStep(
+  targetId: 'addSet',
   tooltipBuilder: (c, step, ctx) => TweenAnimationBuilder(
     tween: Tween(begin: 0.0, end: 1.0),
     duration: Duration(milliseconds: 400),
@@ -539,9 +549,9 @@ await controller.start(tour);
 
 What the wire format carries: `id`, steps with
 `targetId`/`additionalTargets`, titles
-and descriptions, `position`, `additionalTooltips`, `stepTimeoutMs`,
-`showSkip`, the missing-target policy, historical `tapOn*` bools,
-shapes/padding, `autoScroll` and `minShowVersion`.
+and descriptions, `position`, `additionalTooltips`, `waitTimeoutMs` (per step;
+`stepTimeoutMs` for the tour default), `showSkip`, the missing-target policy,
+historical `tapOn*` bools, shapes/padding, `autoScroll` and `minShowVersion`.
 
 What it **cannot** carry: builders and callbacks. `titleBuilder`,
 `descriptionBuilder`, `tooltipBuilder`, `HintTapBehavior.custom` and the
@@ -612,7 +622,7 @@ pages" checkbox that starts the tour on accept.
 final result = await showHintTourOffer(
   context: context,
   controller: controller, // reads the store configured via Hintful.configure
-  tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
+  tour: AppTours.settings(appVersion), // a versioned factory — see §0
   pageId: 'settings',     // the page this offer belongs to
   // mark: HintMarkPolicy.manual, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),

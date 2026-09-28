@@ -65,9 +65,10 @@ HintTarget(
 )
 // ...or the one-liner sugar: ExerciseSelector().withHint('exerciseSelector')
 
-// 2. Declare the tour — data, not widgets
-final introTour = HintTour(
+// 2. Declare the tour — data, not widgets (a factory takes the app version)
+HintTour introTour(String appVersion) => HintTour(
   id: 'intro',
+  minShowVersion: appVersion,
   steps: [
     HintStep(
       targetId: 'exerciseSelector',
@@ -88,7 +89,7 @@ final introTour = HintTour(
 
 // 3. Wire once, show once
 final controller = HintController();
-controller.start(introTour);
+controller.start(introTour(appVersion));
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
@@ -124,13 +125,13 @@ Hintful.configure(store: store); // every controller reads it
 await showHintTourOffer(
   context: context,
   controller: controller,
-  tour: introTour(minShowVersion: appVersion),
+  tour: introTour(appVersion),
   pageId: 'Home',
   // mark: HintMarkPolicy.onAnyExit, // default: finish/skip/timeout all count
 );
 
 // or start directly; `mark:` defaults to HintMarkPolicy.onAnyExit
-await controller.startOnce(introTour(minShowVersion: appVersion));
+await controller.startOnce(introTour(appVersion));
 ```
 
 No store configured? A session `InMemoryHintStore` keeps show-once working
@@ -294,8 +295,8 @@ config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
 targets and shape (§1), `isIdle` vs `tryStart` (§5), versions (§6), multi-target
-and multi-content (§14–15), taps (§16), motion (§17), navigation (§18),
-server-driven tours (§19), testing (§20).
+and multi-content (§13–14), taps (§15), motion (§16), navigation (§17),
+server-driven tours (§18), testing (§19), the offer dialog (§20).
 
 ## Server-driven tours
 
@@ -341,6 +342,8 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
 - [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryStart`,
   text scale, taps, multi-target vs multi-content, testing,
   server-driven tours and the offer dialog;
+- [`doc/migration_guide.md`](doc/migration_guide.md) — coming from
+  `showcaseview` or `tutorial_coach_mark`, API-to-API;
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x → 1.0.0;
 - [`benchmark/README.md`](benchmark/README.md) — how the numbers under
   [Performance](#performance) are recorded.

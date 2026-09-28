@@ -87,7 +87,7 @@ HintStep(
 A callback **replaces** the default advance for its region, so call
 `ctx.actions.next()` when the step should continue.
 
-Full section: [best practices §16](best_practices.md#16-taps--who-owns-the-gesture).
+Full section: [best practices §15](best_practices.md#15-taps--who-owns-the-gesture).
 
 ---
 
@@ -143,7 +143,7 @@ For full-fidelity tests (scrim, tooltip copy, taps) build a real scene the way
 the package's `test/helpers/tour_harness.dart` does — and pump **twice** after
 `start`: frame 1 draws the scrim, frame 2 the tooltip.
 
-More: [best practices §20](best_practices.md#20-testing--headless-first).
+More: [best practices §19](best_practices.md#19-testing--headless-first).
 
 ---
 
@@ -168,7 +168,7 @@ to the field's default and is reported through `onWarning` (and a debug print),
 while an unknown `targetId` is a typo assert in debug and a skipped step in
 release. Always keep a bundled fallback for the offline case.
 
-More: [best practices §19](best_practices.md#19-server-driven-tours--what-json-can-and-cannot-carry).
+More: [best practices §18](best_practices.md#18-server-driven-tours--what-json-can-and-cannot-carry).
 
 ---
 
@@ -179,8 +179,8 @@ Offer it when the tour is optional and the screen has other jobs:
 ```dart
 await showHintTourOffer(
   context: context,
-  controller: controller, // controller.store: set once — no store: here
-  tour: AppTours.settings(), // HintTour(..., minShowVersion: appVersion)
+  controller: controller, // reads the store configured via Hintful.configure
+  tour: AppTours.settings(appVersion), // versioned factory (minShowVersion: appVersion)
   pageId: 'settings',
 );
 ```
@@ -197,6 +197,6 @@ Offer from one entry point per page, and keep the tour reachable after a decline
 (settings, help menu): that is why the decline keys are namespaced apart from the
 tour's own key.
 
-More: [best practices §21](best_practices.md#21-the-offer-dialog--want-a-tour).
+More: [best practices §20](best_practices.md#20-the-offer-dialog--want-a-tour).
 
 ---
