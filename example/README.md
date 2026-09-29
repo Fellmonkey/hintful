@@ -39,22 +39,14 @@ The demo is split so each layer stays readable:
 - `demo_tours.dart` — the tour definitions behind every button in the table
   above.
 - `shared_prefs_hint_store.dart` — a local `SharedPrefsHintStore`: the
-  `CallbackHintStore` three-liner over `shared_preferences` (the library core
-  stays dependency-free; storage lives outside it). Wired once via
-  `Hintful.configure(store: ...)` in `main.dart`. The ready-made
-  [`hintful_prefs`](https://pub.dev/packages/hintful_prefs) companion is the
-  drop-in upgrade of the same shape — the example deliberately does not
-  depend on it, so a fresh clone builds before that package is published.
+  `CallbackHintStore` three-liner over `shared_preferences`, wired once via
+  `Hintful.configure(store: ...)` in `main.dart`.
 
 ## Running
 
 ```bash
 flutter run
 ```
-
-> The example has no hosted dependencies to resolve at build time: `hintful`
-> is a `path:` dependency and the store is app-side. The `pubspec.lock` stays
-> uncommitted so nothing machine-local is baked in.
 
 ## Tests
 

@@ -4,11 +4,9 @@ import 'package:flutter/foundation.dart';
 /// "leave the field as it is" (the default) from "clear it to null" (pass
 /// `null` explicitly) — a plain `null` default cannot express both.
 ///
-/// One copy for every nullable-field class ([HintTooltipLabels],
-/// `HintTheme`): the two used to define it privately each, which only works
-/// while `identical` compares against the same object. `@internal`: it is a
-/// plumbing detail of those `copyWith`s, not part of the barrel contract
-/// (the export list shows only the classes).
+/// One constant shared by [HintTooltipLabels] and `HintTheme`, because
+/// `identical` only matches the same object. `@internal`: plumbing for those
+/// `copyWith`s, not part of the barrel contract.
 @internal
 const Object kUnsetCopyWith = Object();
 
@@ -76,12 +74,9 @@ class HintTooltipLabels {
       announceStep?.call(stepIndex, totalSteps, title) ??
       'Step ${stepIndex + 1} of $totalSteps: $title';
 
-  /// Same labels with the given fields replaced.
-  ///
-  /// The string fields keep the current value when omitted. [announceStep] is
-  /// nullable, so it can also be **cleared** by passing `null` explicitly —
-  /// the labels fall back to the default "Step N of M: …" announcement —
-  /// while omitting the argument keeps the current override.
+  /// Same labels with the given fields replaced. Omitting a field keeps its
+  /// value; [announceStep] alone can be **cleared** with an explicit `null`
+  /// (the labels fall back to the default "Step N of M: …" announcement).
   HintTooltipLabels copyWith({
     String? skip,
     String? back,

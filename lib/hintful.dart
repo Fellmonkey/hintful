@@ -22,10 +22,10 @@
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [CallbackHintStore], [HintMarkPolicy]), its version ordering
-///   ([compareVersions]) and the shared gate ([HintStore.shouldShowVersion]) —
-///   the "show once per app version" service; configure
-///   it once app-wide via `Hintful.configure(store: ...)`.
+///   [CallbackHintStore], [HintMarkPolicy]) plus its version ordering
+///   ([compareVersions]) and gate rule ([HintStore.shouldShowVersion]) — the
+///   "show once per app version" service; configure it once app-wide via
+///   `Hintful.configure(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, the position value type

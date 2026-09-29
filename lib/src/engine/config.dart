@@ -14,21 +14,19 @@ import 'store.dart';
 ///
 /// The store is optional: without one, show-once still works for the current
 /// run through one app-wide session-scoped [InMemoryHintStore] (a one-time
-/// warning is printed on first fallback, in debug and release alike), but the
-/// state dies with the process. For a persistent store use `CallbackHintStore`
-/// or the ready-made `hintful_prefs` package.
+/// warning is printed on first fallback), but the state dies with the
+/// process. For a persistent store use [CallbackHintStore] or the ready-made
+/// `hintful_prefs` package.
 class Hintful {
   Hintful._();
 
   static HintStore? _store;
 
   /// The app-wide session fallback, created on first use by the controller's
-  /// `store` getter. **App-wide by design**: "session-scoped" means one store
-  /// per app run, not one per controller — a hint marked shown by one
-  /// controller must stay shown for every other controller in the same run
-  /// (the natural failure it prevents: two controllers on one screen each
-  /// keeping their own shown-state, show-once double-firing). Lazily created
-  /// so an app that always configures a persistent store allocates nothing.
+  /// `store` getter: one store per app run, so a hint marked shown by one
+  /// controller stays shown for every other controller in the same run.
+  /// Lazily created — an app that always configures a persistent store
+  /// allocates nothing.
   static InMemoryHintStore? _sessionStore;
 
   /// The shared session fallback; lazily created. `@internal`: the
@@ -37,8 +35,8 @@ class Hintful {
   static InMemoryHintStore get sessionStore =>
       _sessionStore ??= InMemoryHintStore();
 
-  /// The app-wide store, or null when none is configured (the controller then
-  /// falls back to the shared session-scoped [InMemoryHintStore]).
+  /// The app-wide store, or null — the controller then falls back to
+  /// [sessionStore].
   static HintStore? get store => _store;
 
   /// Configure the app-wide [store].

@@ -79,11 +79,8 @@ class HintIdle extends HintState {
 }
 
 /// Waiting for the current step's target to appear (wait-for-target; the
-/// timeout is driven by the controller via [ArmTimeoutEffect]).
-///
-/// The step becomes active only when ALL of its targets are present
-/// ([HintStep.targetIds] — a step may spotlight several). Equality, hashing
-/// and the debug string come from [HintState].
+/// timeout is driven by the controller via [ArmTimeoutEffect]). Equality,
+/// hashing and the debug string come from [HintState].
 @immutable
 class HintWaiting extends HintState {
   /// Waiting on [stepIndex] of [tour] for its target(s) to mount.

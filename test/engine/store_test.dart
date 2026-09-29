@@ -89,7 +89,7 @@ void main() {
     });
   });
 
-  group('HintStore.shouldShowVersion (the one shared gate rule)', () {
+  group('HintStore.shouldShowVersion', () {
     test('never shown → true, minVersion or not', () {
       expect(
         HintStore.shouldShowVersion(lastShown: null, minVersion: null),
@@ -123,7 +123,7 @@ void main() {
       );
     });
 
-    test('both shipped stores answer through it (no second copy)', () {
+    test('both shipped stores answer through it', () {
       final backing = <String, String>{'intro': '1.0.0'};
       final cb = CallbackHintStore(
         read: (key) => backing[key],

@@ -222,16 +222,17 @@ Offset placeTooltip({
 
 /// Tooltip placement relative to its target(s): the primary tooltip and —
 /// for multi-content steps — every extra slot, all placed by the shared
-/// [placeTooltip] core, so a slot never covers a spotlighted target (the
-/// primary anchor included) or an already-placed slot.
+/// [placeTooltip] core. Placement order: the primary first (its side wins
+/// the free space), then each extra avoiding what is already placed — so no
+/// slot covers a spotlighted target (the primary anchor included) or another
+/// slot.
 ///
 /// Why a `MultiChildLayoutDelegate` even for the single tooltip: the
-/// multi-content case needs `LayoutId` slots (primary + extras), and the
+/// multi-content case needs `LayoutId` slots (primary + extras) and the
 /// single case is that same layout with one child — one delegate, one
-/// placement order. The single path wraps its tooltip in a [primaryId]
-/// `LayoutId`; the size of every slot is unknown before layout (text) and
-/// arrives from the framework in [performLayout] — no manual text measuring
-/// ("no dry-layout"). The box is sized to the screen ([getSize] =
+/// placement order. The size of every slot is unknown before layout (text)
+/// and arrives from the framework in [performLayout] — no manual text
+/// measuring ("no dry-layout"). The box is the screen ([getSize] =
 /// `constraints.biggest`), so tooltip buttons are hit-testable anywhere on
 /// screen and taps past a tooltip fall through (`hitTestSelf` = false) onto
 /// the scrim.
@@ -252,10 +253,6 @@ Offset placeTooltip({
 /// hole off the safe rect — the preferred side clamped to the screen edge;
 /// last resort (an on-screen anchor with no room: tooltip or hole larger than
 /// the screen, every side blocked) — a safe-rect corner with a margin.
-///
-/// Placement order matters: the primary first (its side wins the fight for
-/// the free space), then the extras one by one (each avoids what is already
-/// placed) — several tooltips around one target never overlap.
 class TooltipPlacementDelegate extends MultiChildLayoutDelegate {
   /// Places the primary tooltip — plus one slot per [extraPositions] entry —
   /// against [holeLocal] on the [screenLocal] rect.
@@ -333,16 +330,14 @@ class TooltipPlacementDelegate extends MultiChildLayoutDelegate {
 
   @override
   void performLayout(Size size) {
-    // The spotlighted targets are off limits for every slot (the primary's
-    // own anchor included).
+    // Off limits for every slot — the primary's own anchor included.
     final avoid = <Rect>[holeLocal, ...extraHoles];
 
     // Tooltip slots get loose constraints (up to the screen size) and pick
     // their own size; a tight box would stretch them.
     final constraints = BoxConstraints.loose(size);
 
-    // The primary first: its side wins the fight for the free space; the
-    // extras then avoid what is already placed.
+    // Primary first: it wins the free space, the extras follow.
     if (hasChild(primaryId)) {
       final childSize = layoutChild(primaryId, constraints);
       final offset = getPositionForChild(size, childSize);

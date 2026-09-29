@@ -39,10 +39,9 @@ typedef UnknownHintTarget = ({
   List<String> candidates
 });
 
-/// Production typo classifier, applied by `start` on every tour start — a
-/// pure function, tested directly. Classifies a tour's steps by their target
-/// ids ([HintStep.targetIds] — extras included) against the registry's known
-/// ids.
+/// Pure function — tested directly, applied by `start` on every tour start.
+/// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
+/// extras included) against the registry's known ids.
 ///
 /// Typo policy:
 /// - a step referencing an id **with candidates** (similar ids exist) — a
@@ -112,10 +111,8 @@ class HintController implements HintActions {
   /// The store read by [startOnce] and `showHintTourOffer` is app-wide:
   /// configure it once with `Hintful.configure(store: ...)`. Without one,
   /// show-once works for this run through a session-scoped
-  /// [InMemoryHintStore] (a one-time warning is printed — in debug builds and
-  /// release alike, since a silent no-persistence fallback is a release-only
-  /// footgun) — configure a persistent store for real once-per-version
-  /// semantics.
+  /// [InMemoryHintStore] (a one-time warning is printed) — configure a
+  /// persistent store for real once-per-version semantics.
   ///
   /// `HintController()` renders out of the box: the default engine wiring
   /// runs (the host is built lazily on the first non-idle state).
@@ -220,9 +217,9 @@ class HintController implements HintActions {
   HintOverlayHost? _builtHost;
 
   /// The one-time misconfiguration warning of [store]. Deliberately **not**
-  /// [kDebugMode]-gated (unlike the diagnostics sink's debug print): with no
-  /// configured store a release build shows the same hint on every launch,
-  /// and this log line is the only place that surfaces.
+  /// [kDebugMode]-gated (unlike the diagnostics sink's debug print): a
+  /// storeless release build re-shows the hint on every launch, and this line
+  /// is the only place that says so.
   static const String _noStoreWarning =
       'hintful: no HintStore configured — using an in-memory session store. '
       'Show-once state lives for this run only, so a release build shows the '
@@ -231,12 +228,10 @@ class HintController implements HintActions {
       'the hintful_prefs package.';
 
   /// The store show-once paths use: the test override when set, else the
-  /// app-wide [Hintful.store], else the app-wide shared session
-  /// [InMemoryHintStore] ([Hintful.sessionStore] — one store per app run, not
-  /// per controller: a hint marked shown by one controller stays shown for
-  /// the others). The first time this fallback is taken in this run,
-  /// [_noStoreWarning] is printed once — in debug and release alike. Never
-  /// null — call sites do not need a null-check.
+  /// app-wide [Hintful.store], else the shared session [InMemoryHintStore]
+  /// ([Hintful.sessionStore]). The first time that fallback is taken in this
+  /// run, [_noStoreWarning] prints. Never null — call sites do not need a
+  /// null-check.
   ///
   /// Internal: configure the store app-wide with `Hintful.configure`; this
   /// getter exists for the package's own offer dialog and tests.

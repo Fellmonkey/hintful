@@ -271,10 +271,9 @@ when you want richer behavior — the two-member contract is frozen for 1.x.
 
 Whatever the storage, do not restate the gate: `shouldShow` should return
 `HintStore.shouldShowVersion(lastShown: <your stored value>, minVersion:
-minVersion)` — the exact function `InMemoryHintStore`, `CallbackHintStore` and
-the `hintful_prefs` store call (the ordering inside it is `compareVersions`).
-One rule, one implementation: a hand-rolled `compareVersions(last, min) < 0`
-is how the two drift apart.
+minVersion)` — what the shipped stores call, with `compareVersions` inside.
+A hand-rolled `compareVersions(last, min) < 0` is a second copy of the rule,
+and the two drift apart.
 
 ---
 

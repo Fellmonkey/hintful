@@ -713,10 +713,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   }
 
   /// The step's tooltips: the primary alone (single path) or the primary +
-  /// the extra slots (multi-content) — the same `CustomMultiChildLayout`
-  /// either way (one `TooltipPlacementDelegate`), each slot placed on its
-  /// own side; a slot avoids the spotlighted targets and the already-placed
-  /// slots, so tooltips never overlap.
+  /// the extra slots (multi-content) — a `CustomMultiChildLayout` placing
+  /// each slot on its own side; a slot avoids the spotlighted targets and
+  /// the already-placed slots, so tooltips never overlap.
   Widget _buildTooltip(BuildContext context, Rect holeLocal, Size screen) {
     final ctx = HintTooltipContext(
       actions: widget.actions,

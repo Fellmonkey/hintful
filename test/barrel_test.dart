@@ -144,7 +144,7 @@ void main() {
     expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
     expect(compareVersions('2.3', '2.3.0'), 0);
 
-    // The gate rule itself — one static an app-side store calls, not restates.
+    // The gate rule itself — callable from app code.
     expect(
       HintStore.shouldShowVersion(lastShown: null, minVersion: '1.0.0'),
       isTrue,

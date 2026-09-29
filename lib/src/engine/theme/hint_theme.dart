@@ -112,13 +112,11 @@ class HintTheme extends ThemeExtension<HintTheme> {
     );
   }
 
-  /// Same theme with the given fields replaced.
-  ///
-  /// The nullable fields — [tooltipTitleStyle], [tooltipDescriptionStyle] and
-  /// [imageFilter] — can be **cleared** by passing `null` explicitly, while
-  /// omitting an argument keeps the current value. So
-  /// `theme.copyWith(imageFilter: null)` turns the blur off, and
-  /// `theme.copyWith(tooltipPadding: ...)` leaves the filter untouched.
+  /// Same theme with the given fields replaced. The nullable fields —
+  /// [tooltipTitleStyle], [tooltipDescriptionStyle], [imageFilter] — are
+  /// **cleared** by passing `null` explicitly; omitting an argument keeps
+  /// the current value (so `theme.copyWith(imageFilter: null)` turns the
+  /// blur off, while `theme.copyWith(tooltipPadding: ...)` leaves it).
   @override
   HintTheme copyWith({
     Color? tooltipBackground,

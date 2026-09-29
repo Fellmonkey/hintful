@@ -54,9 +54,7 @@ enum HintMarkPolicy {
 ///
 /// Typical use: configure it once at startup (`Hintful.configure(store: ...)`)
 /// and call `startOnce` with no per-call store — or the manual gate
-/// `shouldShow` before start + `markShown` on the exit you choose. The rule
-/// inside that gate is [HintStore.shouldShowVersion] — the same function for
-/// every store, shipped or app-side.
+/// `shouldShow` before start + `markShown` on the exit you choose.
 abstract class HintStore {
   /// Whether the hint should show (see class doc). [minVersion] — the app
   /// version the hint targets; null — "show once ever".
@@ -65,8 +63,7 @@ abstract class HintStore {
   /// Record that the hint was shown at app [version].
   void markShown(String key, String version);
 
-  /// The [shouldShow] version rule as a pure function over the stored value —
-  /// the one implementation the whole ecosystem shares.
+  /// The [shouldShow] version rule as a pure function over the stored value.
   ///
   /// [lastShown] is what [markShown] recorded for the key (null — never
   /// shown): never shown → `true`; no [minVersion] → a previous show is
@@ -75,10 +72,8 @@ abstract class HintStore {
   /// re-run in the same version does not.
   ///
   /// A `static` helper, deliberately **not** a third interface member (the
-  /// two members above stay the whole contract for 1.x): a store that keeps
-  /// its shown-state its own way — an app-side storage, or the
-  /// `hintful_prefs` companion — answers with it instead of restating the
-  /// rule:
+  /// two members above stay the whole contract for 1.x): a store with its own
+  /// storage answers with it instead of restating the rule:
   ///
   /// ```dart
   /// @override
@@ -88,9 +83,6 @@ abstract class HintStore {
   ///       minVersion: minVersion,
   ///     );
   /// ```
-  ///
-  /// Both shipped stores ([InMemoryHintStore], [CallbackHintStore]) call it,
-  /// so the gate cannot drift from the ordering in [compareVersions].
   static bool shouldShowVersion({
     required String? lastShown,
     required String? minVersion,
@@ -108,11 +100,9 @@ abstract class HintStore {
 /// (`2.0.0-dev` < `2.0.0`) is deliberately out of scope.
 /// Returns negative/zero/positive.
 ///
-/// Public — one implementation for the whole ecosystem: the shipped stores
-/// ([InMemoryHintStore], [CallbackHintStore]) and an app-side or companion
-/// (`hintful_prefs`) `HintStore` all share this ordering instead of keeping a
-/// second copy. It is the comparison inside the shared gate
-/// ([HintStore.shouldShowVersion]).
+/// Public so every store shares one copy of it — shipped ([InMemoryHintStore],
+/// [CallbackHintStore]), app-side or `hintful_prefs` — and it is the ordering
+/// inside [HintStore.shouldShowVersion].
 int compareVersions(String a, String b) {
   final pa = a.split('.');
   final pb = b.split('.');
@@ -131,7 +121,7 @@ int compareVersions(String a, String b) {
 /// Zero-dependency default: everything held in memory.
 ///
 /// Also the reference implementation — the same semantics any persistent
-/// store must implement (the rule itself is [HintStore.shouldShowVersion]),
+/// store must implement: the rule itself is [HintStore.shouldShowVersion],
 /// so it doubles as the fake in widget tests and as documentation of the
 /// version rules. Not persistent: the shown-state dies
 /// with the process — for a product onboarding flow use [CallbackHintStore]

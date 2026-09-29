@@ -82,10 +82,8 @@ class _ExampleAppState extends State<ExampleApp> {
   void initState() {
     super.initState();
     _controller.state.addListener(_onTourStateChanged);
-    // The app-side store: `shared_preferences` is async, the library core
-    // stays dependency-free (see shared_prefs_hint_store.dart). Configured
-    // app-wide — startOnce / the offer dialog read it with no per-call
-    // `store:`.
+    // `shared_preferences` is async, so the store is built once here and
+    // configured app-wide (see shared_prefs_hint_store.dart).
     SharedPreferences.getInstance().then((prefs) {
       if (!mounted) return;
       setState(() => _store = SharedPrefsHintStore(prefs));

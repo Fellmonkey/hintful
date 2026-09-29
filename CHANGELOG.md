@@ -79,14 +79,14 @@ Upgrading from **0.7.0** — the whole migration in one list.
   lines over your own storage), the session `InMemoryHintStore` fallback and
   `startOnce` (show-once from the box).
 - `compareVersions` — the segment-wise version ordering the stores gate on
-  (`"1.10.0" > "1.9.0"`), public so an app-side `HintStore` shares the exact
-  rule; `hintful_prefs` re-exports it instead of keeping a second copy.
+  (`"1.10.0" > "1.9.0"`), now public so an app-side `HintStore` shares the
+  exact rule; `hintful_prefs` re-exports it.
 - `HintStore.shouldShowVersion` — the gate rule itself (never shown → show;
   no `minVersion` → once ever; last shown older than `minVersion` → show
   again) as one public static, called by `InMemoryHintStore`,
-  `CallbackHintStore` and `hintful_prefs` — an app-side store delegates to it
-  instead of restating `compareVersions(...) < 0`. A static on the exported
-  `HintStore`, not a third interface member: the 1.x contract stays two.
+  `CallbackHintStore` and `hintful_prefs`: an app-side store delegates to it
+  instead of restating the rule. A static on the exported `HintStore`, not a
+  third interface member — the 1.x contract stays two.
 - `HintStepContent`, `HintTapBehavior`, `HintTheme.tourOfferLabels`,
   `HintTarget(focusShape/focusPadding)`, the `withHint` sugar, `autoScroll`,
   the multi-content `additionalTooltips`, and structural JSON validation
@@ -107,8 +107,8 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - `HintTheme.copyWith` and `HintTooltipLabels.copyWith` can clear their nullable
   fields: `copyWith(imageFilter: null)` turns the blur off (likewise the
   title/description styles, and `copyWith(announceStep: null)` restores the
-  default step announcement), where each silently kept the current value
-  before. Omitting an argument still keeps it.
+  default step announcement) instead of silently keeping the current value.
+  Omitting an argument still keeps it.
 - The missing-store fallback warns in release too: the session
   `InMemoryHintStore` message is no longer debug-gated, so a storeless release
   build says why "show once" keeps showing.

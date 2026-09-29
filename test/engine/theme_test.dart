@@ -157,7 +157,6 @@ void main() {
       final blur = ImageFilter.blur(sigmaX: 6, sigmaY: 6);
       final blurred = a.copyWith(imageFilter: blur);
       expect(blurred.imageFilter, same(blur));
-      // Explicit null clears the field; omitting it keeps the current value.
       expect(blurred.copyWith(imageFilter: null).imageFilter, isNull);
       expect(blurred.copyWith().imageFilter, same(blur));
     });
@@ -255,7 +254,7 @@ void main() {
         'Шаг 1 из 3: T',
       );
 
-      // Explicit null clears the override; omitting the argument keeps it.
+      // Explicit null clears the override.
       expect(
         localized
             .copyWith(announceStep: null)

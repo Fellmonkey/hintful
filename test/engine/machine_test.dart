@@ -34,7 +34,7 @@ void expectTransition(
 }
 
 void main() {
-  group('state value semantics (one implementation on the sealed base)', () {
+  group('state value semantics', () {
     final tour = _tour();
     final otherTour = _tour();
 

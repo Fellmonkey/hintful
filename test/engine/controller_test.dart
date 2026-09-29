@@ -803,8 +803,8 @@ void main() {
       addTearDown(first.dispose);
       addTearDown(second.dispose);
 
-      // "Session-scoped" means one store per app run, not per controller:
-      // show-once must not double-fire across controllers on one screen.
+      // One store per app run, not per controller: show-once must not
+      // double-fire across controllers on one screen.
       expect(first.store, same(second.store));
 
       expect(

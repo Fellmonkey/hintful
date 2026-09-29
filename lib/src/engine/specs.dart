@@ -363,9 +363,8 @@ class HintStep {
 
   /// Parses a step payload.
   ///
-  /// Throws [FormatException] when the payload is untrusted — a missing or
-  /// empty `targetId`, or any field with a wrong-typed value (no raw casts:
-  /// a stale or hand-edited tour must not crash the app with a TypeError).
+  /// Throws [FormatException] when the payload is untrusted: a missing or
+  /// empty `targetId`, or any field of the wrong type.
   factory HintStep.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -562,10 +561,10 @@ class HintTour {
 
   /// Parses a tour payload.
   ///
-  /// Throws [FormatException] when the payload is untrusted: structurally
-  /// invalid (missing/empty `id`, `steps`, or a step's `targetId`) or carrying
-  /// a wrong-typed value — keep a bundled fallback tour for that case. Unknown
-  /// enum names fall back to their defaults (reported through [onWarning]).
+  /// Throws [FormatException] when the payload is untrusted: missing/empty
+  /// `id`, `steps`, or a step's `targetId`, or any field of the wrong type —
+  /// keep a bundled fallback tour for that case. Unknown enum names fall back
+  /// to their defaults (reported through [onWarning]).
   factory HintTour.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -670,12 +669,12 @@ T _enumOrDefault<T extends Enum>(
 // ─────────────── untrusted-payload coercions (no raw casts) ───────────────
 
 // The documented recovery from a bad server-driven tour is
-// `on FormatException catch` + a bundled fallback — so EVERY `fromJson` field
-// goes through these helpers, never a raw `as`: a wrong-typed value (a stale
-// or hand-edited payload) must surface as FormatException at parse time, not
-// as a TypeError thrown far from the parse site (and not be silently
-// coerced, which would hide producer bugs). New fields: add a helper or reuse
-// one; keep this rule in the helpers' shared block.
+// `on FormatException catch` + a bundled fallback — so every `fromJson` field
+// goes through these helpers, never a raw `as`: a wrong-typed value must
+// throw FormatException AT PARSE TIME (a TypeError escapes that catch, and a
+// lazy cast defers it to the first read), and it must not be silently
+// coerced, which would hide producer bugs. New field → add a helper or reuse
+// one; keep the rule stated here, not in each helper.
 
 Never _badType(String field, Object? value) => throw FormatException(
       "hintful: field '$field' has an unexpected type"
@@ -698,21 +697,17 @@ bool? _boolOrNull(Object? value, String field) =>
 double? _doubleOrNull(Object? value, String field) =>
     value is num? ? value?.toDouble() : _badType(field, value);
 
-/// A JSON list or null (absent field). Element types are checked where the
-/// elements are consumed — `as List?` on a non-list value would throw
-/// TypeError instead of FormatException.
+/// A JSON list or null (absent field). Elements are validated where they are
+/// consumed.
 List? _listOrNull(Object? value, String field) =>
     value is List? ? value : _badType(field, value);
 
-/// A JSON object (string-keyed map), checked **at parse time** so a non-map
-/// element (a stale or hand-edited payload) surfaces as FormatException, not
-/// as a TypeError thrown by a raw `as Map<String, dynamic>`.
+/// A JSON object (string-keyed map), or [FormatException] at parse time.
 Map<String, dynamic> _mapField(Object? value, String field) =>
     value is Map<String, dynamic> ? value : _badType(field, value);
 
-/// A JSON list of strings, validated element-by-element **at parse time** —
-/// a lazy `cast<String>()` would defer a non-String element's crash to the
-/// first read, far from the parse site. Null (absent field) → null.
+/// A JSON list of strings, validated element-by-element at parse time —
+/// null (absent field) → null.
 List<String>? _stringListOrNull(Object? value, String field) {
   if (value == null) return null;
   if (value is! List) _badType(field, value);
