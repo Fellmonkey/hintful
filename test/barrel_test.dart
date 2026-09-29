@@ -140,6 +140,24 @@ void main() {
     expect(cbStore.shouldShow('intro', minVersion: '2.0.0'), isFalse);
     expect(cbStore.shouldShow('intro', minVersion: '3.0.0'), isTrue);
 
+    // Version ordering — exported so an app-side store shares the exact rule.
+    expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
+    expect(compareVersions('2.3', '2.3.0'), 0);
+
+    // The gate rule itself — one static an app-side store calls, not restates.
+    expect(
+      HintStore.shouldShowVersion(lastShown: null, minVersion: '1.0.0'),
+      isTrue,
+    );
+    expect(
+      HintStore.shouldShowVersion(lastShown: '1.0.0', minVersion: null),
+      isFalse,
+    );
+    expect(
+      HintStore.shouldShowVersion(lastShown: '1.0.0', minVersion: '1.1.0'),
+      isTrue,
+    );
+
     // Server-driven tours — fromJson + toJson round-trip (bring your own HTTP).
     final wireTour = HintTour.fromJson(richTour.toJson());
     expect(wireTour.id, richTour.id);
