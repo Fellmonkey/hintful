@@ -88,4 +88,75 @@ void main() {
       expect(store.shouldShow('intro', minVersion: '2.9.0'), isFalse);
     });
   });
+
+  group('HintStore.shouldShowVersion (the one shared gate rule)', () {
+    test('never shown → true, minVersion or not', () {
+      expect(
+        HintStore.shouldShowVersion(lastShown: null, minVersion: null),
+        isTrue,
+      );
+      expect(
+        HintStore.shouldShowVersion(lastShown: null, minVersion: '1.0.0'),
+        isTrue,
+      );
+    });
+
+    test('shown without minVersion → false (show once ever)', () {
+      expect(
+        HintStore.shouldShowVersion(lastShown: '1.0.0', minVersion: null),
+        isFalse,
+      );
+    });
+
+    test('shown older → true; same or newer → false', () {
+      expect(
+        HintStore.shouldShowVersion(lastShown: '1.9.0', minVersion: '1.10.0'),
+        isTrue,
+      );
+      expect(
+        HintStore.shouldShowVersion(lastShown: '1.10.0', minVersion: '1.10.0'),
+        isFalse,
+      );
+      expect(
+        HintStore.shouldShowVersion(lastShown: '2.0.0', minVersion: '1.9.0'),
+        isFalse,
+      );
+    });
+
+    test('both shipped stores answer through it (no second copy)', () {
+      final backing = <String, String>{'intro': '1.0.0'};
+      final cb = CallbackHintStore(
+        read: (key) => backing[key],
+        write: (key, version) => backing[key] = version,
+      );
+      final mem = InMemoryHintStore()..markShown('intro', '1.0.0');
+
+      for (final min in [null, '0.9.0', '1.0.0', '1.1.0', '2.3']) {
+        final expected = HintStore.shouldShowVersion(
+          lastShown: '1.0.0',
+          minVersion: min,
+        );
+        expect(cb.shouldShow('intro', minVersion: min), expected,
+            reason: 'CallbackHintStore, min=$min');
+        expect(mem.shouldShow('intro', minVersion: min), expected,
+            reason: 'InMemoryHintStore, min=$min');
+      }
+    });
+  });
+
+  group('compareVersions', () {
+    test('segment-wise and numeric: 1.10.0 > 1.9.0', () {
+      expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
+      expect(compareVersions('1.9.0', '1.10.0'), lessThan(0));
+    });
+
+    test('a missing segment counts as 0: 2.3 == 2.3.0', () {
+      expect(compareVersions('2.3', '2.3.0'), 0);
+      expect(compareVersions('2.3.1', '2.3'), greaterThan(0));
+    });
+
+    test('non-numeric segments compare lexically', () {
+      expect(compareVersions('1.0.0-dev', '1.0.0-alpha'), greaterThan(0));
+    });
+  });
 }
