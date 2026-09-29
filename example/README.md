@@ -38,10 +38,13 @@ The demo is split so each layer stays readable:
   demo cards (style chips + one button per feature).
 - `demo_tours.dart` — the tour definitions behind every button in the table
   above.
-- `shared_prefs_hint_store.dart` — the ready-made
-  `SharedPreferencesHintStore` from the **`hintful_prefs`** companion
-  package (the library core stays dependency-free; storage lives outside
-  it). Wired once via `Hintful.configure(store: ...)` in `main.dart`.
+- `shared_prefs_hint_store.dart` — a local `SharedPrefsHintStore`: the
+  `CallbackHintStore` three-liner over `shared_preferences` (the library core
+  stays dependency-free; storage lives outside it). Wired once via
+  `Hintful.configure(store: ...)` in `main.dart`. The ready-made
+  [`hintful_prefs`](https://pub.dev/packages/hintful_prefs) companion is the
+  drop-in upgrade of the same shape — the example deliberately does not
+  depend on it, so a fresh clone builds before that package is published.
 
 ## Running
 
@@ -49,12 +52,9 @@ The demo is split so each layer stays readable:
 flutter run
 ```
 
-> The example resolves `hintful_prefs: ^1.0.0` from pub.dev. To develop against
-> a local `hintful_prefs` checkout, add a gitignored `pubspec_overrides.yaml`
-> pointing at the sibling directory — see the Development section of
-> `hintful_prefs/README.md`. That override is also why this package's
-> `pubspec.lock` is not committed: a committed lock would bake in the local
-> path resolution instead of the hosted one.
+> The example has no hosted dependencies to resolve at build time: `hintful`
+> is a `path:` dependency and the store is app-side. The `pubspec.lock` stays
+> uncommitted so nothing machine-local is baked in.
 
 ## Tests
 

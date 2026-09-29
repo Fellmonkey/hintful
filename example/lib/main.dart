@@ -6,8 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // The only import of the package — the public barrel: the engine internals,
 // overlay machinery and machine effects are not reachable from here.
 import 'package:hintful/hintful.dart';
-import 'package:hintful_prefs/hintful_prefs.dart'
-    show SharedPreferencesHintStore;
 
 import 'demo_tours.dart';
 import 'home_screen.dart';
@@ -54,7 +52,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// (async init) — the demo card shows "Loading…" and the versioned gate
   /// is inert until it is ready. Concrete type: `clear()` is a dev tool of
   /// the concrete store, not of the [HintStore] contract.
-  SharedPreferencesHintStore? _store;
+  SharedPrefsHintStore? _store;
 
   /// The demo's pretend app version — bumped by the "Bump version" button
   /// to demonstrate the "new in this version" re-show.
@@ -90,7 +88,7 @@ class _ExampleAppState extends State<ExampleApp> {
     // `store:`.
     SharedPreferences.getInstance().then((prefs) {
       if (!mounted) return;
-      setState(() => _store = sharedPrefsHintStore(prefs));
+      setState(() => _store = SharedPrefsHintStore(prefs));
       Hintful.configure(store: _store);
     });
   }

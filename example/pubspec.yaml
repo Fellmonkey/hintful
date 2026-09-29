@@ -13,11 +13,10 @@ dependencies:
   # The only dependency on the package — through the public barrel.
   hintful:
     path: ../
-  # The ready-made persistent store (shared_preferences-backed), published as
-  # the `hintful_prefs` companion package. Local development against a sibling
-  # checkout uses the gitignored `pubspec_overrides.yaml`.
-  hintful_prefs: ^1.0.0
-  # Versioned hints demo: shared_preferences under the store above (the
+  # Deliberately NO `hintful_prefs` here: the example must build from a fresh
+  # clone before the companion is published (see shared_prefs_hint_store.dart
+  # — the app-side `CallbackHintStore` over the storage below).
+  # Versioned hints demo: shared_preferences backs the store above (the
   # library core stays dependency-free — storage lives outside it).
   shared_preferences: ^2.3.0
 

@@ -26,11 +26,10 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-      # The example resolves `hintful_prefs: ^1.0.0` from pub.dev (its local
-      # `pubspec_overrides.yaml` is gitignored, so CI never sees a sibling
-      # checkout), so publish order is `hintful` first, then `hintful_prefs`.
-      # The example's `pubspec.lock` is deliberately not committed — it would
-      # bake in a machine-local path resolution.
+      # The example depends on the core via `path:` and keeps its store
+      # app-side (no `hintful_prefs`), so there is no publish-order coupling:
+      # it builds green from a fresh clone regardless of what is on pub.dev.
+      # The example's `pubspec.lock` is deliberately not committed.
       - name: Test (example)
         working-directory: example
         run: |
