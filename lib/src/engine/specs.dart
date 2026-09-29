@@ -469,6 +469,11 @@ class HintTooltip {
       );
 }
 
+/// Default wait-for-target timeout for a step when neither the step nor the
+/// tour sets one — the single source for [HintTour.stepTimeout]'s constructor
+/// default and for the JSON default of `stepTimeoutMs`.
+const Duration _kDefaultStepTimeout = Duration(seconds: 3);
+
 /// A hint tour — a declarative sequence of [HintStep]s.
 ///
 /// Pure data, serializable 1-to-1 to JSON (server-driven tours via
@@ -479,7 +484,7 @@ class HintTour {
   const HintTour({
     required this.id,
     required this.steps,
-    this.stepTimeout = const Duration(seconds: 3),
+    this.stepTimeout = _kDefaultStepTimeout,
     this.disableBackButton = false,
     this.missingTargetPolicy = HintMissingTargetPolicy.skipStep,
     this.autoScroll = false,
@@ -580,7 +585,7 @@ class HintTour {
               ))
           .toList(),
       stepTimeout: json['stepTimeoutMs'] == null
-          ? const Duration(seconds: 3)
+          ? _kDefaultStepTimeout
           : Duration(milliseconds: json['stepTimeoutMs'] as int),
       disableBackButton: json['disableBackButton'] as bool? ?? false,
       autoScroll: json['autoScroll'] as bool? ?? false,

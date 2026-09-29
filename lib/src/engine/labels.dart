@@ -1,5 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+/// Sentinel for [HintTooltipLabels.copyWith]: distinguishes "leave the field
+/// as it is" (the default) from "clear it to null" (pass `null` explicitly) —
+/// a plain `null` default cannot express both.
+const Object _unset = Object();
+
 /// Button + announcement strings for the zero-config tooltip.
 ///
 /// The default tooltip never hard-codes a language: it renders
@@ -64,14 +69,19 @@ class HintTooltipLabels {
       announceStep?.call(stepIndex, totalSteps, title) ??
       'Step ${stepIndex + 1} of $totalSteps: $title';
 
-  /// Same labels with the given fields replaced (null — keep the current).
+  /// Same labels with the given fields replaced.
+  ///
+  /// The string fields keep the current value when omitted. [announceStep] is
+  /// nullable, so it can also be **cleared** by passing `null` explicitly —
+  /// the labels fall back to the default "Step N of M: …" announcement —
+  /// while omitting the argument keeps the current override.
   HintTooltipLabels copyWith({
     String? skip,
     String? back,
     String? next,
     String? done,
     String? preparing,
-    String Function(int stepIndex, int totalSteps, String title)? announceStep,
+    Object? announceStep = _unset,
   }) {
     return HintTooltipLabels(
       skip: skip ?? this.skip,
@@ -79,7 +89,9 @@ class HintTooltipLabels {
       next: next ?? this.next,
       done: done ?? this.done,
       preparing: preparing ?? this.preparing,
-      announceStep: announceStep ?? this.announceStep,
+      announceStep: identical(announceStep, _unset)
+          ? this.announceStep
+          : announceStep as String Function(int, int, String)?,
     );
   }
 

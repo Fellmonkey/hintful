@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../labels.dart';
 
+/// Sentinel for [HintTheme.copyWith]: distinguishes "leave the field as it
+/// is" (the default) from "clear it to null" (pass `null` explicitly) — a
+/// plain `null` default cannot express both.
+const Object _unset = Object();
+
 /// Hint theme — a product design-system `ThemeExtension`.
 ///
 /// The product describes hints as part of its design system: register
@@ -61,7 +66,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// it is what visually ties the tooltip to the hole; set false for a
   /// floating-callout look.
   ///
-  /// The engine wraps it around every tooltip slot — the default tooltip, a    /// custom `tooltipBuilder` and multi-content slots (`additionalTooltips`) — and
+  /// The engine wraps it around every tooltip slot — the default tooltip, a
+  /// custom `tooltipBuilder` and multi-content slots (`additionalTooltips`) — and
   /// it always points at the primary target's hole. A custom tooltip that
   /// draws its own pointer should turn it off.
   final bool showTail;
@@ -111,6 +117,13 @@ class HintTheme extends ThemeExtension<HintTheme> {
     );
   }
 
+  /// Same theme with the given fields replaced.
+  ///
+  /// The nullable fields — [tooltipTitleStyle], [tooltipDescriptionStyle] and
+  /// [imageFilter] — can be **cleared** by passing `null` explicitly, while
+  /// omitting an argument keeps the current value. So
+  /// `theme.copyWith(imageFilter: null)` turns the blur off, and
+  /// `theme.copyWith(tooltipPadding: ...)` leaves the filter untouched.
   @override
   HintTheme copyWith({
     Color? tooltipBackground,
@@ -118,10 +131,10 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Color? scrimColor,
     BorderRadius? tooltipRadius,
     EdgeInsets? tooltipPadding,
-    TextStyle? tooltipTitleStyle,
-    TextStyle? tooltipDescriptionStyle,
+    Object? tooltipTitleStyle = _unset,
+    Object? tooltipDescriptionStyle = _unset,
     bool? showTail,
-    ImageFilter? imageFilter,
+    Object? imageFilter = _unset,
     bool? showPulse,
     HintTooltipLabels? tooltipLabels,
     HintTourOfferLabels? tourOfferLabels,
@@ -132,11 +145,16 @@ class HintTheme extends ThemeExtension<HintTheme> {
       scrimColor: scrimColor ?? this.scrimColor,
       tooltipRadius: tooltipRadius ?? this.tooltipRadius,
       tooltipPadding: tooltipPadding ?? this.tooltipPadding,
-      tooltipTitleStyle: tooltipTitleStyle ?? this.tooltipTitleStyle,
-      tooltipDescriptionStyle:
-          tooltipDescriptionStyle ?? this.tooltipDescriptionStyle,
+      tooltipTitleStyle: identical(tooltipTitleStyle, _unset)
+          ? this.tooltipTitleStyle
+          : tooltipTitleStyle as TextStyle?,
+      tooltipDescriptionStyle: identical(tooltipDescriptionStyle, _unset)
+          ? this.tooltipDescriptionStyle
+          : tooltipDescriptionStyle as TextStyle?,
       showTail: showTail ?? this.showTail,
-      imageFilter: imageFilter ?? this.imageFilter,
+      imageFilter: identical(imageFilter, _unset)
+          ? this.imageFilter
+          : imageFilter as ImageFilter?,
       showPulse: showPulse ?? this.showPulse,
       tooltipLabels: tooltipLabels ?? this.tooltipLabels,
       tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,

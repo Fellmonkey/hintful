@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/labels.dart';
 import 'package:hintful/src/engine/theme/hint_theme.dart';
 
+String _ruAnnounce(int stepIndex, int totalSteps, String title) =>
+    'Шаг ${stepIndex + 1} из $totalSteps: $title';
+
 void main() {
   group('HintTheme.minimal', () {
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
@@ -149,6 +152,35 @@ void main() {
       expect(a.showPulse, isFalse);
     });
 
+    test('copyWith(imageFilter: null) turns the blur off; omitted keeps it',
+        () {
+      final blur = ImageFilter.blur(sigmaX: 6, sigmaY: 6);
+      final blurred = a.copyWith(imageFilter: blur);
+      expect(blurred.imageFilter, same(blur));
+      // Explicit null clears the field; omitting it keeps the current value.
+      expect(blurred.copyWith(imageFilter: null).imageFilter, isNull);
+      expect(blurred.copyWith().imageFilter, same(blur));
+    });
+
+    test('copyWith(null) clears the nullable title/description styles', () {
+      expect(a.tooltipTitleStyle, isNotNull);
+      expect(a.tooltipDescriptionStyle, isNotNull);
+
+      final cleared = a.copyWith(
+        tooltipTitleStyle: null,
+        tooltipDescriptionStyle: null,
+      );
+      expect(cleared.tooltipTitleStyle, isNull);
+      expect(cleared.tooltipDescriptionStyle, isNull);
+
+      // Only the given fields change.
+      expect(cleared.tooltipBackground, a.tooltipBackground);
+      expect(
+        a.copyWith(tooltipTitleStyle: null).tooltipDescriptionStyle,
+        a.tooltipDescriptionStyle,
+      );
+    });
+
     test('lerp(0) = a, lerp(1) = b, the middle — interpolation', () {
       expect(a.lerp(b, 0.0).tooltipBackground, a.tooltipBackground);
       expect(a.lerp(b, 1.0).tooltipBackground, b.tooltipBackground);
@@ -212,6 +244,28 @@ void main() {
       );
       const ru = HintTooltipLabels(next: 'Далее');
       expect(theme.copyWith(tooltipLabels: ru).tooltipLabels, ru);
+    });
+
+    test('copyWith(null) clears announceStep back to the default', () {
+      final localized = const HintTooltipLabels().copyWith(
+        announceStep: _ruAnnounce,
+      );
+      expect(
+        localized.announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        'Шаг 1 из 3: T',
+      );
+
+      // Explicit null clears the override; omitting the argument keeps it.
+      expect(
+        localized
+            .copyWith(announceStep: null)
+            .announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        'Step 1 of 3: T',
+      );
+      expect(
+        localized.copyWith().announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        'Шаг 1 из 3: T',
+      );
     });
   });
 
