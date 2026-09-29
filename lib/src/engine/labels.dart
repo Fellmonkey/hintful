@@ -1,9 +1,16 @@
 import 'package:flutter/foundation.dart';
 
-/// Sentinel for [HintTooltipLabels.copyWith]: distinguishes "leave the field
-/// as it is" (the default) from "clear it to null" (pass `null` explicitly) —
-/// a plain `null` default cannot express both.
-const Object _unset = Object();
+/// Sentinel for the `copyWith` of the theme/labels family: distinguishes
+/// "leave the field as it is" (the default) from "clear it to null" (pass
+/// `null` explicitly) — a plain `null` default cannot express both.
+///
+/// One copy for every nullable-field class ([HintTooltipLabels],
+/// `HintTheme`): the two used to define it privately each, which only works
+/// while `identical` compares against the same object. `@internal`: it is a
+/// plumbing detail of those `copyWith`s, not part of the barrel contract
+/// (the export list shows only the classes).
+@internal
+const Object kUnsetCopyWith = Object();
 
 /// Button + announcement strings for the zero-config tooltip.
 ///
@@ -81,7 +88,7 @@ class HintTooltipLabels {
     String? next,
     String? done,
     String? preparing,
-    Object? announceStep = _unset,
+    Object? announceStep = kUnsetCopyWith,
   }) {
     return HintTooltipLabels(
       skip: skip ?? this.skip,
@@ -89,7 +96,7 @@ class HintTooltipLabels {
       next: next ?? this.next,
       done: done ?? this.done,
       preparing: preparing ?? this.preparing,
-      announceStep: identical(announceStep, _unset)
+      announceStep: identical(announceStep, kUnsetCopyWith)
           ? this.announceStep
           : announceStep as String Function(int, int, String)?,
     );

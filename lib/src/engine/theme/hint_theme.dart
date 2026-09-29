@@ -4,11 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../labels.dart';
 
-/// Sentinel for [HintTheme.copyWith]: distinguishes "leave the field as it
-/// is" (the default) from "clear it to null" (pass `null` explicitly) — a
-/// plain `null` default cannot express both.
-const Object _unset = Object();
-
 /// Hint theme — a product design-system `ThemeExtension`.
 ///
 /// The product describes hints as part of its design system: register
@@ -131,10 +126,10 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Color? scrimColor,
     BorderRadius? tooltipRadius,
     EdgeInsets? tooltipPadding,
-    Object? tooltipTitleStyle = _unset,
-    Object? tooltipDescriptionStyle = _unset,
+    Object? tooltipTitleStyle = kUnsetCopyWith,
+    Object? tooltipDescriptionStyle = kUnsetCopyWith,
     bool? showTail,
-    Object? imageFilter = _unset,
+    Object? imageFilter = kUnsetCopyWith,
     bool? showPulse,
     HintTooltipLabels? tooltipLabels,
     HintTourOfferLabels? tourOfferLabels,
@@ -145,14 +140,15 @@ class HintTheme extends ThemeExtension<HintTheme> {
       scrimColor: scrimColor ?? this.scrimColor,
       tooltipRadius: tooltipRadius ?? this.tooltipRadius,
       tooltipPadding: tooltipPadding ?? this.tooltipPadding,
-      tooltipTitleStyle: identical(tooltipTitleStyle, _unset)
+      tooltipTitleStyle: identical(tooltipTitleStyle, kUnsetCopyWith)
           ? this.tooltipTitleStyle
           : tooltipTitleStyle as TextStyle?,
-      tooltipDescriptionStyle: identical(tooltipDescriptionStyle, _unset)
-          ? this.tooltipDescriptionStyle
-          : tooltipDescriptionStyle as TextStyle?,
+      tooltipDescriptionStyle:
+          identical(tooltipDescriptionStyle, kUnsetCopyWith)
+              ? this.tooltipDescriptionStyle
+              : tooltipDescriptionStyle as TextStyle?,
       showTail: showTail ?? this.showTail,
-      imageFilter: identical(imageFilter, _unset)
+      imageFilter: identical(imageFilter, kUnsetCopyWith)
           ? this.imageFilter
           : imageFilter as ImageFilter?,
       showPulse: showPulse ?? this.showPulse,
