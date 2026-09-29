@@ -112,8 +112,10 @@ class HintController implements HintActions {
   /// The store read by [startOnce] and `showHintTourOffer` is app-wide:
   /// configure it once with `Hintful.configure(store: ...)`. Without one,
   /// show-once works for this run through a session-scoped
-  /// [InMemoryHintStore] (debug prints a one-time warning) — configure a
-  /// persistent store for real once-per-version semantics.
+  /// [InMemoryHintStore] (a one-time warning is printed — in debug builds and
+  /// release alike, since a silent no-persistence fallback is a release-only
+  /// footgun) — configure a persistent store for real once-per-version
+  /// semantics.
   ///
   /// `HintController()` renders out of the box: the default engine wiring
   /// runs (the host is built lazily on the first non-idle state).
@@ -129,46 +131,30 @@ class HintController implements HintActions {
           overlayHostBuilder: defaultOverlayHost(),
         );
 
-  /// Test seam — not part of the public contract. [headless] (default true)
-  /// runs the machine with no render mechanics; pass `headless: false` to
-  /// render through the default engine. [store] overrides the app-wide
-  /// `Hintful` store for this one controller. The production path is the
-  /// unnamed constructor plus `Hintful.configure`.
+  /// Test seam — not part of the public contract. Runs headless: the whole
+  /// machine, timers and diagnostics with no render mechanics. [store]
+  /// overrides the app-wide `Hintful` store for this one controller. [host] —
+  /// an engine test seam: a custom (internal) [HintOverlayHost] builder for
+  /// the package's own overlay tests; null — no host is built at all. The
+  /// production path is the unnamed constructor plus `Hintful.configure`.
   @visibleForTesting
   HintController.test({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     String? scopePrefix,
     HintStore? store,
-    bool headless = true,
+    Object? host,
   }) : this._(
           registry: registry,
           diagnostics: diagnostics,
           scopePrefix: scopePrefix,
           store: store,
-          overlayHostBuilder: headless ? null : defaultOverlayHost(),
+          overlayHostBuilder:
+              host is HintOverlayHost Function(HintController) ? host : null,
         );
 
-  /// Implementation seam for engine tests — not part of the public
-  /// contract; use `HintController.test(headless: ...)`. Injects a custom
-  /// [HintOverlayHost] without going through the public constructor.
-  @internal
-  HintController.withHost(
-    HintOverlayHost Function(HintController) host, {
-    HintTargetRegistry? registry,
-    HintDiagnosticsHandler? diagnostics,
-    String? scopePrefix,
-    HintStore? store,
-  }) : this._(
-          registry: registry,
-          diagnostics: diagnostics,
-          scopePrefix: scopePrefix,
-          store: store,
-          overlayHostBuilder: host,
-        );
-
-  /// The single initializer behind [HintController], [HintController.test]
-  /// and [HintController.withHost]: resolves the registry default, composes
+  /// The single initializer behind [HintController] and [HintController.test]:
+  /// resolves the registry default, composes
   /// the diagnostics handler and wires the registry listener.
   HintController._({
     HintTargetRegistry? registry,
@@ -237,10 +223,22 @@ class HintController implements HintActions {
   InMemoryHintStore? _sessionStore;
   bool _warnedNoStore = false;
 
+  /// The one-time misconfiguration warning of [store]. Deliberately **not**
+  /// [kDebugMode]-gated (unlike the diagnostics sink's debug print): with no
+  /// configured store a release build shows the same hint on every launch,
+  /// and this log line is the only place that surfaces.
+  static const String _noStoreWarning =
+      'hintful: no HintStore configured — using an in-memory session store. '
+      'Show-once state lives for this run only, so a release build shows the '
+      'same hint on every launch. Persist it with '
+      'Hintful.configure(store: CallbackHintStore(read: ..., write: ...)) or '
+      'the hintful_prefs package.';
+
   /// The store show-once paths use: the test override when set, else the
-  /// app-wide [Hintful.store], else a session-scoped [InMemoryHintStore]
-  /// (debug builds print a one-time warning the first time this fallback is
-  /// taken). Never null — call sites do not need a null-check.
+  /// app-wide [Hintful.store], else a session-scoped [InMemoryHintStore].
+  /// The first time this fallback is taken, [_noStoreWarning] is printed
+  /// once — in debug and release alike. Never null — call sites do not need a
+  /// null-check.
   ///
   /// Internal: configure the store app-wide with `Hintful.configure`; this
   /// getter exists for the package's own offer dialog and tests.
@@ -252,13 +250,7 @@ class HintController implements HintActions {
     if (configured != null) return configured;
     if (!_warnedNoStore) {
       _warnedNoStore = true;
-      if (kDebugMode) {
-        debugPrint(
-          'hintful: no HintStore configured — using an in-memory session '
-          'store. Show-once state lives for this run only; for persistence: '
-          'Hintful.configure(store: CallbackHintStore(read: ..., write: ...))',
-        );
-      }
+      debugPrint(_noStoreWarning);
     }
     return _sessionStore ??= InMemoryHintStore();
   }

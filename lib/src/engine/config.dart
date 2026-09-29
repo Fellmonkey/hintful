@@ -13,9 +13,10 @@ import 'store.dart';
 /// ```
 ///
 /// The store is optional: without one, show-once still works for the current
-/// run through a session-scoped [InMemoryHintStore] (debug builds print a
-/// one-time warning), but the state dies with the process. For a persistent
-/// store use `CallbackHintStore` or the ready-made `hintful_prefs` package.
+/// run through a session-scoped [InMemoryHintStore] (a one-time warning is
+/// printed, in debug and release alike), but the state dies with the process.
+/// For a persistent store use `CallbackHintStore` or the ready-made
+/// `hintful_prefs` package.
 class Hintful {
   Hintful._();
 

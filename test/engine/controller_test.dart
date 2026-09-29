@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hintful/src/engine/config.dart';
 import 'package:hintful/src/engine/controller.dart';
 import 'package:hintful/src/engine/diagnostics.dart';
 import 'package:hintful/src/engine/machine.dart';
@@ -134,7 +135,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.withHost((_) => host, registry: registry);
+          HintController.test(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -161,7 +162,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.withHost((_) => host, registry: registry);
+          HintController.test(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -184,8 +185,8 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final diag = _DiagRecorder();
-      final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag.call);
+      final controller = HintController.test(
+          host: (_) => host, registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -211,8 +212,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag.call);
+      final controller = HintController.test(
+          host: (_) => host, registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -246,7 +247,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.withHost((_) => host, registry: registry);
+          HintController.test(host: (_) => host, registry: registry);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -293,7 +294,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.withHost((_) => host, registry: registry);
+          HintController.test(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -433,8 +434,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag.call);
+      final controller = HintController.test(
+          host: (_) => host, registry: registry, diagnostics: diag.call);
 
       await controller.start(_tour2()); // waiting(0) + 3s timer
       controller.dispose();
@@ -791,6 +792,47 @@ void main() {
         reason: 'finish marks in the session store',
       );
     });
+
+    testWidgets('the no-store fallback warns once, with the fix in the line',
+        (tester) async {
+      Hintful.reset(); // whatever an earlier test may have configured
+      addTearDown(Hintful.reset);
+
+      final lines = <String>[];
+      final old = debugPrint;
+      debugPrint = (msg, {wrapWidth}) => lines.add(msg ?? '');
+      final controller = HintController.test(registry: HintTargetRegistry());
+      addTearDown(controller.dispose);
+      try {
+        // Two reads of the same fallback: one store, one warning.
+        expect(controller.store, isA<InMemoryHintStore>());
+        expect(controller.store, same(controller.store));
+        expect(lines.where((l) => l.contains('no HintStore configured')),
+            hasLength(1));
+        expect(lines.single, contains('hintful_prefs'));
+      } finally {
+        // Restore inline (not addTearDown): the binding verifies foundation
+        // debug vars are unset before teardown callbacks run.
+        debugPrint = old;
+      }
+    });
+
+    testWidgets('a configured store reads without warning', (tester) async {
+      final lines = <String>[];
+      final old = debugPrint;
+      debugPrint = (msg, {wrapWidth}) => lines.add(msg ?? '');
+      final controller = HintController.test(
+        registry: HintTargetRegistry(),
+        store: InMemoryHintStore(),
+      );
+      addTearDown(controller.dispose);
+      try {
+        expect(controller.store, isA<InMemoryHintStore>());
+        expect(lines, isEmpty);
+      } finally {
+        debugPrint = old;
+      }
+    });
   });
 
   group('scope (tabs sharing one registry)', () {
@@ -1121,8 +1163,8 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.withHost((_) => host,
-          registry: registry, diagnostics: diag.call);
+      final controller = HintController.test(
+          host: (_) => host, registry: registry, diagnostics: diag.call);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
