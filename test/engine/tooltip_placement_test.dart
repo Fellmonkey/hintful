@@ -410,7 +410,7 @@ void main() {
     });
   });
 
-  group('TooltipMultiPlacementDelegate (two slots on the same side)', () {
+  group('multi-slot placement (two slots on the same side, one delegate)', () {
     testWidgets('the extra is mirrored away — the slots do not overlap',
         (tester) async {
       const hole = Rect.fromLTWH(350, 250, 100, 100);
@@ -420,15 +420,15 @@ void main() {
             width: 800,
             height: 600,
             child: CustomMultiChildLayout(
-              delegate: TooltipMultiPlacementDelegate(
+              delegate: TooltipPlacementDelegate(
                 screenLocal: screen,
                 holeLocal: hole,
-                primaryPosition: TooltipPosition.bottom,
+                position: TooltipPosition.bottom,
                 extraPositions: const [TooltipPosition.bottom],
               ),
               children: [
                 LayoutId(
-                  id: TooltipMultiPlacementDelegate.primaryId,
+                  id: TooltipPlacementDelegate.primaryId,
                   child: Container(
                     width: 160,
                     height: 60,
@@ -436,7 +436,7 @@ void main() {
                   ),
                 ),
                 LayoutId(
-                  id: TooltipMultiPlacementDelegate.extraId(0),
+                  id: TooltipPlacementDelegate.extraId(0),
                   child: Container(
                     width: 160,
                     height: 60,
@@ -460,6 +460,38 @@ void main() {
       expect(extraRect.overlaps(primaryRect), isFalse);
       expect(extraRect.bottom, lessThan(hole.top),
           reason: 'same preferred side → the extra mirrored above');
+    });
+
+    testWidgets('a single slot (primary only) — the single-tooltip path',
+        (tester) async {
+      const hole = Rect.fromLTWH(350, 250, 100, 100);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            width: 800,
+            height: 600,
+            child: CustomMultiChildLayout(
+              delegate: TooltipPlacementDelegate(
+                screenLocal: screen,
+                holeLocal: hole,
+                position: TooltipPosition.bottom,
+              ),
+              children: [
+                LayoutId(
+                  id: TooltipPlacementDelegate.primaryId,
+                  child: Container(width: 160, height: 60, color: Colors.red),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final red = find
+          .byWidgetPredicate((w) => w is Container && w.color == Colors.red);
+      final rect = tester.getRect(red);
+      expect(rect.top, hole.bottom + 12);
+      expect(rect.left, hole.left + (hole.width - 160) / 2);
     });
   });
 
@@ -541,6 +573,35 @@ void main() {
       );
       expect(without.shouldRelayout(withExtra), isTrue);
       expect(withExtra.shouldRelayout(same), isFalse);
+    });
+
+    test('extraPositions: a changed list — true, an equal list — false', () {
+      final single = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+      );
+      final multi = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        extraPositions: const [TooltipPosition.top],
+      );
+      final same = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        extraPositions: const [TooltipPosition.top],
+      );
+      final otherSide = TooltipPlacementDelegate(
+        screenLocal: screen,
+        holeLocal: h,
+        position: TooltipPosition.bottom,
+        extraPositions: const [TooltipPosition.right],
+      );
+      expect(single.shouldRelayout(multi), isTrue);
+      expect(multi.shouldRelayout(same), isFalse);
+      expect(multi.shouldRelayout(otherSide), isTrue);
     });
   });
 }

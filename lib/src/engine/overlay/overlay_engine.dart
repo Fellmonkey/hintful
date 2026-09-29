@@ -34,7 +34,7 @@ double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
 ///
 /// Internal factory: `HintController()` wires it out of the box. Not
 /// part of the public barrel contract — custom hosts are a test seam
-/// (`HintController.withHost`), not a supported extension point.
+/// (`HintController.test(host: ...)`), not a supported extension point.
 ///
 /// ```dart
 /// final controller = HintController(); // renders through this host
@@ -713,9 +713,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   }
 
   /// The step's tooltips: the primary alone (single path) or the primary +
-  /// the extra slots (multi-content) — a `CustomMultiChildLayout` placing
-  /// each slot on its own side; a slot avoids the spotlighted targets and
-  /// the already-placed slots, so tooltips never overlap.
+  /// the extra slots (multi-content) — the same `CustomMultiChildLayout`
+  /// either way (one `TooltipPlacementDelegate`), each slot placed on its
+  /// own side; a slot avoids the spotlighted targets and the already-placed
+  /// slots, so tooltips never overlap.
   Widget _buildTooltip(BuildContext context, Rect holeLocal, Size screen) {
     final ctx = HintTooltipContext(
       actions: widget.actions,
@@ -737,28 +738,26 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       );
     }
     final content = CustomMultiChildLayout(
-      delegate: TooltipMultiPlacementDelegate(
+      delegate: TooltipPlacementDelegate(
         screenLocal: Offset.zero & screen,
         holeLocal: holeLocal,
-        primaryPosition: widget.step.position,
+        position: widget.step.position,
         extraPositions: [for (final extra in extras) extra.position],
         extraHoles: _extraHoleRects(),
         safeArea: MediaQuery.paddingOf(context),
       ),
       children: [
-        LayoutId(
-            id: TooltipMultiPlacementDelegate.primaryId, child: slots.first),
+        LayoutId(id: TooltipPlacementDelegate.primaryId, child: slots.first),
         for (var i = 0; i < extras.length; i++)
           LayoutId(
-              id: TooltipMultiPlacementDelegate.extraId(i),
-              child: slots[i + 1]),
+              id: TooltipPlacementDelegate.extraId(i), child: slots[i + 1]),
       ],
     );
     return content;
   }
 
-  /// The cached slot contents (primary + extra slots, RAW — `LayoutId` is
-  /// applied by the caller so the single-layout path adds no ParentData).
+  /// The cached slot contents (primary + extra slots, RAW — the caller
+  /// applies the `LayoutId`).
   /// Rebuilt when the step changes; the list itself is then reused on
   /// movement frames — the elements stay mounted and identical, so their
   /// build/re-layout is skipped.
@@ -1189,7 +1188,9 @@ Widget _primaryTooltipSlot({
 /// One primary tooltip: placed around [hole]. The [content] widget is
 /// supplied by the caller — the follower path passes its cached slot
 /// (identical instances across movement frames skip text re-layout while
-/// scrolling). Entry animation is the `tooltipBuilder`'s business: wrap the
+/// scrolling). The single-tooltip path is a one-slot `CustomMultiChildLayout`
+/// (`TooltipPlacementDelegate.primaryId`), the same layout the multi-content
+/// path uses. Entry animation is the `tooltipBuilder`'s business: wrap the
 /// built content in your own `AnimatedScale`/`FadeTransition` if you want
 /// one.
 Widget _placedPrimaryTooltip({
@@ -1200,7 +1201,7 @@ Widget _placedPrimaryTooltip({
   required Size screen,
   required List<Rect> extraHoles,
 }) {
-  return CustomSingleChildLayout(
+  return CustomMultiChildLayout(
     delegate: TooltipPlacementDelegate(
       screenLocal: Offset.zero & screen,
       holeLocal: hole,
@@ -1208,7 +1209,9 @@ Widget _placedPrimaryTooltip({
       position: step.position,
       safeArea: MediaQuery.paddingOf(context),
     ),
-    child: content,
+    children: [
+      LayoutId(id: TooltipPlacementDelegate.primaryId, child: content),
+    ],
   );
 }
 

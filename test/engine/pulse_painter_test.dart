@@ -94,6 +94,33 @@ void main() {
               .length,
           1);
     });
+
+    test(
+        'the painted ring is the pure pulseRing geometry, shifted to the '
+        'hole', () {
+      final canvas = TestRecordingCanvas();
+      final r = _FakeResolver(const PositionedHint(
+          translation: Offset(50, 50), size: Size(80, 40)));
+      final controller = AnimationController.unbounded(vsync: const TestVSync())
+        ..value = 0.5;
+      addTearDown(controller.dispose);
+      final p = PulsePainter(
+        animation: controller,
+        resolver: r,
+        color: const Color(0xFFFFFFFF),
+        focusShape: FocusShape.rectangle,
+        focusPadding: 4,
+      );
+      p.paint(canvas, const Size(800, 600));
+
+      final rrect = canvas.invocations
+          .firstWhere((i) => i.invocation.memberName == #drawRRect)
+          .invocation
+          .positionalArguments
+          .first as RRect;
+      // hole = (46, 46, 88, 48); phase 0.5 inflates it by 12 on every side.
+      expect(rrect.outerRect, const Rect.fromLTWH(34, 34, 112, 72));
+    });
   });
 
   group('PulsePainter', () {

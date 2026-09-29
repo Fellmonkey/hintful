@@ -220,78 +220,101 @@ Offset placeTooltip({
   return corners.first;
 }
 
-/// Tooltip placement relative to its target.
+/// Tooltip placement relative to its target(s): the primary tooltip and —
+/// for multi-content steps — every extra slot, all placed by the shared
+/// [placeTooltip] core, so a slot never covers a spotlighted target (the
+/// primary anchor included) or an already-placed slot.
+///
+/// Why a `MultiChildLayoutDelegate` even for the single tooltip: the
+/// multi-content case needs `LayoutId` slots (primary + extras), and the
+/// single case is that same layout with one child — one delegate, one
+/// placement order. The single path wraps its tooltip in a [primaryId]
+/// `LayoutId`; the size of every slot is unknown before layout (text) and
+/// arrives from the framework in [performLayout] — no manual text measuring
+/// ("no dry-layout"). The box is sized to the screen ([getSize] =
+/// `constraints.biggest`), so tooltip buttons are hit-testable anywhere on
+/// screen and taps past a tooltip fall through (`hitTestSelf` = false) onto
+/// the scrim.
 ///
 /// Side chosen from the **live** target rect: the overlay recreates this
 /// delegate with the current `holeLocal` on every movement frame (see
 /// overlay_engine.dart), so placement — auto-flip and safe-area included —
 /// is recomputed on scroll, not just on step change.
 ///
-/// Keep-in-safe-area: the tooltip stays inside the safe rect (the screen
+/// Keep-in-safe-area: every tooltip stays inside the safe rect (the screen
 /// shrunk by the system insets — notch, home indicator — clamped, never
 /// inverted). The safe rect is also the space auto-placement counts free
 /// space against, so a target under the notch does not pick a side that
 /// only "fits" in the inset zone.
-///
-/// Why `CustomSingleChildLayout`: the tooltip size is unknown before layout
-/// (text), and the delegate receives it from the framework in
-/// [getPositionForChild] (`childSize`) — no manual text measuring ("no
-/// dry-layout"). The box itself is sized to the screen (default [getSize] =
-/// `constraints.biggest`), so the tooltip buttons are hit-testable anywhere
-/// on screen, and taps past the tooltip fall through (`hitTestSelf` = false)
-/// onto the scrim.
 ///
 /// Side selection: try the preferred side; if it does not fit the safe rect —
 /// mirror (bottom↔top, left↔right); still not fitting — the other sides;
 /// hole off the safe rect — the preferred side clamped to the screen edge;
 /// last resort (an on-screen anchor with no room: tooltip or hole larger than
 /// the screen, every side blocked) — a safe-rect corner with a margin.
-class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
-  /// Places one tooltip against [holeLocal] on the [screenLocal] rect.
+///
+/// Placement order matters: the primary first (its side wins the fight for
+/// the free space), then the extras one by one (each avoids what is already
+/// placed) — several tooltips around one target never overlap.
+class TooltipPlacementDelegate extends MultiChildLayoutDelegate {
+  /// Places the primary tooltip — plus one slot per [extraPositions] entry —
+  /// against [holeLocal] on the [screenLocal] rect.
   TooltipPlacementDelegate({
     required this.screenLocal,
     required this.holeLocal,
     required this.position,
+    this.extraPositions = const [],
     this.gap = _kGap,
     this.safeArea = EdgeInsets.zero,
     this.extraHoles = const [],
   });
 
+  /// Layout id of the primary tooltip child.
+  static const String primaryId = 'primary';
+
+  /// Layout id of the extra slot with [index].
+  static String extraId(int index) => 'extra_$index';
+
   /// The screen in the tooltip layer's coordinates (global here — the
   /// tooltip lives in the full-screen overlay layer, see overlay_engine.dart).
   final Rect screenLocal;
 
-  /// The target (scrim hole) rect in the same coordinates:
+  /// The primary target (scrim hole) rect in the same coordinates:
   /// `translation & leaderSize`.
   final Rect holeLocal;
 
-  /// Preferred side; [TooltipPosition.auto] — the side with the most free
-  /// space between the hole and the screen edge.
+  /// Preferred side of the primary tooltip; [TooltipPosition.auto] — the side
+  /// with the most free space between the hole and the screen edge.
   final TooltipPosition position;
 
-  /// Gap between the tooltip and the hole.
+  /// Preferred sides of the extra slots, in order (index == [extraId]). Empty
+  /// on the single-tooltip path.
+  final List<TooltipPosition> extraPositions;
+
+  /// Gap between a tooltip and the hole it anchors to.
   final double gap;
 
-  /// System insets (`MediaQuery.padding` — notch, home indicator): the
+  /// System insets (`MediaQuery.padding` — notch, home indicator): every
   /// tooltip stays inside the safe rect. Zero — the whole screen is usable.
   final EdgeInsets safeArea;
 
-  /// Additional spotlighted targets of the step (multi-target steps): the
-  /// tooltip must not cover them, only the primary [holeLocal] may be
-  /// overlapped (it is the tooltip's anchor). Side selection still counts
-  /// free space against the primary hole; extras only veto a placement that
-  /// would sit on top of another spotlighted element.
+  /// Additional spotlighted targets of the step (multi-target steps): no
+  /// slot may cover them, only the primary [holeLocal] may be overlapped (it
+  /// is the primary tooltip's anchor). Side selection still counts free space
+  /// against the primary hole; extras only veto a placement that would sit on
+  /// top of another spotlighted element.
   final List<Rect> extraHoles;
 
-  /// The tooltip gets loose constraints (up to screen size) and picks its own
-  /// size; a tight box would stretch it over the whole screen.
+  /// The box is the screen (see class doc).
   @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      constraints.loosen();
+  Size getSize(BoxConstraints constraints) => constraints.biggest;
 
-  /// `size` — the layout box size (= the screen, see class doc);
-  /// `childSize` — the tooltip's actual size after layout.
-  @override
+  /// Offset of the primary tooltip for a [childSize] in a box of [size]
+  /// (= the screen, see class doc).
+  ///
+  /// The framework drives [performLayout] instead; this is the public
+  /// placement seam the unit tests call, and [performLayout] reuses it for
+  /// the primary slot — one computation for both paths.
   Offset getPositionForChild(Size size, Size childSize) {
     assert(
       size.width == screenLocal.width && size.height == screenLocal.height,
@@ -309,91 +332,20 @@ class TooltipPlacementDelegate extends SingleChildLayoutDelegate {
   }
 
   @override
-  bool shouldRelayout(covariant TooltipPlacementDelegate oldDelegate) =>
-      oldDelegate.screenLocal != screenLocal ||
-      oldDelegate.holeLocal != holeLocal ||
-      oldDelegate.position != position ||
-      oldDelegate.gap != gap ||
-      oldDelegate.safeArea != safeArea ||
-      !listEquals(oldDelegate.extraHoles, extraHoles);
-}
-
-/// Multi-content placement: the primary tooltip plus every extra slot
-/// of a step, each placed by the shared [placeTooltip] core — a slot avoids
-/// the spotlighted targets AND the already-placed tooltips, so several
-/// tooltips around one target never overlap.
-///
-/// Children are `LayoutId`-wrapped: the primary under [primaryId], extras
-/// under [extraId] in order. Placement order matters: the primary first (its
-/// side wins the fight for the free space), then the extras one by one (each
-/// avoids what is already placed).
-class TooltipMultiPlacementDelegate extends MultiChildLayoutDelegate {
-  /// Places the primary tooltip plus every extra slot without overlaps.
-  TooltipMultiPlacementDelegate({
-    required this.screenLocal,
-    required this.holeLocal,
-    required this.primaryPosition,
-    required this.extraPositions,
-    this.gap = _kGap,
-    this.safeArea = EdgeInsets.zero,
-    this.extraHoles = const [],
-  });
-
-  /// Layout id of the primary tooltip child.
-  static const String primaryId = 'primary';
-
-  /// Layout id of the extra slot with [index].
-  static String extraId(int index) => 'extra_$index';
-
-  /// The screen in the tooltip layer's coordinates (see class doc).
-  final Rect screenLocal;
-
-  /// The primary target (scrim hole) rect in the same coordinates.
-  final Rect holeLocal;
-
-  /// Preferred side of the primary tooltip.
-  final TooltipPosition primaryPosition;
-
-  /// Preferred sides of the extra slots, in order (index == [extraId]).
-  final List<TooltipPosition> extraPositions;
-
-  /// Gap between a tooltip and the hole it anchors to.
-  final double gap;
-
-  /// System insets (notch, home indicator) the tooltips stay inside.
-  final EdgeInsets safeArea;
-
-  /// Spotlighted targets of the step besides the primary hole: no slot may
-  /// cover them.
-  final List<Rect> extraHoles;
-
-  /// The box is the screen (same as the single-tooltip path — tooltip
-  /// buttons are hit-testable anywhere on screen, taps past the tooltips
-  /// fall through onto the scrim).
-  @override
-  Size getSize(BoxConstraints constraints) => constraints.biggest;
-
-  @override
   void performLayout(Size size) {
+    // The spotlighted targets are off limits for every slot (the primary's
+    // own anchor included).
     final avoid = <Rect>[holeLocal, ...extraHoles];
 
-    // Tooltip slots get loose constraints (up to the screen size) — the same
-    // as the single-tooltip path; a tight box would stretch them.
+    // Tooltip slots get loose constraints (up to the screen size) and pick
+    // their own size; a tight box would stretch them.
     final constraints = BoxConstraints.loose(size);
 
     // The primary first: its side wins the fight for the free space; the
     // extras then avoid what is already placed.
     if (hasChild(primaryId)) {
       final childSize = layoutChild(primaryId, constraints);
-      final offset = placeTooltip(
-        screen: screenLocal,
-        hole: holeLocal,
-        position: primaryPosition,
-        size: childSize,
-        safeArea: safeArea,
-        avoid: avoid,
-        gap: gap,
-      );
+      final offset = getPositionForChild(size, childSize);
       avoid.add(offset & childSize);
       positionChild(primaryId, offset);
     }
@@ -417,10 +369,10 @@ class TooltipMultiPlacementDelegate extends MultiChildLayoutDelegate {
   }
 
   @override
-  bool shouldRelayout(covariant TooltipMultiPlacementDelegate oldDelegate) =>
+  bool shouldRelayout(covariant TooltipPlacementDelegate oldDelegate) =>
       oldDelegate.screenLocal != screenLocal ||
       oldDelegate.holeLocal != holeLocal ||
-      oldDelegate.primaryPosition != primaryPosition ||
+      oldDelegate.position != position ||
       oldDelegate.gap != gap ||
       oldDelegate.safeArea != safeArea ||
       !listEquals(oldDelegate.extraHoles, extraHoles) ||

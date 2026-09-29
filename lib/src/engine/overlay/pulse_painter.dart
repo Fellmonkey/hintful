@@ -43,13 +43,14 @@ class PulsePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final position = resolver?.resolve();
     if (position == null) return;
+    // The ring geometry has exactly one source: the pure [pulseRing] helper
+    // (unit-tested directly) — the paint path must not re-derive it. Its
+    // `size` is the hole's, and the phase is clamped inside the helper.
     final hole = (Offset.zero & position.size)
         .inflate(focusPadding)
         .shift(position.translation);
-    final t = (animation?.value ?? 0).clamp(0.0, 1.0);
-    final expansion = 24 * t;
-    final ringRect = hole.inflate(expansion);
-    final opacity = t < 0.5 ? 1.0 : 1.0 - (t - 0.5) * 2;
+    final (localRing, opacity) = pulseRing(animation?.value ?? 0, hole.size);
+    final ringRect = localRing.shift(hole.topLeft);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
