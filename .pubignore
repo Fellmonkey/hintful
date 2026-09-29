@@ -8,6 +8,11 @@ android/
 benchmark/
 docs/
 
+# Local-dev dependency overrides (environment-specific, resolved from a
+# sibling checkout) — must never ship in the archive. `.pubignore` takes
+# precedence over `.gitignore`, so the gitignore rule alone would not hide it.
+pubspec_overrides.yaml
+
 # IDE/editor junk.
 *.iml
 .idea/

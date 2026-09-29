@@ -49,10 +49,12 @@ The demo is split so each layer stays readable:
 flutter run
 ```
 
-> The example depends on the published `hintful_prefs: ^1.0.0`. To run it from
-> a checkout before that package is published, add a gitignored
-> `pubspec_overrides.yaml` pointing at the sibling `hintful_prefs` directory —
-> see the Development section of `hintful_prefs/README.md`.
+> The example resolves `hintful_prefs: ^1.0.0` from pub.dev. To develop against
+> a local `hintful_prefs` checkout, add a gitignored `pubspec_overrides.yaml`
+> pointing at the sibling directory — see the Development section of
+> `hintful_prefs/README.md`. That override is also why this package's
+> `pubspec.lock` is not committed: a committed lock would bake in the local
+> path resolution instead of the hosted one.
 
 ## Tests
 

@@ -26,8 +26,11 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-      # NOTE: the example resolves `hintful_prefs: ^1.0.0` from pub.dev, so this
-      # step stays red until that companion package is published.
+      # The example resolves `hintful_prefs: ^1.0.0` from pub.dev (its local
+      # `pubspec_overrides.yaml` is gitignored, so CI never sees a sibling
+      # checkout), so publish order is `hintful` first, then `hintful_prefs`.
+      # The example's `pubspec.lock` is deliberately not committed — it would
+      # bake in a machine-local path resolution.
       - name: Test (example)
         working-directory: example
         run: |

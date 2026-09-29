@@ -29,12 +29,5 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# The example uses the core by path; the override also lets a hosted
-# `hintful_prefs` (which depends on `hintful: ^1.0.0`) resolve against this
-# checkout in CI.
-dependency_overrides:
-  hintful:
-    path: ../
-
 flutter:
   uses-material-design: true

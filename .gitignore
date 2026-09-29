@@ -36,6 +36,11 @@ migrate_working_dir/
 # Local-dev dependency overrides (environment-specific, never published).
 pubspec_overrides.yaml
 
+# The example resolves `hintful_prefs` from pub.dev, and in local dev from the
+# sibling checkout through the override above. A committed lock would bake in a
+# machine-local path resolution instead (see example/README.md).
+example/pubspec.lock
+
 # Symbolication related
 app.*.symbols
 
