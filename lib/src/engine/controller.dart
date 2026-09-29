@@ -39,8 +39,10 @@ typedef UnknownHintTarget = ({
   List<String> candidates
 });
 
-/// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
-/// extras included) against the registry's known ids.
+/// Production typo classifier, applied by `start` on every tour start — a
+/// pure function, tested directly. Classifies a tour's steps by their target
+/// ids ([HintStep.targetIds] — extras included) against the registry's known
+/// ids.
 ///
 /// Typo policy:
 /// - a step referencing an id **with candidates** (similar ids exist) — a
@@ -53,8 +55,6 @@ typedef UnknownHintTarget = ({
 ///   (`target1`/`target2` sequences) — also deferred: numeric suffixes are
 ///   naming, not typos; otherwise every following step in a sequence would
 ///   look like a typo of the previous one.
-/// A pure function: tested directly, applied by the controller.
-@visibleForTesting
 ({List<HintStep> deferred, List<UnknownHintTarget> typos}) classifyStepTargets(
     HintTour tour, Set<String> knownIds) {
   final deferred = <HintStep>[];
