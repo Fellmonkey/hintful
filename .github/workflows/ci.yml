@@ -26,6 +26,8 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
+      # NOTE: the example resolves `hintful_prefs: ^1.0.0` from pub.dev, so this
+      # step stays red until that companion package is published.
       - name: Test (example)
         working-directory: example
         run: |

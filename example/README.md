@@ -49,6 +49,11 @@ The demo is split so each layer stays readable:
 flutter run
 ```
 
+> The example depends on the published `hintful_prefs: ^1.0.0`. To run it from
+> a checkout before that package is published, add a gitignored
+> `pubspec_overrides.yaml` pointing at the sibling `hintful_prefs` directory —
+> see the Development section of `hintful_prefs/README.md`.
+
 ## Tests
 
 `flutter test` — 12 smoke tests: every tour in the table above walks end to end,
