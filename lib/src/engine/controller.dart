@@ -220,9 +220,6 @@ class HintController implements HintActions {
   HintDiagnosticsHandler? get diagnostics => _diagnostics;
   HintOverlayHost? _builtHost;
 
-  InMemoryHintStore? _sessionStore;
-  bool _warnedNoStore = false;
-
   /// The one-time misconfiguration warning of [store]. Deliberately **not**
   /// [kDebugMode]-gated (unlike the diagnostics sink's debug print): with no
   /// configured store a release build shows the same hint on every launch,
@@ -235,10 +232,12 @@ class HintController implements HintActions {
       'the hintful_prefs package.';
 
   /// The store show-once paths use: the test override when set, else the
-  /// app-wide [Hintful.store], else a session-scoped [InMemoryHintStore].
-  /// The first time this fallback is taken, [_noStoreWarning] is printed
-  /// once — in debug and release alike. Never null — call sites do not need a
-  /// null-check.
+  /// app-wide [Hintful.store], else the app-wide shared session
+  /// [InMemoryHintStore] ([Hintful.sessionStore] — one store per app run, not
+  /// per controller: a hint marked shown by one controller stays shown for
+  /// the others). The first time this fallback is taken in this run,
+  /// [_noStoreWarning] is printed once — in debug and release alike. Never
+  /// null — call sites do not need a null-check.
   ///
   /// Internal: configure the store app-wide with `Hintful.configure`; this
   /// getter exists for the package's own offer dialog and tests.
@@ -252,7 +251,7 @@ class HintController implements HintActions {
       _warnedNoStore = true;
       debugPrint(_noStoreWarning);
     }
-    return _sessionStore ??= InMemoryHintStore();
+    return Hintful.sessionStore;
   }
 
   /// Scope: which registry ids belong to this controller's screen.
@@ -273,6 +272,7 @@ class HintController implements HintActions {
   Set<String> _lastKnownIds = const {};
   bool _registrySyncScheduled = false;
   bool _disposed = false;
+  bool _warnedNoStore = false;
 
   /// The step visit that received `onStepEnter` and is still open
   /// (`onStepExit` not yet fired). null — no open visit.

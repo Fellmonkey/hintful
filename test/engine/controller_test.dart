@@ -793,6 +793,37 @@ void main() {
       );
     });
 
+    testWidgets('the session fallback is app-wide: two controllers share one',
+        (tester) async {
+      Hintful.reset(); // whatever an earlier test may have configured
+      addTearDown(Hintful.reset);
+
+      final first = HintController.test(registry: HintTargetRegistry());
+      final second = HintController.test(registry: HintTargetRegistry());
+      addTearDown(first.dispose);
+      addTearDown(second.dispose);
+
+      // "Session-scoped" means one store per app run, not per controller:
+      // show-once must not double-fire across controllers on one screen.
+      expect(first.store, same(second.store));
+
+      expect(
+        await first.startOnce(oneStep(minShowVersion: '1.0.0'),
+            mark: HintMarkPolicy.onFinish),
+        isTrue,
+      );
+      first.finish();
+      expect(first.isIdle, isTrue);
+
+      // The mark written by the first controller closes the gate for the
+      // second — without a shared store this returns true (the bug).
+      expect(
+        await second.startOnce(oneStep(minShowVersion: '1.0.0')),
+        isFalse,
+        reason: 'the first controller already marked the tour shown',
+      );
+    });
+
     testWidgets('the no-store fallback warns once, with the fix in the line',
         (tester) async {
       Hintful.reset(); // whatever an earlier test may have configured
