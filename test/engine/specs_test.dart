@@ -251,6 +251,144 @@ void main() {
     });
   });
 
+  group('fromJson wrong-typed values throw FormatException (not TypeError)',
+      () {
+    test('waitTimeoutMs as a double throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'waitTimeoutMs': 3.5}),
+        throwsFormatException,
+      );
+    });
+
+    test('stepTimeoutMs as a string throws FormatException', () {
+      expect(
+        () => HintTour.fromJson({
+          'id': 'x',
+          'stepTimeoutMs': '3000',
+          'steps': [
+            {'targetId': 'a'},
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('additionalTargets with a non-String element throws at parse time',
+        () {
+      expect(
+        () => HintStep.fromJson({
+          'targetId': 'a',
+          'additionalTargets': [42],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('a non-map step throws at parse time (no TypeError)', () {
+      expect(
+        () => HintTour.fromJson({
+          'id': 'x',
+          'steps': [42],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('a non-list additionalTooltips throws at parse time', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'additionalTooltips': 'x'}),
+        throwsFormatException,
+      );
+      expect(
+        () => HintStep.fromJson({
+          'targetId': 'a',
+          'additionalTooltips': [42],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('showSkip / tapOnTarget as strings throw FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'showSkip': 'yes'}),
+        throwsFormatException,
+      );
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'tapOnTarget': 'true'}),
+        throwsFormatException,
+      );
+    });
+
+    test('focusPadding as a string throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'focusPadding': '8'}),
+        throwsFormatException,
+      );
+    });
+
+    test('a non-String title throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'title': 5}),
+        throwsFormatException,
+      );
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'description': []}),
+        throwsFormatException,
+      );
+    });
+
+    test('disableBackButton / autoScroll / minShowVersion type-checked', () {
+      final steps = [
+        {'targetId': 'a'},
+      ];
+      expect(
+        () => HintTour.fromJson({
+          'id': 'x',
+          'disableBackButton': 'yes',
+          'steps': steps,
+        }),
+        throwsFormatException,
+      );
+      expect(
+        () => HintTour.fromJson({
+          'id': 'x',
+          'autoScroll': 1,
+          'steps': steps,
+        }),
+        throwsFormatException,
+      );
+      expect(
+        () => HintTour.fromJson({
+          'id': 'x',
+          'minShowVersion': 3,
+          'steps': steps,
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('numeric focusPadding stays accepted (int or double)', () {
+      final step = HintStep.fromJson({'targetId': 'a', 'focusPadding': 8});
+      expect(step.focusPadding, 8.0);
+    });
+
+    test('the unknown-enum warning path is NOT turned into a throw', () {
+      final warnings = <String>[];
+      final tour = HintTour.fromJson(
+        {
+          'id': 'x',
+          'missingTargetPolicy': 7,
+          'steps': [
+            {'targetId': 'a'},
+          ],
+        },
+        onWarning: warnings.add,
+      );
+      expect(tour.missingTargetPolicy, HintMissingTargetPolicy.skipStep);
+      expect(warnings, hasLength(1));
+    });
+  });
+
   group('toJson→fromJson field round-trip', () {
     test('focus/autoScroll fields + tour-level autoScroll survive', () {
       final tour = HintTour(

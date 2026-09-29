@@ -170,8 +170,8 @@ class HintStepContent {
   /// Parses the string copy from JSON (builders are code-side only).
   factory HintStepContent.fromJson(Map<String, dynamic> json) =>
       HintStepContent(
-        title: json['title'] as String?,
-        description: json['description'] as String?,
+        title: _stringOrNull(json['title'], 'title'),
+        description: _stringOrNull(json['description'], 'description'),
       );
 }
 
@@ -363,8 +363,9 @@ class HintStep {
 
   /// Parses a step payload.
   ///
-  /// Throws [FormatException] when `targetId` is missing or empty — treat
-  /// the payload as untrusted and keep a bundled fallback tour.
+  /// Throws [FormatException] when the payload is untrusted — a missing or
+  /// empty `targetId`, or any field with a wrong-typed value (no raw casts:
+  /// a stale or hand-edited tour must not crash the app with a TypeError).
   factory HintStep.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -378,35 +379,39 @@ class HintStep {
     return HintStep(
       targetId: targetId,
       content: HintStepContent(
-        title: json['title'] as String?,
-        description: json['description'] as String?,
+        title: _stringOrNull(json['title'], 'title'),
+        description: _stringOrNull(json['description'], 'description'),
       ),
       additionalTargets:
-          (json['additionalTargets'] as List?)?.cast<String>() ?? const [],
-      additionalTooltips: (json['additionalTooltips'] as List?)
-              ?.map((e) => HintTooltip.fromJson(
-                    e as Map<String, dynamic>,
-                    onWarning: onWarning,
-                  ))
-              .toList() ??
-          const [],
+          _stringListOrNull(json['additionalTargets'], 'additionalTargets') ??
+              const [],
+      additionalTooltips:
+          _listOrNull(json['additionalTooltips'], 'additionalTooltips')
+                  ?.map((e) => HintTooltip.fromJson(
+                        _mapField(e, 'additionalTooltips'),
+                        onWarning: onWarning,
+                      ))
+                  .toList() ??
+              const [],
       position: _enumOrDefault(
           TooltipPosition.values, json['position'], TooltipPosition.auto,
           field: 'position', onWarning: onWarning),
       stepTimeout: json['waitTimeoutMs'] == null
           ? null
-          : Duration(milliseconds: json['waitTimeoutMs'] as int),
-      showSkip: json['showSkip'] as bool? ?? true,
-      targetTap: (json['tapOnTarget'] as bool? ?? true)
+          : Duration(
+              milliseconds:
+                  _intOrNull(json['waitTimeoutMs'], 'waitTimeoutMs')!),
+      showSkip: _boolOrNull(json['showSkip'], 'showSkip') ?? true,
+      targetTap: (_boolOrNull(json['tapOnTarget'], 'tapOnTarget') ?? true)
           ? const HintTapBehavior.advance()
           : const HintTapBehavior.ignore(),
-      overlayTap: (json['tapOnOverlay'] as bool? ?? true)
+      overlayTap: (_boolOrNull(json['tapOnOverlay'], 'tapOnOverlay') ?? true)
           ? const HintTapBehavior.advance()
           : const HintTapBehavior.ignore(),
       focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
           field: 'focusShape', onWarning: onWarning),
-      focusPadding: (json['focusPadding'] as num?)?.toDouble(),
-      autoScroll: json['autoScroll'] as bool?,
+      focusPadding: _doubleOrNull(json['focusPadding'], 'focusPadding'),
+      autoScroll: _boolOrNull(json['autoScroll'], 'autoScroll'),
     );
   }
 }
@@ -557,10 +562,10 @@ class HintTour {
 
   /// Parses a tour payload.
   ///
-  /// Throws [FormatException] when the payload is structurally invalid
-  /// (missing/empty `id`, `steps`, or a step's `targetId`) — keep a bundled
-  /// fallback tour for that case. Unknown enum names fall back to their
-  /// defaults (reported through [onWarning]).
+  /// Throws [FormatException] when the payload is untrusted: structurally
+  /// invalid (missing/empty `id`, `steps`, or a step's `targetId`) or carrying
+  /// a wrong-typed value — keep a bundled fallback tour for that case. Unknown
+  /// enum names fall back to their defaults (reported through [onWarning]).
   factory HintTour.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
@@ -580,19 +585,22 @@ class HintTour {
       id: id,
       steps: rawSteps
           .map((step) => HintStep.fromJson(
-                step as Map<String, dynamic>,
+                _mapField(step, 'steps'),
                 onWarning: onWarning,
               ))
           .toList(),
       stepTimeout: json['stepTimeoutMs'] == null
           ? _kDefaultStepTimeout
-          : Duration(milliseconds: json['stepTimeoutMs'] as int),
-      disableBackButton: json['disableBackButton'] as bool? ?? false,
-      autoScroll: json['autoScroll'] as bool? ?? false,
+          : Duration(
+              milliseconds:
+                  _intOrNull(json['stepTimeoutMs'], 'stepTimeoutMs')!),
+      disableBackButton:
+          _boolOrNull(json['disableBackButton'], 'disableBackButton') ?? false,
+      autoScroll: _boolOrNull(json['autoScroll'], 'autoScroll') ?? false,
       missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
           json['missingTargetPolicy'], HintMissingTargetPolicy.skipStep,
           field: 'missingTargetPolicy', onWarning: onWarning),
-      minShowVersion: json['minShowVersion'] as String?,
+      minShowVersion: _stringOrNull(json['minShowVersion'], 'minShowVersion'),
     );
   }
 }
@@ -658,3 +666,58 @@ T _enumOrDefault<T extends Enum>(
 }) =>
     _enumOrNull<T>(values, name, field: field, onWarning: onWarning) ??
     fallback;
+
+// ─────────────── untrusted-payload coercions (no raw casts) ───────────────
+
+// The documented recovery from a bad server-driven tour is
+// `on FormatException catch` + a bundled fallback — so EVERY `fromJson` field
+// goes through these helpers, never a raw `as`: a wrong-typed value (a stale
+// or hand-edited payload) must surface as FormatException at parse time, not
+// as a TypeError thrown far from the parse site (and not be silently
+// coerced, which would hide producer bugs). New fields: add a helper or reuse
+// one; keep this rule in the helpers' shared block.
+
+Never _badType(String field, Object? value) => throw FormatException(
+      "hintful: field '$field' has an unexpected type"
+      ' (${value.runtimeType})',
+    );
+
+/// JSON string or null (absent field).
+String? _stringOrNull(Object? value, String field) =>
+    value is String? ? value : _badType(field, value);
+
+/// JSON int or null (absent field).
+int? _intOrNull(Object? value, String field) =>
+    value is int? ? value : _badType(field, value);
+
+/// JSON bool or null (absent field).
+bool? _boolOrNull(Object? value, String field) =>
+    value is bool? ? value : _badType(field, value);
+
+/// JSON number (int or double) or null (absent field), as a double.
+double? _doubleOrNull(Object? value, String field) =>
+    value is num? ? value?.toDouble() : _badType(field, value);
+
+/// A JSON list or null (absent field). Element types are checked where the
+/// elements are consumed — `as List?` on a non-list value would throw
+/// TypeError instead of FormatException.
+List? _listOrNull(Object? value, String field) =>
+    value is List? ? value : _badType(field, value);
+
+/// A JSON object (string-keyed map), checked **at parse time** so a non-map
+/// element (a stale or hand-edited payload) surfaces as FormatException, not
+/// as a TypeError thrown by a raw `as Map<String, dynamic>`.
+Map<String, dynamic> _mapField(Object? value, String field) =>
+    value is Map<String, dynamic> ? value : _badType(field, value);
+
+/// A JSON list of strings, validated element-by-element **at parse time** —
+/// a lazy `cast<String>()` would defer a non-String element's crash to the
+/// first read, far from the parse site. Null (absent field) → null.
+List<String>? _stringListOrNull(Object? value, String field) {
+  if (value == null) return null;
+  if (value is! List) _badType(field, value);
+  return [
+    for (final element in value)
+      element is String ? element : _badType(field, element),
+  ];
+}
