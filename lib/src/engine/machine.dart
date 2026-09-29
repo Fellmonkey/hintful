@@ -38,6 +38,37 @@ sealed class HintState {
 
   /// Whether the state is [HintWaiting].
   bool get isWaiting => this is HintWaiting;
+
+  // Value semantics live here, once for all three states — the concrete states
+  // only carry their data. Two states are equal when they are the same state
+  // of the SAME tour (compared by identity: a tour is a value object rebuilt
+  // per entry point, so `==` would make every redeclared tour a new state) at
+  // the same step. [HintIdle] has neither, so any two idles are equal.
+  @override
+  bool operator ==(Object other) =>
+      other is HintState &&
+      other.runtimeType == runtimeType &&
+      identical(tour, other.tour) &&
+      stepIndex == other.stepIndex;
+
+  @override
+  int get hashCode {
+    final t = tour;
+    return Object.hash(
+      runtimeType,
+      t == null ? null : identityHashCode(t),
+      stepIndex,
+    );
+  }
+
+  @override
+  String toString() {
+    final t = tour;
+    final i = stepIndex;
+    return t == null || i == null
+        ? '${runtimeType.toString()}()'
+        : '${runtimeType.toString()}(${t.id}, step $i)';
+  }
 }
 
 /// No tour: zero engine widgets in the tree.
@@ -45,16 +76,14 @@ sealed class HintState {
 class HintIdle extends HintState {
   /// The initial/idle state — no tour is running.
   const HintIdle();
-
-  @override
-  bool operator ==(Object other) => other is HintIdle;
-
-  @override
-  int get hashCode => runtimeType.hashCode;
 }
 
 /// Waiting for the current step's target to appear (wait-for-target; the
 /// timeout is driven by the controller via [ArmTimeoutEffect]).
+///
+/// The step becomes active only when ALL of its targets are present
+/// ([HintStep.targetIds] — a step may spotlight several). Equality, hashing
+/// and the debug string come from [HintState].
 @immutable
 class HintWaiting extends HintState {
   /// Waiting on [stepIndex] of [tour] for its target(s) to mount.
@@ -62,6 +91,7 @@ class HintWaiting extends HintState {
 
   @override
   final HintTour tour;
+
   @override
   final int stepIndex;
 
@@ -69,19 +99,6 @@ class HintWaiting extends HintState {
   /// several targets ([HintStep.targetIds]) — the step becomes active only
   /// when ALL of them are present.
   String get targetId => tour.steps[stepIndex].targetId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is HintWaiting &&
-      identical(tour, other.tour) &&
-      stepIndex == other.stepIndex;
-
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, identityHashCode(tour), stepIndex);
-
-  @override
-  String toString() => 'HintWaiting(${tour.id}, step $stepIndex)';
 }
 
 /// Step shown: target mounted, scrim with a hole and tooltip are active.
@@ -92,24 +109,13 @@ class HintActive extends HintState {
 
   @override
   final HintTour tour;
+
   @override
   final int stepIndex;
 
-  /// The current step's target id (for diagnostics on abort).
+  /// The current step's target id (diagnosed on abort) — the step's anchor:
+  /// the shape/padding source for every hole and the `autoScroll` subject.
   String get targetId => tour.steps[stepIndex].targetId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is HintActive &&
-      identical(tour, other.tour) &&
-      stepIndex == other.stepIndex;
-
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, identityHashCode(tour), stepIndex);
-
-  @override
-  String toString() => 'HintActive(${tour.id}, step $stepIndex)';
 }
 
 // ──────────────────────────────── Events ────────────────────────────────

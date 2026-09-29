@@ -34,6 +34,57 @@ void expectTransition(
 }
 
 void main() {
+  group('state value semantics (one implementation on the sealed base)', () {
+    final tour = _tour();
+    final otherTour = _tour();
+
+    test('same tour identity + step — equal, and hashes agree', () {
+      final a = HintWaiting(tour: tour, stepIndex: 1);
+      final b = HintWaiting(tour: tour, stepIndex: 1);
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(HintActive(tour: tour, stepIndex: 0),
+          HintActive(tour: tour, stepIndex: 0));
+    });
+
+    test('a different state / step / tour instance — not equal', () {
+      expect(HintWaiting(tour: tour, stepIndex: 0),
+          isNot(HintActive(tour: tour, stepIndex: 0)));
+      expect(HintWaiting(tour: tour, stepIndex: 0),
+          isNot(HintWaiting(tour: tour, stepIndex: 1)));
+      // A tour is compared by identity (it is rebuilt per entry point).
+      expect(HintWaiting(tour: tour, stepIndex: 0),
+          isNot(HintWaiting(tour: otherTour, stepIndex: 0)));
+    });
+
+    test('two idles are equal', () {
+      expect(const HintIdle(), const HintIdle());
+      expect(const HintIdle().hashCode, const HintIdle().hashCode);
+    });
+
+    test('toString names the state, the tour and the step', () {
+      expect(
+          '${HintWaiting(tour: tour, stepIndex: 1)}', 'HintWaiting(t, step 1)');
+      expect(
+          '${HintActive(tour: tour, stepIndex: 0)}', 'HintActive(t, step 0)');
+      expect('${const HintIdle()}', 'HintIdle()');
+    });
+
+    test('the three states stay a closed, exhaustively switchable set', () {
+      // Compile-time contract: an exhaustive switch with NO default over the
+      // public states — a new (or intermediate) subtype would break it, and
+      // app code relies on this (the 1.x "closed" note on HintState).
+      String describe(HintState state) => switch (state) {
+            HintIdle() => 'idle',
+            HintWaiting() => 'waiting',
+            HintActive() => 'active',
+          };
+      expect(describe(const HintIdle()), 'idle');
+      expect(describe(HintWaiting(tour: tour, stepIndex: 0)), 'waiting');
+      expect(describe(HintActive(tour: tour, stepIndex: 0)), 'active');
+    });
+  });
+
   group('transition table (data → loop)', () {
     final tour = _tour();
     const idle = HintIdle();
