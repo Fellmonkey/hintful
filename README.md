@@ -135,8 +135,10 @@ await controller.startOnce(introTour(appVersion));
 ```
 
 No store configured? A session `InMemoryHintStore` keeps show-once working
-for this run only (debug prints a one-time warning) — configure a persistent
-store for real once-per-version semantics. The ready-made shared_preferences
+for this run only — and the controller prints a one-time warning in debug and
+release alike, because a storeless release build re-shows the hint on every
+launch. Configure a persistent store for real once-per-version semantics. The
+ready-made shared_preferences
 store ships in the [`hintful_prefs`](https://pub.dev/packages/hintful_prefs)
 companion package. Wire format ↔ Dart params: `stepTimeout` ↔
 `waitTimeoutMs`, tap-bools `tapOnTarget`/`tapOnOverlay` ↔
@@ -258,7 +260,9 @@ Headless vs full-fidelity, and the two-frame rule:
   hand; with no store configured, a session `InMemoryHintStore` keeps
   show-once working for this run only. `CallbackHintStore(read:, write:)`
   is the three-line path over your storage; `hintful_prefs` ships a
-  ready-made shared_preferences store
+  ready-made shared_preferences store — and any store you write answers
+  with `HintStore.shouldShowVersion(lastShown:, minVersion:)`, the one gate
+  the shipped stores call
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
   declines persist per page or globally; gates return
@@ -289,8 +293,9 @@ registry (`HintTargetRegistry`), machine states
 (`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
 (`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
 `DefaultTooltip`, `showHintTourOffer` + offer labels/result),
-config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
-`CallbackHintStore`/`HintMarkPolicy`).
+config (`Hintful`), store (`HintStore` — including the shared gate
+`HintStore.shouldShowVersion` — `InMemoryHintStore`/`CallbackHintStore`/
+`HintMarkPolicy`/`compareVersions`).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:

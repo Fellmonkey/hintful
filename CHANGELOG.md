@@ -57,7 +57,8 @@ Upgrading from **0.7.0** — the whole migration in one list.
   `InMemoryHintStore` keeps show-once working for this run (debug prints a
   one-time warning).
 - **Headless is a test seam.** `HintController()` always renders; the
-  `@visibleForTesting` factory is `HintController.test()`.
+  `@visibleForTesting` factory is `HintController.test()` — always headless,
+  with an internal `host:` seam for the package's own overlay tests.
 - **`HintMarkPolicy` replaces `markOnFinish`** (on `startOnce` and
   `showHintTourOffer`): `onAnyExit` (the default — finish, skip and timeout
   all count), `onFinish`, `manual`.
@@ -77,6 +78,15 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - `Hintful` (app-wide configuration), `CallbackHintStore` (a store in three
   lines over your own storage), the session `InMemoryHintStore` fallback and
   `startOnce` (show-once from the box).
+- `compareVersions` — the segment-wise version ordering the stores gate on
+  (`"1.10.0" > "1.9.0"`), public so an app-side `HintStore` shares the exact
+  rule; `hintful_prefs` re-exports it instead of keeping a second copy.
+- `HintStore.shouldShowVersion` — the gate rule itself (never shown → show;
+  no `minVersion` → once ever; last shown older than `minVersion` → show
+  again) as one public static, called by `InMemoryHintStore`,
+  `CallbackHintStore` and `hintful_prefs` — an app-side store delegates to it
+  instead of restating `compareVersions(...) < 0`. A static on the exported
+  `HintStore`, not a third interface member: the 1.x contract stays two.
 - `HintStepContent`, `HintTapBehavior`, `HintTheme.tourOfferLabels`,
   `HintTarget(focusShape/focusPadding)`, the `withHint` sugar, `autoScroll`,
   the multi-content `additionalTooltips`, and structural JSON validation
@@ -94,6 +104,14 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - `showHintTourOffer` records an accepted tour through `startOnce` (`mark:`),
   keeps its decline keys namespaced apart from the tour's own key, and takes an
   optional `pageId` (defaults to `tour.id`).
+- `HintTheme.copyWith` and `HintTooltipLabels.copyWith` can clear their nullable
+  fields: `copyWith(imageFilter: null)` turns the blur off (likewise the
+  title/description styles, and `copyWith(announceStep: null)` restores the
+  default step announcement), where each silently kept the current value
+  before. Omitting an argument still keeps it.
+- The missing-store fallback warns in release too: the session
+  `InMemoryHintStore` message is no longer debug-gated, so a storeless release
+  build says why "show once" keeps showing.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

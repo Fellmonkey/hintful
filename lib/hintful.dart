@@ -22,8 +22,10 @@
 /// - theme ([HintTheme], [HintTooltipLabels]) and widgets ([HintTarget],
 ///   [DefaultTooltip], the "Want a tour?" pre-dialog [showHintTourOffer]);
 /// - versioned-hints store ([HintStore], [InMemoryHintStore],
-///   [CallbackHintStore], [HintMarkPolicy]) — the "show once per app version"
-///   service; configure it once app-wide via `Hintful.configure(store: ...)`.
+///   [CallbackHintStore], [HintMarkPolicy]), its version ordering
+///   ([compareVersions]) and the shared gate ([HintStore.shouldShowVersion]) —
+///   the "show once per app version" service; configure
+///   it once app-wide via `Hintful.configure(store: ...)`.
 ///
 /// Deliberately NOT exported — overlay internals (`HintOverlayEngine`,
 /// `HintOverlayHost`, `defaultOverlayHost`, the position value type
@@ -66,7 +68,12 @@ export 'src/engine/specs.dart'
         HintTour,
         TooltipPosition;
 export 'src/engine/store.dart'
-    show CallbackHintStore, HintMarkPolicy, HintStore, InMemoryHintStore;
+    show
+        CallbackHintStore,
+        HintMarkPolicy,
+        HintStore,
+        InMemoryHintStore,
+        compareVersions;
 export 'src/engine/theme/hint_theme.dart' show HintTheme, HintThemeX;
 export 'src/widgets/default_tooltip.dart' show DefaultTooltip;
 export 'src/widgets/hint_target.dart' show HintTarget;

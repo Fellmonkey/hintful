@@ -203,8 +203,10 @@ if (!await controller.tryStart(tour)) return; // busy
 Configure the store once app-wide (`Hintful.configure(store: store)`); there
 is no per-call store and no controller-level field. With no store
 configured, a session `InMemoryHintStore`
-takes over (debug prints a one-time warning) — show-once works for this run
-only; configure a persistent store for real once-per-version semantics
+takes over — show-once works for this run only, and the controller prints a
+one-time warning in debug **and** release (a storeless release build re-shows
+the hint on every launch); configure a persistent store for real
+once-per-version semantics
 (`Hintful.store` exposes what was configured):
 
 ```dart
@@ -266,6 +268,13 @@ ready-made `SharedPreferencesHintStore` (namespaced keys, a `clear()` dev
 tool, a public `compareVersions`). The app owns the storage; the core package
 stays dependency-free. A full class (`implements HintStore`) is only needed
 when you want richer behavior — the two-member contract is frozen for 1.x.
+
+Whatever the storage, do not restate the gate: `shouldShow` should return
+`HintStore.shouldShowVersion(lastShown: <your stored value>, minVersion:
+minVersion)` — the exact function `InMemoryHintStore`, `CallbackHintStore` and
+the `hintful_prefs` store call (the ordering inside it is `compareVersions`).
+One rule, one implementation: a hand-rolled `compareVersions(last, min) < 0`
+is how the two drift apart.
 
 ---
 
@@ -577,7 +586,7 @@ For tests and previews, build the tour in Dart (or `HintTour.fromJson(fixture)`)
 
 The controller does not need a UI: `HintController.test()` — a
 `@visibleForTesting` factory — runs the whole
-machine without an overlay (headless by default) — waiting, timeouts, typo
+machine without an overlay (headless) — waiting, timeouts, typo
 validation, policies,
 diagnostics — so a tour flow is a plain unit test:
 
@@ -585,7 +594,6 @@ diagnostics — so a tour flow is a plain unit test:
 final controller = HintController.test(
   registry: HintTargetRegistry(), // your own, never the app singleton
   diagnostics: (e) => events.add(e), // or recorder.call / recorder.add
-  // headless: true, // the default — machine only
 );
 
 await controller.start(tour);                       // typo → assertion in debug

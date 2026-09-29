@@ -124,8 +124,7 @@ final reasons = <HintSkipReason>[];
 final controller = HintController.test(
   registry: HintTargetRegistry(), // your own, not the app singleton
   diagnostics: (e) => reasons.add(e.reason),
-  // headless: true, // the default — machine only
-);
+); // headless — the whole machine, no render mechanics
 
 await controller.start(tour);
 expect(reasons, [HintSkipReason.timeout]);
