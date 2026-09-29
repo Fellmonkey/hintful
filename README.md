@@ -212,7 +212,7 @@ And it is testable headless: `HintController.test()` (a
 timeouts, typo validation, diagnostics — with no overlay at all, which is
 how the tour flow tests drive it (`test/helpers/tour_harness.dart`).
 Headless vs full-fidelity, and the two-frame rule:
-[best practices §20](doc/best_practices.md#20-testing--headless-first).
+[best practices §19](doc/best_practices.md#19-testing--headless-first).
 
 ## Features
 
@@ -318,7 +318,7 @@ Keep a bundled fallback tour for the offline / failed-fetch case.
 The wire format carries copy, order, timing and layout of **known** targets —
 builders and callbacks stay in code, so a server cannot introduce a target that
 isn't in the shipped build. Payload rules, validation and the offline fallback:
-[best practices §19](doc/best_practices.md#19-server-driven-tours--what-json-can-and-cannot-carry).
+[best practices §18](doc/best_practices.md#18-server-driven-tours--what-json-can-and-cannot-carry).
 
 ## Getting started
 
