@@ -29,7 +29,8 @@ jobs:
       # The example depends on the core via `path:` and keeps its store
       # app-side (no `hintful_prefs`), so there is no publish-order coupling:
       # it builds green from a fresh clone regardless of what is on pub.dev.
-      # The example's `pubspec.lock` is deliberately not committed.
+      # No `pubspec.lock` is committed anywhere (policy in `.gitignore`) —
+      # fresh resolve every run; the bundle golden pins the SDK, not a lock.
       - name: Test (example)
         working-directory: example
         run: |

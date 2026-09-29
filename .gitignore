@@ -36,10 +36,12 @@ migrate_working_dir/
 # Local-dev dependency overrides (environment-specific, never published).
 pubspec_overrides.yaml
 
-# The example resolves `hintful_prefs` from pub.dev, and in local dev from the
-# sibling checkout through the override above. A committed lock would bake in a
-# machine-local path resolution instead (see example/README.md).
-example/pubspec.lock
+# No `pubspec.lock` anywhere — pub's guidance for a *package* (apps lock
+# their dependency set; a package's lock only describes the dev/CI
+# environment and goes stale silently). CI resolves fresh on every run, and
+# the bundle golden is reproducible because of the pinned Flutter SDK
+# (`flutter-version:` in .github/workflows/ci.yml), not because of a lock.
+pubspec.lock
 
 # Symbolication related
 app.*.symbols
