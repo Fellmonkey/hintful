@@ -143,14 +143,13 @@ class HintController implements HintActions {
     HintDiagnosticsHandler? diagnostics,
     String? scopePrefix,
     HintStore? store,
-    Object? host,
+    HintOverlayHost Function(HintController)? host,
   }) : this._(
           registry: registry,
           diagnostics: diagnostics,
           scopePrefix: scopePrefix,
           store: store,
-          overlayHostBuilder:
-              host is HintOverlayHost Function(HintController) ? host : null,
+          overlayHostBuilder: host,
         );
 
   /// The single initializer behind [HintController] and [HintController.test]:
