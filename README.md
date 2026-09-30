@@ -66,10 +66,9 @@ HintTarget(
 )
 // ...or the one-liner sugar: ExerciseSelector().withHint('exerciseSelector')
 
-// 2. Declare the tour — data, not widgets (a factory takes the app version)
-HintTour introTour(String appVersion) => HintTour(
+// 2. Declare the tour — data, not widgets
+final introTour = HintTour(
   id: 'intro',
-  minShowVersion: appVersion,
   steps: [
     HintStep(
       targetId: 'exerciseSelector',
@@ -90,7 +89,7 @@ HintTour introTour(String appVersion) => HintTour(
 
 // 3. Wire once, show once
 final controller = HintController();
-controller.showTour(introTour(appVersion));
+controller.showTour(introTour);
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
@@ -112,7 +111,7 @@ controller.showHint(
 );
 ```
 
-**Production wiring** — store once, offer + show-once:
+**Production wiring** — store once, then three ways in:
 
 ```dart
 // once, at wiring (SharedPreferences / your storage)
@@ -122,21 +121,27 @@ final store = CallbackHintStore(
 );
 Hintful.configure(store: store); // every controller reads it
 
-// optional ask-first dialog — gate + decline + tryShowTour under `mark:`
+// 1. the atomic guard — the store is not consulted, `false` when busy
+await controller.tryShowTour(introTour);
+
+// 2. optional ask-first dialog — decline is remembered too
 await showHintTourOffer(
   context: context,
   controller: controller,
-  tour: introTour(appVersion),
-  pageId: 'Home',
+  tour: introTour,
+  pageId: 'Home', // defaults to tour.id
   // mark: HintMarkPolicy.onAnyExit, // default: finish/skip/timeout all count
 );
 
-// or show it directly, with the once-per-version gate
+// 3. once per app version — `minShowVersion` gates, `mark:` records
 await controller.tryShowTour(
-  introTour(appVersion),
+  HintTour(id: 'intro', minShowVersion: appVersion, steps: introTour.steps),
   mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
 );
 ```
+
+`tryShowTour` takes `mark:` only when you want the versioned gate — omit it
+(the first call above) and the store stays out of the picture.
 
 No store configured? A session `InMemoryHintStore` keeps show-once working
 for this run only — the controller prints a one-time warning (debug and

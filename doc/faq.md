@@ -179,7 +179,7 @@ Offer it when the tour is optional and the screen has other jobs:
 await showHintTourOffer(
   context: context,
   controller: controller, // reads the store configured via Hintful.configure
-  tour: AppTours.settings(appVersion), // versioned factory (minShowVersion: appVersion)
+  tour: AppTours.settings(minShowVersion: appVersion), // versioned factory
   pageId: 'settings',
 );
 ```

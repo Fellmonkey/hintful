@@ -23,14 +23,14 @@ Put every tour in `lib/app_tours.dart` as plain data — no `BuildContext`, no w
 ```dart
 // app_tours.dart
 abstract class AppTours {
-  static HintTour intro(String appVersion) => HintTour(
-    id: 'intro', minShowVersion: appVersion, autoScroll: true, steps: [
+  static HintTour intro({String? minShowVersion}) => HintTour(
+    id: 'intro', minShowVersion: minShowVersion, autoScroll: true, steps: [
     HintStep(targetId: 'fab', content: HintStepContent(titleBuilder: (c) => c.l10n.introFab)),
     HintStep(targetId: 'list', content: HintStepContent(title: 'List')),
   ]);
 
-  static HintTour settings(String appVersion) => HintTour(
-    id: 'settings', minShowVersion: appVersion, steps: [...]);
+  static HintTour settings({String? minShowVersion}) => HintTour(
+    id: 'settings', minShowVersion: minShowVersion, steps: [...]);
 }
 ```
 
@@ -213,9 +213,8 @@ once-per-version semantics
 Hintful.configure(store: store); // once, at wiring
 
 final shown = await controller.tryShowTour(
-  AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
+  AppTours.intro(minShowVersion: appVersion), // the gate field lives on the tour
   mark: HintMarkPolicy.onAnyExit, // see the policies below
-  version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
 if (!shown) return; // already shown for this version, or busy
 ```
@@ -629,7 +628,7 @@ pages" checkbox that starts the tour on accept.
 final result = await showHintTourOffer(
   context: context,
   controller: controller, // reads the store configured via Hintful.configure
-  tour: AppTours.settings(appVersion), // a versioned factory — see §0
+  tour: AppTours.settings(minShowVersion: appVersion), // gated — see §0
   pageId: 'settings',     // the page this offer belongs to
   // mark: HintMarkPolicy.manual, // opt-out: record the shown-state yourself (§6)
   labels: HintTourOfferLabels(title: l10n.offerTitle),

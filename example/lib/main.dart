@@ -146,7 +146,6 @@ class _ExampleAppState extends State<ExampleApp> {
     _controller.tryShowTour(
       introTour(minShowVersion: _appVersion),
       mark: HintMarkPolicy.onAnyExit,
-      version: _appVersion,
     );
   }
 

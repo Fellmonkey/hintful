@@ -42,7 +42,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
   `tryShowHint` (never referenced — `tryShowTour` covers the quiet guard).
 - **The entry points are one `show*` family.** `start` → `showTour`,
   `tryStart` → `tryShowTour`; show-once is no longer a second method but
-  `tryShowTour(tour, mark:, version:)` — an omitted `mark` means "the store
+  `tryShowTour(tour, mark:)` — an omitted `mark` means "the store
   is not consulted", so `tryStart(tour)` is exactly `tryShowTour(tour)`.
   `HintTourOfferResult.started` → `shown` (it now pairs with
   `alreadyShown`).

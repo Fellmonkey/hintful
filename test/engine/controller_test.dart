@@ -696,7 +696,6 @@ void main() {
       await controller.tryShowTour(
         oneStep(minShowVersion: '1.0.0'),
         mark: HintMarkPolicy.onFinish,
-        version: '1.0.0',
       );
       controller.finish();
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
@@ -705,7 +704,6 @@ void main() {
         await controller.tryShowTour(
           oneStep(minShowVersion: '1.1.0'),
           mark: HintMarkPolicy.onFinish,
-          version: '1.1.0',
         ),
         isTrue,
       );

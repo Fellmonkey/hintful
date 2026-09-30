@@ -382,9 +382,10 @@ class HintController implements HintActions {
   ///   * [HintMarkPolicy.onFinish] — on [FinishedEffect] (Done / last step);
   ///   * [HintMarkPolicy.onAnyExit] — on any exit (finish, skip, abort);
   ///   * [HintMarkPolicy.manual] — never (the app owns the shown-state);
-  /// - the gate reads [HintTour.minShowVersion]; [version] is what gets
-  ///   recorded and defaults to `tour.minShowVersion ?? 'true'` (the same
-  ///   convention as the offer dialog's decline keys).
+  /// - the gate reads [HintTour.minShowVersion], and that same value is what
+  ///   [HintStore.markShown] records (a tour with no floor records the string
+  ///   `'true'` — "never show again", the same convention as the offer
+  ///   dialog's decline keys).
   ///
   /// The store is app-wide: configure it once with `Hintful.configure(store:
   /// ...)` — there is no per-call store (the session-in-memory fallback
@@ -394,7 +395,6 @@ class HintController implements HintActions {
   Future<bool> tryShowTour(
     HintTour tour, {
     HintMarkPolicy? mark,
-    String? version,
   }) async {
     ({HintStore store, HintMarkPolicy mark})? armed;
     if (mark != null) {
@@ -409,7 +409,7 @@ class HintController implements HintActions {
       _pendingOnce = (
         tourId: tour.id,
         store: armed.store,
-        version: version ?? tour.minShowVersion ?? 'true',
+        version: tour.minShowVersion ?? 'true',
         mark: armed.mark,
       );
     }
