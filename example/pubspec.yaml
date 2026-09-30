@@ -4,8 +4,10 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.0'
+  # Raised over the library floor: the demo reads
+  # ColorScheme.surfaceContainerHighest (home_screen.dart) — Flutter 3.22.
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
 
 dependencies:
   flutter:

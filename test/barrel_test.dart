@@ -28,7 +28,7 @@ void main() {
     expect(tour.missingTargetPolicy, HintMissingTargetPolicy.skipStep);
 
     // Specs, part two: extra content, the shape/curve enums, JSON round-trip.
-    const extra = HintTooltip(
+    const extra = HintAdditionalTooltip(
         position: TooltipPosition.left,
         content: HintStepContent(title: 'Extra'));
     final richTour = HintTour(
@@ -141,8 +141,8 @@ void main() {
     expect(cbStore.shouldShow('intro', minVersion: '3.0.0'), isTrue);
 
     // Version ordering — exported so an app-side store shares the exact rule.
-    expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
-    expect(compareVersions('2.3', '2.3.0'), 0);
+    expect(compareHintVersions('1.10.0', '1.9.0'), greaterThan(0));
+    expect(compareHintVersions('2.3', '2.3.0'), 0);
 
     // The gate rule itself — callable from app code.
     expect(

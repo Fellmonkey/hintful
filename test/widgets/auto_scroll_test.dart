@@ -87,12 +87,14 @@ void main() {
     expect(waiting.bottom, closeTo(screen.bottom, 1),
         reason: 'waiting at the edge the target comes from');
 
-    // At rest the tooltip sits right above the target, gap included.
+    // At rest the tooltip sits right above the target — the placement gap
+    // (12) measured from the VISUAL hole (target bounds + the 4 px focus
+    // padding), so the clear ring under the tooltip is not crowded.
     final settled = frames.last!;
     final hole = target();
     expect(settled.overlaps(hole), isFalse);
-    expect(hole.top - settled.bottom, closeTo(12, 1),
-        reason: 'settled above the target with the placement gap');
+    expect(hole.top - settled.bottom, closeTo(4 + 12, 1),
+        reason: 'settled above the target: focus padding + placement gap');
 
     h.disposeNow();
   });

@@ -31,11 +31,12 @@ Steps:
 
 * Server-driven: `HintTour.fromJson(json)` / `toJson()` — steps are flat
   `title`/`description` only; custom `tooltipBuilder` stays code-side.
-  Dart param ↔ JSON key: `stepTimeout` ↔ `waitTimeoutMs`,
+  Dart param ↔ JSON key: `stepTimeout` ↔ `stepTimeoutMs`,
   tap-bools `tapOnTarget`/`tapOnOverlay`
   ↔ `HintTapBehavior.advance()`/`ignore()` (`true` ⇔ advance).
 * Wait-for-target: no manual `Future.delayed` — `stepTimeout` (default 3s)
   + `HintSkipReason.timeout` diagnosis (missing target never renders).
-* Zero-idle: remove wrapper when idle — `S1` `idle_zero` stays `0`.
+* Zero-idle: the overlay is removed when the tour ends — `S1` `idle_zero` is
+  `4` (the `HintTarget` wrappers), not a mounted overlay.
 
 See `example/` for a complete tour (scroll, deferred target, light/dark).

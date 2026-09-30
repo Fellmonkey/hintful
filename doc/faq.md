@@ -102,7 +102,7 @@ HintStep(targetId: 'filter-all', additionalTargets: ['filter-daily'], content: H
 
 // one hole, two tooltips
 HintStep(targetId: 'stats', content: HintStepContent(title: 'Your week'), additionalTooltips: [
-  HintTooltip(position: TooltipPosition.left, content: HintStepContent(title: 'Volume', description: '12.4 t')),
+  HintAdditionalTooltip(position: TooltipPosition.left, content: HintStepContent(title: 'Volume', description: '12.4 t')),
 ])
 ```
 

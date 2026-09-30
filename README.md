@@ -51,9 +51,10 @@ silently gives up because the target isn't built yet.
 | Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<HintState>`, no state-management imports |
 | Overlay mounted even when idle | **Zero-idle cost** — zero engine widgets in the tree until a tour actually starts |
 
-_Zero-idle is about the engine: no overlay, entry or listener exists until a tour
-starts. The thin `HintTarget` wrapper around your widget is the only idle
-footprint — that's the `4` nodes in the S1 row of the benchmark table below._
+_Zero-idle is about the engine: no overlay entry, scrim or tooltip exists
+until a tour starts. What is there meanwhile is your own `HintTarget` wrapper
+(the `4` nodes in the S1 row of the benchmark table below) and the
+`HintController` you constructed — it keeps no tour state between tours._
 
 ## What you write
 
@@ -138,9 +139,11 @@ No store configured? A session `InMemoryHintStore` keeps show-once working
 for this run only — the controller prints a one-time warning (debug and
 release alike). Configure a persistent store for real once-per-version
 semantics. The ready-made shared_preferences store ships in the
-[`hintful_prefs`](https://pub.dev/packages/hintful_prefs) companion package.
-Wire format ↔ Dart params: `stepTimeout` ↔
-`waitTimeoutMs`, tap-bools `tapOnTarget`/`tapOnOverlay` ↔
+[`hintful_prefs`](https://github.com/Fellmonkey/hintful_prefs) companion
+package.
+Wire format ↔ Dart params: `stepTimeout` ↔ `stepTimeoutMs` (both per step and
+the tour default; the older `waitTimeoutMs` still parses as a step key),
+tap-bools `tapOnTarget`/`tapOnOverlay` ↔
 `HintTapBehavior.advance()`/`ignore()`.
 
 ## Fast — measured, not promised
@@ -284,7 +287,7 @@ The only supported import is `package:hintful/hintful.dart`. Deep imports
 (`package:hintful/engine/...`, `package:hintful/widgets/...`) are not part of
 the API — implementation lives under `lib/src/` and is reachable only through
 this barrel (explicit `show` lists). The exported surface: tour data
-(`HintStep`/`HintTour`/`HintTooltip`/`HintStepContent`/`HintTapBehavior` +
+(`HintStep`/`HintTour`/`HintAdditionalTooltip`/`HintStepContent`/`HintTapBehavior` +
 `TooltipPosition`/`FocusShape`/`HintMissingTargetPolicy`),
 registry (`HintTargetRegistry`), machine states
 (`HintState`/`HintIdle`/`HintWaiting`/`HintActive`), controller
@@ -293,7 +296,7 @@ registry (`HintTargetRegistry`), machine states
 (`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
 `DefaultTooltip`, `showHintTourOffer` + offer labels/result),
 config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
-`CallbackHintStore`/`HintMarkPolicy`/`compareVersions`).
+`CallbackHintStore`/`HintMarkPolicy`/`compareHintVersions`).
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
@@ -331,9 +334,10 @@ dependencies:
 import 'package:hintful/hintful.dart';
 ```
 
-Requires Dart ≥ 3.0 / Flutter ≥ 3.10 — that floor comes from three things
-hintful leans on: sealed machine states, `CompositedTransform` +
-`LayerLink.leaderSize`, and `ThemeExtension`.
+Requires Dart ≥ 3.2 / Flutter ≥ 3.16 — the floor is
+`MediaQuery.textScalerOf`, which hintful uses to follow the system text scale;
+the rest of what it leans on (sealed machine states, `CompositedTransform` +
+`LayerLink.leaderSize`, `ThemeExtension`) is older.
 
 See `example/` for working demos of every feature above — shaped holes,
 blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer dialog, and the versioned intro.

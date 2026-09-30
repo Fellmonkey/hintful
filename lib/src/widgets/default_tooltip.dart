@@ -91,7 +91,7 @@ class HintSlotTooltip extends StatelessWidget {
   /// the announcement still reads the position).
   final HintTooltipContext ctx;
 
-  /// The slot's own copy — [HintTooltip.content], not the step's.
+  /// The slot's own copy — [HintAdditionalTooltip.content], not the step's.
   final HintStepContent content;
 
   /// Button + announcement strings for this slot only; null — inherit

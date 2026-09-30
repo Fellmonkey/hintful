@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../position_resolver.dart';
 import '../specs.dart' show FocusShape, kHintFocusPadding;
+import 'scrim_painter.dart';
 
 /// Pulsing ring around the primary target (Material feature-discovery
 /// pattern). Opt-in via `HintTheme.showPulse`; the animation runs only while
@@ -24,7 +25,9 @@ class PulsePainter extends CustomPainter {
     this.focusPadding = kHintFocusPadding,
   });
 
-  /// Pulse progress animation (0..1); null — no pulse is drawn.
+  /// Pulse progress animation (0..1). Null — the ring is drawn at phase 0
+  /// (static, fully opaque) instead of being skipped; pass a running
+  /// controller for the actual pulse.
   final Animation<double>? animation;
 
   /// Source of the target's position (null — nothing to ring).
@@ -51,32 +54,28 @@ class PulsePainter extends CustomPainter {
         .shift(position.translation);
     final (localRing, opacity) = pulseRing(animation?.value ?? 0, hole.size);
     final ringRect = localRing.shift(hole.topLeft);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..color = color.withAlpha((opacity * 255).round());
-    switch (focusShape) {
-      case FocusShape.circle:
-        final side =
-            ringRect.width > ringRect.height ? ringRect.width : ringRect.height;
-        canvas.drawOval(
-            Rect.fromCenter(center: ringRect.center, width: side, height: side),
-            paint);
-      case FocusShape.roundedRect:
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(ringRect, const Radius.circular(12)),
-            paint);
-      case FocusShape.rectangle:
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(ringRect, const Radius.circular(4)), paint);
-    }
+    // One shape table for the package: the ring strokes exactly the path the
+    // scrim punches (stroked, so corners read as the hole's corners — a
+    // stroked rect is sharp, an inscribed oval round, a rounded rect clamped
+    // the same way as the scrim's).
+    final path = RectScrimPainter.holeShape(ringRect, focusShape);
+    if (path == null) return;
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = color.withAlpha((opacity * 255).round()),
+    );
   }
 
   @override
   bool shouldRepaint(covariant PulsePainter oldDelegate) =>
       !identical(oldDelegate.animation, animation) ||
       !identical(oldDelegate.resolver, resolver) ||
-      oldDelegate.color != color;
+      oldDelegate.color != color ||
+      oldDelegate.focusShape != focusShape ||
+      oldDelegate.focusPadding != focusPadding;
 
   /// The expanding ring for a pulse [phase] in 0..1 around a hole of [size]:
   /// `(rect, opacity)`. The rect inflates from the hole by up to [expansion]

@@ -83,14 +83,14 @@ HintTour multiContentTour() => HintTour(
               title: 'Primary tooltip',
               description: 'The primary tooltip — it owns the tour controls.'),
           additionalTooltips: [
-            HintTooltip(
+            HintAdditionalTooltip(
               position: TooltipPosition.left,
               content: HintStepContent(
                   title: 'Left slot',
                   description: 'An extra tooltip on the left — '
                       'informational, no buttons.'),
             ),
-            HintTooltip(
+            HintAdditionalTooltip(
               position: TooltipPosition.top,
               content: HintStepContent(
                   title: 'Top slot',

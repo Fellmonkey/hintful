@@ -105,18 +105,18 @@ class HintTheme extends ThemeExtension<HintTheme> {
       ),
       tooltipDescriptionStyle: TextStyle(
         fontSize: 13,
-        // withAlpha (not deprecated across the supported 3.10+ range;
+        // withAlpha (not deprecated across the supported 3.16+ range;
         // withOpacity was deprecated in 3.27 in favor of withValues — 3.27+).
         color: onSurface.withAlpha(191), // 75% opacity
       ),
     );
   }
 
-  /// Same theme with the given fields replaced. The nullable fields —
-  /// [tooltipTitleStyle], [tooltipDescriptionStyle], [imageFilter] — are
-  /// **cleared** by passing `null` explicitly; omitting an argument keeps
-  /// the current value (so `theme.copyWith(imageFilter: null)` turns the
-  /// blur off, while `theme.copyWith(tooltipPadding: ...)` leaves it).
+  /// Same theme with the given fields replaced. An omitted argument — and an
+  /// explicit `null` — keeps the current value, the same rule every field
+  /// follows. The three nullable overrides ([tooltipTitleStyle],
+  /// [tooltipDescriptionStyle], [imageFilter]) are dropped with
+  /// [withoutTitleStyle], [withoutDescriptionStyle] and [withoutImageFilter].
   @override
   HintTheme copyWith({
     Color? tooltipBackground,
@@ -124,36 +124,75 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Color? scrimColor,
     BorderRadius? tooltipRadius,
     EdgeInsets? tooltipPadding,
-    Object? tooltipTitleStyle = kUnsetCopyWith,
-    Object? tooltipDescriptionStyle = kUnsetCopyWith,
+    TextStyle? tooltipTitleStyle,
+    TextStyle? tooltipDescriptionStyle,
     bool? showTail,
-    Object? imageFilter = kUnsetCopyWith,
+    ImageFilter? imageFilter,
     bool? showPulse,
     HintTooltipLabels? tooltipLabels,
     HintTourOfferLabels? tourOfferLabels,
-  }) {
-    return HintTheme(
-      tooltipBackground: tooltipBackground ?? this.tooltipBackground,
-      tooltipForeground: tooltipForeground ?? this.tooltipForeground,
-      scrimColor: scrimColor ?? this.scrimColor,
-      tooltipRadius: tooltipRadius ?? this.tooltipRadius,
-      tooltipPadding: tooltipPadding ?? this.tooltipPadding,
-      tooltipTitleStyle: identical(tooltipTitleStyle, kUnsetCopyWith)
-          ? this.tooltipTitleStyle
-          : tooltipTitleStyle as TextStyle?,
-      tooltipDescriptionStyle:
-          identical(tooltipDescriptionStyle, kUnsetCopyWith)
-              ? this.tooltipDescriptionStyle
-              : tooltipDescriptionStyle as TextStyle?,
-      showTail: showTail ?? this.showTail,
-      imageFilter: identical(imageFilter, kUnsetCopyWith)
-          ? this.imageFilter
-          : imageFilter as ImageFilter?,
-      showPulse: showPulse ?? this.showPulse,
-      tooltipLabels: tooltipLabels ?? this.tooltipLabels,
-      tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,
-    );
-  }
+  }) =>
+      _raw(
+        tooltipBackground: tooltipBackground ?? this.tooltipBackground,
+        tooltipForeground: tooltipForeground ?? this.tooltipForeground,
+        scrimColor: scrimColor ?? this.scrimColor,
+        tooltipRadius: tooltipRadius ?? this.tooltipRadius,
+        tooltipPadding: tooltipPadding ?? this.tooltipPadding,
+        tooltipTitleStyle: tooltipTitleStyle ?? _keep,
+        tooltipDescriptionStyle: tooltipDescriptionStyle ?? _keep,
+        showTail: showTail ?? this.showTail,
+        imageFilter: imageFilter ?? _keep,
+        showPulse: showPulse ?? this.showPulse,
+        tooltipLabels: tooltipLabels ?? this.tooltipLabels,
+        tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,
+      );
+
+  /// The same theme without the background blur: the plain dim scrim comes
+  /// back. [copyWith] cannot say it (a `null` argument keeps, like everywhere
+  /// else), so clearing has its own call.
+  HintTheme withoutImageFilter() => _raw(imageFilter: null);
+
+  /// The same theme without a title-style override: the tooltip resolves its
+  /// default from [tooltipForeground] again.
+  HintTheme withoutTitleStyle() => _raw(tooltipTitleStyle: null);
+
+  /// The same theme without a description-style override — same fallback as
+  /// [withoutTitleStyle].
+  HintTheme withoutDescriptionStyle() => _raw(tooltipDescriptionStyle: null);
+
+  /// One rebuild with every field spelled out: `_keep` (the default) means
+  /// "take it from this theme", an explicit `null` means "drop it". Private —
+  /// the public [copyWith] is fully typed; this is only how the `without*`
+  /// clearers express "clear to null" without an `Object?` parameter.
+  HintTheme _raw({
+    Object? tooltipBackground = _keep,
+    Object? tooltipForeground = _keep,
+    Object? scrimColor = _keep,
+    Object? tooltipRadius = _keep,
+    Object? tooltipPadding = _keep,
+    Object? tooltipTitleStyle = _keep,
+    Object? tooltipDescriptionStyle = _keep,
+    Object? showTail = _keep,
+    Object? imageFilter = _keep,
+    Object? showPulse = _keep,
+    Object? tooltipLabels = _keep,
+    Object? tourOfferLabels = _keep,
+  }) =>
+      HintTheme(
+        tooltipBackground: _or(tooltipBackground, this.tooltipBackground),
+        tooltipForeground: _or(tooltipForeground, this.tooltipForeground),
+        scrimColor: _or(scrimColor, this.scrimColor),
+        tooltipRadius: _or(tooltipRadius, this.tooltipRadius),
+        tooltipPadding: _or(tooltipPadding, this.tooltipPadding),
+        tooltipTitleStyle: _or(tooltipTitleStyle, this.tooltipTitleStyle),
+        tooltipDescriptionStyle:
+            _or(tooltipDescriptionStyle, this.tooltipDescriptionStyle),
+        showTail: _or(showTail, this.showTail),
+        imageFilter: _or(imageFilter, this.imageFilter),
+        showPulse: _or(showPulse, this.showPulse),
+        tooltipLabels: _or(tooltipLabels, this.tooltipLabels),
+        tourOfferLabels: _or(tourOfferLabels, this.tourOfferLabels),
+      );
 
   @override
   HintTheme lerp(HintTheme? other, double t) {
@@ -225,3 +264,13 @@ extension HintThemeX on ThemeData {
   HintTheme get hintTheme =>
       extensions[HintTheme] as HintTheme? ?? HintTheme.minimal(colorScheme);
 }
+
+/// "Keep the current value" marker for [HintTheme._raw] — a private sentinel,
+/// never exposed in a public signature (that is the whole point: a typed
+/// `copyWith` cannot be called with a wrong-typed argument).
+const Object _keep = Object();
+
+/// [_keep] → [current]; anything else → the value, cast to [T]'s type (an
+/// explicit `null` clears a nullable field).
+T _or<T>(Object? value, T current) =>
+    identical(value, _keep) ? current : value as T;

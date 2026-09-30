@@ -68,7 +68,7 @@ abstract class HintStore {
   /// [lastShown] is what [markShown] recorded for the key (null — never
   /// shown): never shown → `true`; no [minVersion] → a previous show is
   /// final (never again); else `true` when [lastShown] is OLDER than
-  /// [minVersion] ([compareVersions]) — a version bump re-shows the hint, a
+  /// [minVersion] ([compareHintVersions]) — a version bump re-shows the hint, a
   /// re-run in the same version does not.
   ///
   /// A `static` helper, deliberately **not** a third interface member (the
@@ -89,7 +89,7 @@ abstract class HintStore {
   }) {
     if (lastShown == null) return true;
     if (minVersion == null) return false;
-    return compareVersions(lastShown, minVersion) < 0;
+    return compareHintVersions(lastShown, minVersion) < 0;
   }
 }
 
@@ -103,7 +103,7 @@ abstract class HintStore {
 /// Public so every store shares one copy of it — shipped ([InMemoryHintStore],
 /// [CallbackHintStore]), app-side or `hintful_prefs` — and it is the ordering
 /// inside [HintStore.shouldShowVersion].
-int compareVersions(String a, String b) {
+int compareHintVersions(String a, String b) {
   final pa = a.split('.');
   final pb = b.split('.');
   final n = math.max(pa.length, pb.length);

@@ -698,7 +698,7 @@ void main() {
             targetId: 'stats',
             content: HintStepContent(title: 'Primary'),
             additionalTooltips: [
-              HintTooltip(
+              HintAdditionalTooltip(
                 position: TooltipPosition.right,
                 tooltipBuilder: (context, step, ctx) =>
                     const Text('custom slot'),

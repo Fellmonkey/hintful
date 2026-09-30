@@ -42,8 +42,17 @@ void main() {
     });
   });
 
-  group('PulsePainter focusShape', () {
-    test('rect — RRect 4', () {
+  group('PulsePainter focusShape (the ring strokes the scrim holeShape)', () {
+    Path paintedPath(TestRecordingCanvas canvas) {
+      final drawPath = canvas.invocations
+          .where((i) => i.invocation.memberName == #drawPath)
+          .toList();
+      expect(drawPath, hasLength(1),
+          reason: 'exactly one stroked path per paint');
+      return drawPath.single.invocation.positionalArguments.first as Path;
+    }
+
+    test('rect — the plain rect path', () {
       final canvas = TestRecordingCanvas();
       final r = _FakeResolver(const PositionedHint(
           translation: Offset(50, 50), size: Size(80, 40)));
@@ -54,13 +63,12 @@ void main() {
           focusShape: FocusShape.rectangle,
           focusPadding: 4);
       p.paint(canvas, const Size(800, 600));
+      // hole = (46,46,88,48) — no corner rounding on the plain rect.
       expect(
-          canvas.invocations
-              .where((i) => i.invocation.memberName == #drawRRect)
-              .length,
-          1);
+          paintedPath(canvas).getBounds(), const Rect.fromLTWH(46, 46, 88, 48));
     });
-    test('circle — oval', () {
+
+    test('circle — the inscribed square oval path', () {
       final canvas = TestRecordingCanvas();
       final r = _FakeResolver(const PositionedHint(
           translation: Offset(50, 50), size: Size(80, 40)));
@@ -71,13 +79,12 @@ void main() {
           focusShape: FocusShape.circle,
           focusPadding: 0);
       p.paint(canvas, const Size(800, 600));
+      // side = max(80, 40) = 80 around the hole's center (90, 70).
       expect(
-          canvas.invocations
-              .where((i) => i.invocation.memberName == #drawOval)
-              .length,
-          1);
+          paintedPath(canvas).getBounds(), const Rect.fromLTWH(50, 30, 80, 80));
     });
-    test('rounded — RRect 12', () {
+
+    test('rounded — the clamped-corner rect path', () {
       final canvas = TestRecordingCanvas();
       final r = _FakeResolver(const PositionedHint(
           translation: Offset(50, 50), size: Size(80, 40)));
@@ -89,10 +96,7 @@ void main() {
           focusPadding: 4);
       p.paint(canvas, const Size(800, 600));
       expect(
-          canvas.invocations
-              .where((i) => i.invocation.memberName == #drawRRect)
-              .length,
-          1);
+          paintedPath(canvas).getBounds(), const Rect.fromLTWH(46, 46, 88, 48));
     });
 
     test(
@@ -113,18 +117,16 @@ void main() {
       );
       p.paint(canvas, const Size(800, 600));
 
-      final rrect = canvas.invocations
-          .firstWhere((i) => i.invocation.memberName == #drawRRect)
-          .invocation
-          .positionalArguments
-          .first as RRect;
       // hole = (46, 46, 88, 48); phase 0.5 inflates it by 12 on every side.
-      expect(rrect.outerRect, const Rect.fromLTWH(34, 34, 112, 72));
+      expect(paintedPath(canvas).getBounds(),
+          const Rect.fromLTWH(34, 34, 112, 72));
     });
   });
 
   group('PulsePainter', () {
-    test('shouldRepaint: only when animation/resolver/color change', () {
+    test(
+        'shouldRepaint: on animation/resolver/color/shape/padding change, '
+        'not otherwise', () {
       final resolver = _FakeResolver(
           const PositionedHint(translation: Offset.zero, size: Size(10, 10)));
       final controller =
@@ -152,10 +154,25 @@ void main() {
         resolver: otherResolver,
         color: const Color(0xFFFFFFFF),
       );
+      final otherShape = PulsePainter(
+        animation: controller,
+        resolver: resolver,
+        color: const Color(0xFFFFFFFF),
+        focusShape: FocusShape.circle,
+      );
+      final otherPadding = PulsePainter(
+        animation: controller,
+        resolver: resolver,
+        color: const Color(0xFFFFFFFF),
+        focusPadding: 12,
+      );
 
       expect(a.shouldRepaint(same), isFalse);
       expect(a.shouldRepaint(otherColor), isTrue);
       expect(a.shouldRepaint(other), isTrue);
+      // A step change must re-aim the ring: shape/padding move with the step.
+      expect(a.shouldRepaint(otherShape), isTrue);
+      expect(a.shouldRepaint(otherPadding), isTrue);
     });
   });
 }

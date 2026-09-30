@@ -16,7 +16,8 @@ Upgrading from **0.7.0** — the whole migration in one list.
   deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
   no longer resolve. Every barrel export names its symbols, so a new public
   class can no longer leak in by accident.
-- **Content is the constructor path.** `HintStep`/`HintTooltip` lost the flat
+- **Content is the constructor path.** `HintStep`/`HintAdditionalTooltip` lost
+  the flat
   `title`/`description`/`titleBuilder`/`descriptionBuilder` params and the
   matching getters — pass `content: HintStepContent(...)` and read
   `step.content.title`. JSON keeps the flat `title`/`description` keys.
@@ -38,9 +39,15 @@ Upgrading from **0.7.0** — the whole migration in one list.
   entry animation is the `tooltipBuilder`'s job now.
 - **Renames:** `HintStep.waitTimeout` → `stepTimeout`; `moreTargets` →
   `additionalTargets`; `moreTooltips` → `additionalTooltips` (the JSON wire
-  keys rename with them); `onBeforeAction`/`onAfterAction` →
+  keys rename with them); `HintTooltip` → `HintAdditionalTooltip` (it only ever
+  appears in `additionalTooltips`); `compareVersions` → `compareHintVersions`
+  (one package-prefixed name in the barrel; `hintful_prefs` re-exports the new
+  name); `onBeforeAction`/`onAfterAction` →
   `onStepEnter`/`onStepExit`; `HintSkipReason.targetNotRendered` →
   `overlayUnavailable`.
+- **JSON wire:** the step timeout key is `stepTimeoutMs`, the same name the
+  tour default uses (it was `waitTimeoutMs`, which still parses — a step
+  written as `{"stepTimeoutMs": …}` is no longer silently ignored).
 - **Internalised (leave the barrel):** the render contract
   (`HintOverlayHost`, `defaultOverlayHost`, the position types), the
   register-path, the inheritance/scope helpers, the diagnostics helpers and
@@ -66,7 +73,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
   the per-step field is gone. The JSON default is aligned: an absent
   `missingTargetPolicy` now parses as `skipStep`, matching the Dart default and
   the documented contract.
-- **`HintTooltip.position` defaults to `TooltipPosition.auto`** (was required).
+- **`HintAdditionalTooltip.position` defaults to `TooltipPosition.auto`** (was required).
 - **Step hooks bracket a visit:** `onStepEnter`/`onStepExit` fire once per
   visit, serialized, with `old.exit` before `new.enter` (target
   vanish/reappear does not re-fire `enter`).
@@ -78,7 +85,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - `Hintful` (app-wide configuration), `CallbackHintStore` (a store in three
   lines over your own storage), the session `InMemoryHintStore` fallback and
   `startOnce` (show-once from the box).
-- `compareVersions` — the segment-wise version ordering the stores gate on
+- `compareHintVersions` — the segment-wise version ordering the stores gate on
   (`"1.10.0" > "1.9.0"`), now public so an app-side `HintStore` shares the
   exact rule; `hintful_prefs` re-exports it.
 - `HintStore.shouldShowVersion` — the gate rule itself (never shown → show;
@@ -93,7 +100,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
   (`FormatException` on a missing/empty `id`/`steps`/`targetId`).
 - **`hintful_prefs` 1.0.0** — the new companion package: a
   `shared_preferences`-backed `HintStore` (namespaced keys, `clear()` dev tool,
-  public `compareVersions`). The core stays dependency-free.
+  public `compareHintVersions`). The core stays dependency-free.
 
 ### Fixed
 
@@ -104,14 +111,28 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - `showHintTourOffer` records an accepted tour through `startOnce` (`mark:`),
   keeps its decline keys namespaced apart from the tour's own key, and takes an
   optional `pageId` (defaults to `tour.id`).
-- `HintTheme.copyWith` and `HintTooltipLabels.copyWith` can clear their nullable
-  fields: `copyWith(imageFilter: null)` turns the blur off (likewise the
-  title/description styles, and `copyWith(announceStep: null)` restores the
-  default step announcement) instead of silently keeping the current value.
-  Omitting an argument still keeps it.
+- `HintTheme.copyWith` and `HintTooltipLabels.copyWith` are fully typed: the
+  `Object?` sentinels are gone, so `copyWith(tooltipTitleStyle: 'x')` no
+  longer compiles. An omitted **or `null`** argument keeps the current value
+  (the rule every field follows); the three nullable overrides are dropped
+  with `withoutImageFilter()`, `withoutTitleStyle()`,
+  `withoutDescriptionStyle()` and `withoutAnnounceStep()`.
+- **The focus padding is part of the hole everywhere.** The scrim already cut
+  the inflated rect, but tooltip placement, the tail and the tap regions used
+  the raw target bounds — with `focusPadding > 0` the tooltip crowded the
+  clear ring, the tail aimed inside it and a tap in the ring counted as an
+  overlay tap (advancing the tour when `overlayTap: ignore()` was set). Scrim,
+  blur clip, placement, tail and tap regions now share one hole list.
+- **The pulse ring matches the hole it rings.** It drew its own shape table
+  (a radius-4 rectangle, an unclamped radius-12 rounded rect) instead of the
+  scrim's `holeShape`, and `shouldRepaint` ignored `focusShape`/`focusPadding`
+  — a step change kept the previous step's ring.
 - The missing-store fallback warns in release too: the session
   `InMemoryHintStore` message is no longer debug-gated, so a storeless release
   build says why "show once" keeps showing.
+- **Version floors are honest:** Dart ≥ 3.2 / Flutter ≥ 3.16 — the single
+  newest API the package touches is `MediaQuery.textScalerOf`. The previous
+  claim (3.0 / 3.10) would not have compiled for a consumer on 3.10–3.15.
 
 ## 0.7.0 — honest presets, tolerant JSON, tighter surface
 

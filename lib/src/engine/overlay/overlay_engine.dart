@@ -18,14 +18,17 @@ import 'tooltip_placement.dart';
 import 'tooltip_tail.dart';
 
 /// Single focus-geometry chain: step override → target default → package
-/// default ([FocusShape.rectangle] / [kHintFocusPadding]). Shared by the
-/// active and waiting render paths — one place for the fallback order.
-FocusShape resolveFocusShape(HintStep step, [HintTargetRegistration? reg]) =>
+/// default ([FocusShape.rectangle] / [kHintFocusPadding]). Private on purpose:
+/// the resolution happens once, inside the active content, and every consumer
+/// of the result (scrim, pulse, tooltip placement, tap regions) goes through
+/// the hole accessors below — there is no second fallback order to keep in
+/// step.
+FocusShape _resolveFocusShape(HintStep step, [HintTargetRegistration? reg]) =>
     step.focusShape ?? reg?.focusShape ?? FocusShape.rectangle;
 
 /// Same fallback chain for the focus padding: step override → target
 /// default → package default ([kHintFocusPadding]).
-double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
+double _resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
     step.focusPadding ?? reg?.focusPadding ?? kHintFocusPadding;
 
 /// Standard render-mechanics wiring: the engine over the controller's own
@@ -46,13 +49,12 @@ double resolveFocusPadding(HintStep step, [HintTargetRegistration? reg]) =>
 ///
 /// The engine itself and its internals (scrim, placement delegate) stay
 /// hidden: they can change without breaking, while this contract is stable.
-HintOverlayHost Function(HintController) defaultOverlayHost() {
-  return (controller) => HintOverlayEngine(
-        registry: controller.registry,
-        input: controller,
-        diagnostics: controller.diagnostics,
-      );
-}
+HintOverlayHost defaultOverlayHost(HintController controller) =>
+    HintOverlayEngine(
+      registry: controller.registry,
+      input: controller,
+      diagnostics: controller.diagnostics,
+    );
 
 /// Tour render mechanics: mounts a single `OverlayEntry`, draws the scrim
 /// hole via `CompositedTransformFollower` (target position from the
@@ -392,7 +394,9 @@ class _HintOverlayViewState extends State<_HintOverlayView>
 ///   (the target is not at a screen corner), and hit-testing is bounded by
 ///   the box's bounds — tooltip buttons above/left of the target would be
 ///   unreachable (found while exercising the example app). The global box:
-///   `screenLocal = Rect(0,0,W,H)`, `holeLocal = translation & leaderSize`.
+///   `screenLocal = Rect(0,0,W,H)`, `holeLocal` = the primary's **visual**
+///   hole (target bounds + the effective focus padding, see
+///   `_primaryHoleGlobal`).
 ///
 /// Placement is recomputed **live**: the position watcher recreates the
 /// `TooltipPlacementDelegate` with the current `holeLocal` on every movement
@@ -418,7 +422,8 @@ class _HintOverlayViewState extends State<_HintOverlayView>
 /// drags pass through to the scrollable below (the overlay registers no drag
 /// recognizer), so the page scrolls under an active tour (scroll-through).
 /// Tap-on-target vs tap-on-overlay is decided by the tap position against the
-/// hole rects (see [_ActiveOverlayContentState._dispatchTap]).
+/// hole rects (see [_ActiveOverlayContentState._dispatchTap]) — the *visual*
+/// ones, so the focus padding's clear ring belongs to the target region.
 class _ActiveOverlayContent extends StatefulWidget {
   const _ActiveOverlayContent({
     required this.step,
@@ -491,10 +496,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   ({HintStep step, int index, List<Widget> slots})? _slotCache;
 
   FocusShape _effectiveShape() =>
-      resolveFocusShape(widget.step, widget.registrations.first);
+      _resolveFocusShape(widget.step, widget.registrations.first);
 
   double _effectivePadding() =>
-      resolveFocusPadding(widget.step, widget.registrations.first);
+      _resolveFocusPadding(widget.step, widget.registrations.first);
 
   bool _effectiveAutoScroll() =>
       widget.step.autoScroll ?? widget.tourAutoScroll;
@@ -665,7 +670,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
               child: ValueListenableBuilder<Offset?>(
                 valueListenable: _holeNotifier,
                 builder: (context, _, __) {
-                  final holes = _visualHoleRects();
+                  final holes = _currentHoleRects();
                   if (blur == null) {
                     return IgnorePointer(
                       child: CustomPaint(
@@ -701,9 +706,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                 // No authoritative snapshot yet: the tooltip must not
                 // mount at a zero position (it would slide off-screen).
                 if (translation == null) return const SizedBox.shrink();
-                final holeLocal =
-                    translation & (primary.link.leaderSize ?? Size.zero);
-                return _buildTooltip(context, holeLocal, screen);
+                return _buildTooltip(context, _primaryHoleGlobal(), screen);
               },
             ),
           ],
@@ -785,7 +788,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// buttons) with its own content — or a custom builder.
   Widget _tooltipSlot(
     BuildContext context,
-    HintTooltip? extra,
+    HintAdditionalTooltip? extra,
     HintTooltipContext ctx,
   ) {
     if (extra == null) {
@@ -816,37 +819,41 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         : content;
   }
 
-  /// The primary target's hole rect in global overlay coordinates, resolved
-  /// at call time (scroll/animations move both the tooltip and the hole).
+  /// The primary target's **visible** hole rect in global overlay coordinates,
+  /// resolved at call time (scroll/animations move both the tooltip and the
+  /// hole).
+  ///
+  /// Every hole accessor returns the *visual* rect — the target's bounds
+  /// inflated by the effective focus padding — so the scrim, the blur clip,
+  /// the tooltip placement (and its tail), and the tap regions all describe
+  /// exactly the same pixels: a tap anywhere in the clear ring counts as
+  /// "on target", the tooltip keeps its `gap` from the clear edge, and the
+  /// tail aims at it.
   Rect _primaryHoleGlobal() {
     final translation = _translation;
     if (translation == null) return Rect.zero;
     final primary = widget.registrations.first;
-    return translation & (primary.link.leaderSize ?? Size.zero);
+    return (translation & (primary.link.leaderSize ?? Size.zero))
+        .inflate(_effectivePadding());
   }
 
-  /// Global rects of the secondary targets (for placement vetoes and tap
-  /// regions).
-  List<Rect> _extraHoleRects() => [
-        for (final r in widget.registrations.skip(1))
-          if (_resolvers[r.id]?.resolve() case final position?)
-            position.translation & position.size,
-      ];
+  /// Visible rects of the secondary targets (for placement vetoes and tap
+  /// regions) — the target bounds inflated by the effective focus padding,
+  /// same as [_primaryHoleGlobal].
+  List<Rect> _extraHoleRects() {
+    final pad = _effectivePadding();
+    return [
+      for (final r in widget.registrations.skip(1))
+        if (_resolvers[r.id]?.resolve() case final position?)
+          (position.translation & position.size).inflate(pad),
+    ];
+  }
 
-  /// Global rects of ALL spotlighted targets (primary + extras) — tap
-  /// regions.
+  /// Global rects of ALL spotlighted targets (primary + extras) — the
+  /// painter's hole list and the tap regions, one list for both.
   List<Rect> _currentHoleRects() {
     if (_translation == null) return const [];
     return [_primaryHoleGlobal(), ..._extraHoleRects()];
-  }
-
-  /// Visual holes: tap rects inflated by the effective focus padding
-  /// (positive expands, negative shrinks — may become empty and is then
-  /// skipped by the painter/clip).
-  List<Rect> _visualHoleRects() {
-    final pad = _effectivePadding();
-    if (pad == 0) return _currentHoleRects();
-    return [for (final r in _currentHoleRects()) r.inflate(pad)];
   }
 
   /// The pulse ring in the global layer: above the scrim (plain and blur),

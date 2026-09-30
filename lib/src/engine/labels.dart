@@ -1,15 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// Sentinel for the `copyWith` of the theme/labels family: distinguishes
-/// "leave the field as it is" (the default) from "clear it to null" (pass
-/// `null` explicitly) — a plain `null` default cannot express both.
-///
-/// One constant shared by [HintTooltipLabels] and `HintTheme`, because
-/// `identical` only matches the same object. `@internal`: plumbing for those
-/// `copyWith`s, not part of the barrel contract.
-@internal
-const Object kUnsetCopyWith = Object();
-
 /// Button + announcement strings for the zero-config tooltip.
 ///
 /// The default tooltip never hard-codes a language: it renders
@@ -74,16 +64,17 @@ class HintTooltipLabels {
       announceStep?.call(stepIndex, totalSteps, title) ??
       'Step ${stepIndex + 1} of $totalSteps: $title';
 
-  /// Same labels with the given fields replaced. Omitting a field keeps its
-  /// value; [announceStep] alone can be **cleared** with an explicit `null`
-  /// (the labels fall back to the default "Step N of M: …" announcement).
+  /// Same labels with the given fields replaced. An omitted argument — and an
+  /// explicit `null` — keeps the current value, the same rule every field
+  /// follows. To drop a custom [announceStep] while keeping the rest, use
+  /// [withoutAnnounceStep].
   HintTooltipLabels copyWith({
     String? skip,
     String? back,
     String? next,
     String? done,
     String? preparing,
-    Object? announceStep = kUnsetCopyWith,
+    String Function(int stepIndex, int totalSteps, String title)? announceStep,
   }) {
     return HintTooltipLabels(
       skip: skip ?? this.skip,
@@ -91,11 +82,19 @@ class HintTooltipLabels {
       next: next ?? this.next,
       done: done ?? this.done,
       preparing: preparing ?? this.preparing,
-      announceStep: identical(announceStep, kUnsetCopyWith)
-          ? this.announceStep
-          : announceStep as String Function(int, int, String)?,
+      announceStep: announceStep ?? this.announceStep,
     );
   }
+
+  /// The same labels without a custom [announceStep]: the default
+  /// "Step N of M: <title>" announcement applies again.
+  HintTooltipLabels withoutAnnounceStep() => HintTooltipLabels(
+        skip: skip,
+        back: back,
+        next: next,
+        done: done,
+        preparing: preparing,
+      );
 
   @override
   bool operator ==(Object other) =>

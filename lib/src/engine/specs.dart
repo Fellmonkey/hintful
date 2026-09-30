@@ -78,6 +78,10 @@ abstract class HintActions {
 /// Previously `tooltipBuilder` only received a [HintStep], so a custom tooltip
 /// could not render "2/5" or decide "Done instead of Next"; now it gets the
 /// full step context.
+///
+/// Frozen shape for 1.x: anything added later arrives as an optional
+/// named argument or a getter with a default, so both `const`
+/// construction and pattern-matching on the existing three stay valid.
 @immutable
 class HintTooltipContext {
   /// Builds a context bound to [actions] and a position within the tour.
@@ -126,7 +130,7 @@ const double kHintFocusPadding = 4.0;
 
 /// Step/slot copy: strings and/or localized builders — one place for the
 /// zero-config ↔ l10n precedence (builders win), shared by [HintStep],
-/// [HintTooltip] and `DefaultTooltip`.
+/// [HintAdditionalTooltip] and `DefaultTooltip`.
 @immutable
 class HintStepContent {
   /// Copy for a step/slot: strings and/or localized builders (all optional —
@@ -274,12 +278,15 @@ class HintStep {
   /// target alongside the primary tooltip, each on its own side. The engine
   /// guarantees they do not overlap each other or the spotlighted targets
   /// (keep-in-safe-area applies to every slot).
-  final List<HintTooltip> additionalTooltips;
+  final List<HintAdditionalTooltip> additionalTooltips;
 
   /// Preferred side for the primary tooltip — see [TooltipPosition].
   final TooltipPosition position;
 
   /// Wait-for-target timeout for this step; null — inherits [HintTour.stepTimeout].
+  ///
+  /// Wire key: `stepTimeoutMs`, the same name the tour's default uses
+  /// (the pre-1.0 `waitTimeoutMs` is still accepted when reading).
   final Duration? stepTimeout;
 
   /// Whether the default tooltip shows a "Skip" button on this step.
@@ -350,7 +357,7 @@ class HintStep {
         if (content.title != null) 'title': content.title,
         if (content.description != null) 'description': content.description,
         'position': position.name,
-        if (stepTimeout != null) 'waitTimeoutMs': stepTimeout!.inMilliseconds,
+        if (stepTimeout != null) 'stepTimeoutMs': stepTimeout!.inMilliseconds,
         'showSkip': showSkip,
         // Wire keeps the historical bool: false ⇔ ignore, true ⇔ advance.
         // custom() is code-side only (same as every callback).
@@ -386,7 +393,7 @@ class HintStep {
               const [],
       additionalTooltips:
           _listOrNull(json['additionalTooltips'], 'additionalTooltips')
-                  ?.map((e) => HintTooltip.fromJson(
+                  ?.map((e) => HintAdditionalTooltip.fromJson(
                         _mapField(e, 'additionalTooltips'),
                         onWarning: onWarning,
                       ))
@@ -395,11 +402,7 @@ class HintStep {
       position: _enumOrDefault(
           TooltipPosition.values, json['position'], TooltipPosition.auto,
           field: 'position', onWarning: onWarning),
-      stepTimeout: json['waitTimeoutMs'] == null
-          ? null
-          : Duration(
-              milliseconds:
-                  _intOrNull(json['waitTimeoutMs'], 'waitTimeoutMs')!),
+      stepTimeout: _stepTimeoutFromJson(json),
       showSkip: _boolOrNull(json['showSkip'], 'showSkip') ?? true,
       targetTap: (_boolOrNull(json['tapOnTarget'], 'tapOnTarget') ?? true)
           ? const HintTapBehavior.advance()
@@ -424,12 +427,12 @@ class HintStep {
 /// The content slot is the same [HintStepContent] type [HintStep] takes —
 /// one authoring shape for every content slot in the contract.
 @immutable
-class HintTooltip {
+class HintAdditionalTooltip {
   /// Creates a slot with [content] or a [tooltipBuilder], on its own
   /// [position] around the primary target. Empty content with no builder
   /// renders nothing useful — same authoring rule (and the same
   /// not-asserted rationale) as [HintStep].
-  const HintTooltip({
+  const HintAdditionalTooltip({
     this.position = TooltipPosition.auto,
     this.content = const HintStepContent(),
     this.tooltipBuilder,
@@ -461,11 +464,11 @@ class HintTooltip {
 
   /// Parses a slot payload; an unknown `position` falls back to
   /// [TooltipPosition.auto] (reported through [onWarning]).
-  factory HintTooltip.fromJson(
+  factory HintAdditionalTooltip.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
   }) =>
-      HintTooltip(
+      HintAdditionalTooltip(
         position: _enumOrDefault(
             TooltipPosition.values, json['position'], TooltipPosition.auto,
             field: 'position', onWarning: onWarning),
@@ -481,7 +484,7 @@ const Duration _kDefaultStepTimeout = Duration(seconds: 3);
 /// A hint tour — a declarative sequence of [HintStep]s.
 ///
 /// Pure data, serializable 1-to-1 to JSON (server-driven tours via
-/// `fromJson`): `{id, steps: [{targetId, title, ...}], stepTimeout}`.
+/// `fromJson`): `{id, steps: [{targetId, title, ...}], stepTimeoutMs}`.
 @immutable
 class HintTour {
   /// Creates a tour of [steps] under a non-empty [id].
@@ -715,4 +718,19 @@ List<String>? _stringListOrNull(Object? value, String field) {
     for (final element in value)
       element is String ? element : _badType(field, element),
   ];
+}
+
+/// Step wait-for-target timeout from the wire.
+///
+/// Reads `stepTimeoutMs` — symmetric with the tour default's key, so a step
+/// written as `{"stepTimeoutMs": …}` is not silently ignored — and falls back
+/// to the pre-1.0 `waitTimeoutMs`. The canonical name wins when both appear.
+Duration? _stepTimeoutFromJson(Map<String, dynamic> json) {
+  for (final field in const ['stepTimeoutMs', 'waitTimeoutMs']) {
+    final value = json[field];
+    if (value != null) {
+      return Duration(milliseconds: _intOrNull(value, field)!);
+    }
+  }
+  return null;
 }

@@ -152,31 +152,35 @@ void main() {
       expect(a.showPulse, isFalse);
     });
 
-    test('copyWith(imageFilter: null) turns the blur off; omitted keeps it',
-        () {
+    test('withoutImageFilter() turns the blur off; copyWith keeps it', () {
       final blur = ImageFilter.blur(sigmaX: 6, sigmaY: 6);
       final blurred = a.copyWith(imageFilter: blur);
       expect(blurred.imageFilter, same(blur));
-      expect(blurred.copyWith(imageFilter: null).imageFilter, isNull);
+      expect(blurred.withoutImageFilter().imageFilter, isNull);
+      // A null argument keeps, the same as omitting it (every field).
+      expect(blurred.copyWith(imageFilter: null).imageFilter, same(blur));
       expect(blurred.copyWith().imageFilter, same(blur));
     });
 
-    test('copyWith(null) clears the nullable title/description styles', () {
+    test('withoutTitleStyle()/withoutDescriptionStyle() drop the overrides',
+        () {
       expect(a.tooltipTitleStyle, isNotNull);
       expect(a.tooltipDescriptionStyle, isNotNull);
 
-      final cleared = a.copyWith(
-        tooltipTitleStyle: null,
-        tooltipDescriptionStyle: null,
-      );
+      final cleared = a.withoutTitleStyle().withoutDescriptionStyle();
       expect(cleared.tooltipTitleStyle, isNull);
       expect(cleared.tooltipDescriptionStyle, isNull);
 
       // Only the given fields change.
       expect(cleared.tooltipBackground, a.tooltipBackground);
       expect(
-        a.copyWith(tooltipTitleStyle: null).tooltipDescriptionStyle,
+        a.withoutTitleStyle().tooltipDescriptionStyle,
         a.tooltipDescriptionStyle,
+      );
+      expect(
+        a.copyWith(tooltipTitleStyle: null).tooltipTitleStyle,
+        a.tooltipTitleStyle,
+        reason: 'null keeps — clearing has its own call',
       );
     });
 
@@ -245,7 +249,7 @@ void main() {
       expect(theme.copyWith(tooltipLabels: ru).tooltipLabels, ru);
     });
 
-    test('copyWith(null) clears announceStep back to the default', () {
+    test('withoutAnnounceStep() falls back to the default announcement', () {
       final localized = const HintTooltipLabels().copyWith(
         announceStep: _ruAnnounce,
       );
@@ -254,12 +258,19 @@ void main() {
         'Шаг 1 из 3: T',
       );
 
-      // Explicit null clears the override.
+      // The explicit clearer drops the override.
+      expect(
+        localized
+            .withoutAnnounceStep()
+            .announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        'Step 1 of 3: T',
+      );
+      // A null argument (or omitting it) keeps, like every other field.
       expect(
         localized
             .copyWith(announceStep: null)
             .announce(stepIndex: 0, totalSteps: 3, title: 'T'),
-        'Step 1 of 3: T',
+        'Шаг 1 из 3: T',
       );
       expect(
         localized.copyWith().announce(stepIndex: 0, totalSteps: 3, title: 'T'),

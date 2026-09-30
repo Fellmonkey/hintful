@@ -260,6 +260,43 @@ void main() {
       );
     });
 
+    test('stepTimeoutMs as a string on a step throws FormatException', () {
+      expect(
+        () => HintStep.fromJson({'targetId': 'a', 'stepTimeoutMs': '3000'}),
+        throwsFormatException,
+      );
+    });
+
+    test('stepTimeoutMs is the step key; waitTimeoutMs still parses', () {
+      const step = HintStep(
+        targetId: 'a',
+        stepTimeout: Duration(milliseconds: 700),
+      );
+      final json = step.toJson();
+      expect(json['stepTimeoutMs'], 700);
+      expect(json['waitTimeoutMs'], isNull,
+          reason: 'the symmetric name is the one written');
+
+      expect(
+        HintStep.fromJson({'targetId': 'a', 'stepTimeoutMs': 700}).stepTimeout,
+        const Duration(milliseconds: 700),
+      );
+      expect(
+        HintStep.fromJson({'targetId': 'a', 'waitTimeoutMs': 700}).stepTimeout,
+        const Duration(milliseconds: 700),
+        reason: 'the pre-1.0 key keeps parsing',
+      );
+      expect(
+        HintStep.fromJson({
+          'targetId': 'a',
+          'stepTimeoutMs': 700,
+          'waitTimeoutMs': 1234,
+        }).stepTimeout,
+        const Duration(milliseconds: 700),
+        reason: 'the canonical key wins when both are present',
+      );
+    });
+
     test('stepTimeoutMs as a string throws FormatException', () {
       expect(
         () => HintTour.fromJson({
@@ -429,7 +466,7 @@ void main() {
             content: HintStepContent(title: 'Second'),
             additionalTargets: ['c'],
             additionalTooltips: [
-              HintTooltip(
+              HintAdditionalTooltip(
                   position: TooltipPosition.top,
                   content: HintStepContent(title: 'Extra'))
             ],
@@ -461,11 +498,11 @@ void main() {
       expect(back2.id, 'server');
     });
 
-    test('HintTooltip toJson/fromJson', () {
-      final t = HintTooltip(
+    test('HintAdditionalTooltip toJson/fromJson', () {
+      final t = HintAdditionalTooltip(
           position: TooltipPosition.left,
           content: HintStepContent(title: 'T', description: 'D'));
-      final back = HintTooltip.fromJson(t.toJson());
+      final back = HintAdditionalTooltip.fromJson(t.toJson());
       expect(back.position, TooltipPosition.left);
       expect(back.content.title, 'T');
     });

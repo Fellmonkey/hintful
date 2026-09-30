@@ -99,7 +99,7 @@ void main() {
       );
       addTearDown(controller.dispose);
 
-      final host = defaultOverlayHost()(controller);
+      final host = defaultOverlayHost(controller);
       addTearDown(host.dispose);
       final tour = HintTour(
         id: 't',

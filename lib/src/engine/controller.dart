@@ -125,15 +125,19 @@ class HintController implements HintActions {
           diagnostics: diagnostics,
           scopePrefix: scopePrefix,
           store: null,
-          overlayHostBuilder: defaultOverlayHost(),
+          overlayHostBuilder: defaultOverlayHost,
         );
 
   /// Test seam — not part of the public contract. Runs headless: the whole
   /// machine, timers and diagnostics with no render mechanics. [store]
   /// overrides the app-wide `Hintful` store for this one controller. [host] —
-  /// an engine test seam: a custom (internal) [HintOverlayHost] builder for
-  /// the package's own overlay tests; null — no host is built at all. The
+  /// an engine test seam: a custom [HintOverlayHost] builder for the
+  /// package's own overlay tests; null — no host is built at all. The
   /// production path is the unnamed constructor plus `Hintful.configure`.
+  ///
+  /// [host] is only usable from inside the package: `HintOverlayHost` is
+  /// deliberately not exported (the render contract stays hidden), so a
+  /// consumer's headless tests assert on `controller.currentState` instead.
   @visibleForTesting
   HintController.test({
     HintTargetRegistry? registry,
@@ -550,7 +554,7 @@ class HintController implements HintActions {
   HintOverlayHost? _hostFor(HintState state) {
     if (_builtHost != null) return _builtHost;
     if (state.isIdle || _overlayHostBuilder == null) return null;
-    return _builtHost = _overlayHostBuilder!(this);
+    return _builtHost = _overlayHostBuilder(this);
   }
 
   /// Disposes the overlay host when the tour ends: the engine holds overlay

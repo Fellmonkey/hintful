@@ -265,14 +265,14 @@ implementation of the rules above. For persistent storage the short path is
 `CallbackHintStore(read:, write:)` — three lines over `SharedPreferences` or
 your own key-value layer — and the `hintful_prefs` companion package ships a
 ready-made `SharedPreferencesHintStore` (namespaced keys, a `clear()` dev
-tool, a public `compareVersions`). The app owns the storage; the core package
+tool, a public `compareHintVersions`). The app owns the storage; the core package
 stays dependency-free. A full class (`implements HintStore`) is only needed
 when you want richer behavior — the two-member contract is frozen for 1.x.
 
 Whatever the storage, do not restate the gate: `shouldShow` should return
 `HintStore.shouldShowVersion(lastShown: <your stored value>, minVersion:
-minVersion)` — what the shipped stores call, with `compareVersions` inside.
-A hand-rolled `compareVersions(last, min) < 0` is a second copy of the rule,
+minVersion)` — what the shipped stores call, with `compareHintVersions` inside.
+A hand-rolled `compareHintVersions(last, min) < 0` is a second copy of the rule,
 and the two drift apart.
 
 ---
@@ -440,7 +440,7 @@ HintStep(
   targetId: 'stats',
   content: HintStepContent(title: 'Your week'),
   additionalTooltips: [
-    HintTooltip(
+    HintAdditionalTooltip(
       position: TooltipPosition.left,
       content: HintStepContent(title: 'Volume', description: '12.4 t'),
     ),
@@ -557,8 +557,8 @@ await controller.start(tour);
 
 What the wire format carries: `id`, steps with
 `targetId`/`additionalTargets`, titles
-and descriptions, `position`, `additionalTooltips`, `waitTimeoutMs` (per step;
-`stepTimeoutMs` for the tour default), `showSkip`, the missing-target policy,
+and descriptions, `position`, `additionalTooltips`, `stepTimeoutMs` (per step
+and tour default), `showSkip`, the missing-target policy,
 historical `tapOn*` bools, shapes/padding, `autoScroll` and `minShowVersion`.
 
 What it **cannot** carry: builders and callbacks. `titleBuilder`,
@@ -573,7 +573,7 @@ Practical rules:
 - treat the payload as untrusted: an unknown enum value (`position: "middle"`)
   falls back to the field's default and is reported (a debug print plus the
   `onWarning` callback on `HintTour.fromJson` / `HintStep.fromJson` /
-  `HintTooltip.fromJson`), and an unknown `targetId`
+  `HintAdditionalTooltip.fromJson`), and an unknown `targetId`
   is a typo assert in debug / a skipped step in release;
 - always keep a bundled fallback — never strand the user on a failed fetch.
 

@@ -560,7 +560,9 @@ void main() {
       expect(focusNode.hasFocus, isFalse);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
-      await tester.tap(find.text('stats'));
+      // Dismiss the single-step hint: dispatch is by global position (the
+      // overlay entry sits above the label, so the finder itself is not hit).
+      await tester.tap(find.text('stats'), warnIfMissed: false);
       await tester.pump();
       h.expectIdleClean();
       // Focus is back where it was before the tour.
@@ -638,7 +640,7 @@ void main() {
             content: HintStepContent(
                 title: 'Primary', description: 'The main tooltip'),
             additionalTooltips: const [
-              HintTooltip(
+              HintAdditionalTooltip(
                 position: TooltipPosition.right,
                 content: HintStepContent(
                     title: 'Extra', description: 'An informational slot'),
@@ -689,14 +691,67 @@ void main() {
       await h.start(tester, tour);
 
       // The target's label is inside the hole — tapping it is a target-region
-      // tap (not the scrim).
-      await tester.tap(find.text('stats'));
+      // tap (not the scrim). The overlay entry is above the label, so the
+      // finder itself is not what gets hit; dispatch is by global position,
+      // which is what `_dispatchTap` classifies.
+      await tester.tap(find.text('stats'), warnIfMissed: false);
       await TourHarness.settle(tester);
       expect(
         h.controller.currentState,
         HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
+    });
+
+    testWidgets(
+        'tap in the focus-padding ring = target region (the clear ring '
+        'belongs to the spotlight)', (tester) async {
+      final h = TourHarness(targets: [HarnessTarget('stats')]);
+      final tour = HintTour(
+        id: 'ring',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Statistics'),
+            // Overlay taps do nothing here, so only a TARGET-region tap can
+            // advance — the ring is the discriminating zone.
+            overlayTap: HintTapBehavior.ignore(),
+          ),
+          HintStep(
+            targetId: 'records',
+            content: HintStepContent(title: 'Records'),
+          ),
+        ],
+      );
+      await h.pump(tester);
+      await h.start(tester, tour);
+
+      final target = tester.getRect(
+          find.byWidgetPredicate((w) => w is HintTarget && w.id == 'stats'));
+      // kHintFocusPadding (4) above the target: inside the scrim's clear
+      // hole, outside the target's own bounds.
+      final inRing = Offset(target.center.dx, target.top - 2);
+      final outsideHole = Offset(target.center.dx, target.top - 10);
+      final tooltip = tester.getRect(find.byType(DefaultTooltip));
+      expect(tooltip.contains(inRing) || tooltip.contains(outsideHole), isFalse,
+          reason: 'neither tap point may be covered by the tooltip');
+
+      await tester.tapAt(outsideHole);
+      await TourHarness.settle(tester);
+      expect(
+        h.controller.currentState,
+        HintActive(tour: tour, stepIndex: 0),
+        reason: 'outside the visual hole = overlay region → ignored',
+      );
+
+      await tester.tapAt(inRing);
+      await TourHarness.settle(tester);
+      expect(
+        h.controller.currentState,
+        HintWaiting(tour: tour, stepIndex: 1),
+        reason: 'inside the clear ring = target region → next',
+      );
+      h.disposeNow();
     });
 
     testWidgets('scroll-through: dragging the scrim scrolls the page',

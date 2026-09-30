@@ -1,5 +1,5 @@
 name: hintful
-description: Onboarding tours and tooltips for Flutter. Registry-based targets, theme-aware coach marks, smart positioning, accessible by default — zero cost when idle.
+description: Onboarding tours and tooltips for Flutter. Registry-based targets, theme-aware coach marks, smart positioning, accessible by default — no overlay until a tour starts.
 version: 1.0.0
 repository: https://github.com/Fellmonkey/hintful
 topics:
@@ -9,14 +9,17 @@ topics:
   - coach-marks
   - walkthrough
 environment:
-  # The floor is sealed-classes machine states (Dart 3.0 = Flutter 3.10).
-  # The remaining engine contracts are covered by this minimum:
-  #   CompositedTransform + FollowerLayer.getLastTransform — since Flutter 1.0 (2017),
-  #   LayerLink.leaderSize — since 1.23 (PR #64930, Oct 2020),
-  #   ThemeExtension — since 3.0 (PR #98033, Mar 2022).
-  # Verified against the git history of a local Flutter 3.47.0 checkout.
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.0'
+  # The floor is the single newest Flutter API the package touches:
+  # MediaQuery.textScalerOf (default_tooltip.dart) — since Flutter 3.16
+  # (Dart 3.2). Everything else is older and was verified against the git
+  # history of a local Flutter 3.47.0 checkout:
+  #   sealed machine states        — Dart 3.0 / Flutter 3.10,
+  #   ThemeExtension               — Flutter 3.0 (PR #98033, Mar 2022),
+  #   LayerLink.leaderSize         — Flutter 1.23 (PR #64930, Oct 2020),
+  #   CompositedTransform +
+  #   FollowerLayer.getLastTransform — Flutter 1.0 (2017).
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
 
 dependencies:
   flutter:

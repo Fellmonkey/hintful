@@ -144,19 +144,19 @@ void main() {
     });
   });
 
-  group('compareVersions', () {
+  group('compareHintVersions', () {
     test('segment-wise and numeric: 1.10.0 > 1.9.0', () {
-      expect(compareVersions('1.10.0', '1.9.0'), greaterThan(0));
-      expect(compareVersions('1.9.0', '1.10.0'), lessThan(0));
+      expect(compareHintVersions('1.10.0', '1.9.0'), greaterThan(0));
+      expect(compareHintVersions('1.9.0', '1.10.0'), lessThan(0));
     });
 
     test('a missing segment counts as 0: 2.3 == 2.3.0', () {
-      expect(compareVersions('2.3', '2.3.0'), 0);
-      expect(compareVersions('2.3.1', '2.3'), greaterThan(0));
+      expect(compareHintVersions('2.3', '2.3.0'), 0);
+      expect(compareHintVersions('2.3.1', '2.3'), greaterThan(0));
     });
 
     test('non-numeric segments compare lexically', () {
-      expect(compareVersions('1.0.0-dev', '1.0.0-alpha'), greaterThan(0));
+      expect(compareHintVersions('1.0.0-dev', '1.0.0-alpha'), greaterThan(0));
     });
   });
 }
