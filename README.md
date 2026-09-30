@@ -90,7 +90,7 @@ HintTour introTour(String appVersion) => HintTour(
 
 // 3. Wire once, show once
 final controller = HintController();
-controller.start(introTour(appVersion));
+controller.showTour(introTour(appVersion));
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
@@ -122,7 +122,7 @@ final store = CallbackHintStore(
 );
 Hintful.configure(store: store); // every controller reads it
 
-// optional ask-first dialog — gate + decline + startOnce under `mark:`
+// optional ask-first dialog — gate + decline + tryShowTour under `mark:`
 await showHintTourOffer(
   context: context,
   controller: controller,
@@ -131,8 +131,11 @@ await showHintTourOffer(
   // mark: HintMarkPolicy.onAnyExit, // default: finish/skip/timeout all count
 );
 
-// or start directly; `mark:` defaults to HintMarkPolicy.onAnyExit
-await controller.startOnce(introTour(appVersion));
+// or show it directly, with the once-per-version gate
+await controller.tryShowTour(
+  introTour(appVersion),
+  mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
+);
 ```
 
 No store configured? A session `InMemoryHintStore` keeps show-once working
@@ -220,7 +223,7 @@ Headless vs full-fidelity, and the two-frame rule:
 
 **Tour control**
 
-- `start/next/previous/goTo/skip/finish`; the atomic guard `tryStart`
+- `showTour/next/previous/goTo/skip/finish`; the atomic guard `tryShowTour`
   (+ `isIdle` for UI state) — no manual guards before starting
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
 - Missing targets: `HintMissingTargetPolicy.skipStep` (the tour default)
@@ -257,7 +260,7 @@ Headless vs full-fidelity, and the two-frame rule:
 
 - Versioned hints (`HintStore`): show once per app version —
   configure the store once (`Hintful.configure(store: ...)`) and call
-  `startOnce(tour, mark:)` (default `HintMarkPolicy.onAnyExit`; the version
+  `tryShowTour(tour, mark:)` (the policy is the `HintMarkPolicy`; the version
   gate lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by
   hand; with no store configured, a session `InMemoryHintStore` keeps
   show-once working for this run only. `CallbackHintStore(read:, write:)`
@@ -300,7 +303,7 @@ config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
 
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
-targets and shape (§1), `isIdle` vs `tryStart` (§5), versions (§6), multi-target
+targets and shape (§1), `isIdle` vs `tryShowTour` (§5), versions (§6), multi-target
 and multi-content (§13–14), taps (§15), motion (§16), navigation (§17),
 server-driven tours (§18), testing (§19), the offer dialog (§20).
 
@@ -312,7 +315,7 @@ final body = await http.get(
   Uri.parse('https://cdn.example.com/tours/onboarding'),
 ); // your client — http, dio, HttpClient, …
 final tour = HintTour.fromJson(jsonDecode(body.body) as Map<String, dynamic>);
-await controller.start(tour);
+await controller.showTour(tour);
 ```
 Keep a bundled fallback tour for the offline / failed-fetch case.
 
@@ -346,7 +349,7 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
 
 - [`doc/best_practices.md`](doc/best_practices.md#index) — the decisions that keep
   tours findable and hard to break, one per section, with the code to copy;
-- [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryStart`,
+- [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryShowTour`,
   text scale, taps, multi-target vs multi-content, testing,
   server-driven tours and the offer dialog;
 - [`doc/migration_guide.md`](doc/migration_guide.md) — coming from

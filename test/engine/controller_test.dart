@@ -145,7 +145,7 @@ void main() {
         context: ctx,
       ));
 
-      await controller.start(tour);
+      await controller.showTour(tour);
 
       expect(
         controller.currentState,
@@ -166,7 +166,7 @@ void main() {
       final tour = _tour2();
       addTearDown(controller.dispose);
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
 
       registry.register(HintTargetRegistration(
@@ -190,7 +190,7 @@ void main() {
       final tour = _tour2();
       addTearDown(controller.dispose);
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
 
       await tester.pump(const Duration(seconds: 3));
@@ -228,7 +228,7 @@ void main() {
         context: ctx,
       ));
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       controller.next();
@@ -309,7 +309,7 @@ void main() {
         context: ctx,
       ));
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       controller.next();
       expect(controller.currentState, HintActive(tour: tour, stepIndex: 1));
 
@@ -339,7 +339,7 @@ void main() {
       ));
 
       final tour = _tour2();
-      await controller.start(tour);
+      await controller.showTour(tour);
       controller.goTo(1);
       expect(controller.currentState, HintActive(tour: tour, stepIndex: 1));
 
@@ -368,7 +368,7 @@ void main() {
         context: ctx,
       ));
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       controller.skip();
@@ -422,7 +422,7 @@ void main() {
       // start is async: the AssertionError goes into the Future, it is not
       // thrown synchronously.
       await expectLater(
-        controller.start(typoTour),
+        controller.showTour(typoTour),
         throwsA(isA<AssertionError>()),
       );
       expect(controller.currentState, isA<HintIdle>(),
@@ -437,7 +437,7 @@ void main() {
       final controller = HintController.test(
           host: (_) => host, registry: registry, diagnostics: diag.call);
 
-      await controller.start(_tour2()); // waiting(0) + 3s timer
+      await controller.showTour(_tour2()); // waiting(0) + 3s timer
       controller.dispose();
 
       await tester.pump(const Duration(seconds: 5));
@@ -446,43 +446,43 @@ void main() {
     });
   });
 
-  group('safe start (tryStart/isIdle)', () {
-    testWidgets('tryStart while busy — false, no assert, tour untouched',
+  group('safe start (tryShowTour/isIdle)', () {
+    testWidgets('tryShowTour while busy — false, no assert, tour untouched',
         (tester) async {
       final registry = HintTargetRegistry();
       final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
-      await controller.start(_tour2());
+      await controller.showTour(_tour2());
       expect(controller.isIdle, isFalse);
 
       // No AssertionError (unlike start): a plain false.
-      expect(await controller.tryStart(_tour2()), isFalse);
+      expect(await controller.tryShowTour(_tour2()), isFalse);
       expect(controller.currentState.stepIndex, 0);
 
       controller.dispose();
     });
 
-    testWidgets('tryStart while idle — starts and returns true',
+    testWidgets('tryShowTour while idle — starts and returns true',
         (tester) async {
       final registry = HintTargetRegistry();
       final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
       expect(controller.isIdle, isTrue);
-      expect(await controller.tryStart(_tour2()), isTrue);
+      expect(await controller.tryShowTour(_tour2()), isTrue);
       expect(controller.isIdle, isFalse);
 
       controller.dispose();
     });
 
-    testWidgets('tryStart — nothing was shown → false, not true',
+    testWidgets('tryShowTour — nothing was shown → false, not true',
         (tester) async {
       final registry = HintTargetRegistry();
       final controller = HintController.test(registry: registry);
       addTearDown(controller.dispose);
 
-      // Reaches start()'s declined-to-run guard from a debug test: the
+      // Reaches showTour()'s declined-to-run guard from a debug test: the
       // constructor assert passes at construction, the steps are emptied
       // afterwards. A release build reaches the same guard when every step
       // is stripped as a typo.
@@ -492,14 +492,14 @@ void main() {
       final tour = HintTour(id: 't', steps: steps);
       steps.clear();
 
-      expect(await controller.tryStart(tour), isFalse);
+      expect(await controller.tryShowTour(tour), isFalse);
       expect(controller.isIdle, isTrue);
 
       controller.dispose();
     });
   });
 
-  group('startOnce (show-once: mark only on finish)', () {
+  group('tryShowTour (show-once: mark only on finish)', () {
     HintTour oneStep({String? minShowVersion}) => HintTour(
           id: 'intro',
           // Historical abort semantics: these tests assert that a timeout
@@ -523,7 +523,7 @@ void main() {
       addTearDown(controller.dispose);
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -549,7 +549,7 @@ void main() {
       ));
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -580,7 +580,7 @@ void main() {
       ));
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -601,7 +601,7 @@ void main() {
       addTearDown(controller.dispose);
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -628,9 +628,9 @@ void main() {
         context: ctx,
       ));
 
-      expect(await controller.tryStart(_tour2()), isTrue);
+      expect(await controller.tryShowTour(_tour2()), isTrue);
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -639,10 +639,10 @@ void main() {
 
       controller.finish();
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
-          reason: 'busy startOnce never armed a mark');
+          reason: 'busy tryShowTour never armed a mark');
     });
 
-    testWidgets('plain start() of another tour does not mark the once key',
+    testWidgets('plain showTour() of another tour does not mark the once key',
         (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
@@ -661,7 +661,7 @@ void main() {
       }
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.0.0'),
           mark: HintMarkPolicy.onFinish,
         ),
@@ -670,7 +670,7 @@ void main() {
       controller.skip(); // disarms without mark
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
 
-      await controller.start(_tour2());
+      await controller.showTour(_tour2());
       controller.finish();
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue,
           reason: 'a different tour finishing must not mark intro');
@@ -693,7 +693,7 @@ void main() {
         context: ctx,
       ));
 
-      await controller.startOnce(
+      await controller.tryShowTour(
         oneStep(minShowVersion: '1.0.0'),
         mark: HintMarkPolicy.onFinish,
         version: '1.0.0',
@@ -702,7 +702,7 @@ void main() {
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
 
       expect(
-        await controller.startOnce(
+        await controller.tryShowTour(
           oneStep(minShowVersion: '1.1.0'),
           mark: HintMarkPolicy.onFinish,
           version: '1.1.0',
@@ -713,7 +713,7 @@ void main() {
       expect(store.shouldShow('intro', minVersion: '1.1.0'), isFalse);
     });
 
-    testWidgets('store on the controller — startOnce with no per-call store',
+    testWidgets('store on the controller — tryShowTour with no per-call store',
         (tester) async {
       final ctx = await _pumpContext(tester);
       final registry = HintTargetRegistry();
@@ -730,7 +730,7 @@ void main() {
       ));
 
       expect(
-        await controller.startOnce(oneStep(minShowVersion: '1.0.0'),
+        await controller.tryShowTour(oneStep(minShowVersion: '1.0.0'),
             mark: HintMarkPolicy.onFinish),
         isTrue,
       );
@@ -740,7 +740,7 @@ void main() {
       expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
     });
 
-    testWidgets('session fallback store — startOnce with no configured store',
+    testWidgets('session fallback store — tryShowTour with no configured store',
         (tester) async {
       final controller = HintController.test(registry: HintTargetRegistry());
       addTearDown(controller.dispose);
@@ -748,7 +748,7 @@ void main() {
       // No store: falls back to a session InMemoryHintStore — starts and
       // records in-memory (state lives for this run only).
       expect(
-        await controller.startOnce(oneStep(minShowVersion: '1.0.0'),
+        await controller.tryShowTour(oneStep(minShowVersion: '1.0.0'),
             mark: HintMarkPolicy.onFinish),
         isTrue,
       );
@@ -777,7 +777,7 @@ void main() {
       expect(first.store, same(second.store));
 
       expect(
-        await first.startOnce(oneStep(minShowVersion: '1.0.0'),
+        await first.tryShowTour(oneStep(minShowVersion: '1.0.0'),
             mark: HintMarkPolicy.onFinish),
         isTrue,
       );
@@ -787,7 +787,8 @@ void main() {
       // The mark written by the first controller closes the gate for the
       // second — without a shared store this returns true (the bug).
       expect(
-        await second.startOnce(oneStep(minShowVersion: '1.0.0')),
+        await second.tryShowTour(oneStep(minShowVersion: '1.0.0'),
+            mark: HintMarkPolicy.onAnyExit),
         isFalse,
         reason: 'the first controller already marked the tour shown',
       );
@@ -861,7 +862,7 @@ void main() {
           )
         ],
       );
-      await controller.start(tour);
+      await controller.showTour(tour);
       // Waiting: the foreign target must not satisfy the step.
       expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
 
@@ -900,7 +901,7 @@ void main() {
           )
         ],
       );
-      await controller.start(tour);
+      await controller.showTour(tour);
       expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
 
       controller.dispose();
@@ -958,7 +959,7 @@ void main() {
         exit1: () async => log.add('exit1'),
       );
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       await tester.pump();
       expect(log, ['enter0']);
 
@@ -973,7 +974,7 @@ void main() {
           reason: 'finish ends the open visit');
 
       // skip on a fresh visit also fires exit
-      await controller.start(hookTour(
+      await controller.showTour(hookTour(
         log,
         enter0: () async => log.add('enter0'),
         exit0: () async => log.add('exit0'),
@@ -1012,7 +1013,7 @@ void main() {
         enter1: () async => log.add('enter1'),
       );
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       await tester.pump(const Duration(milliseconds: 30));
       expect(log, ['enter0:start', 'enter0:end']);
 
@@ -1043,7 +1044,7 @@ void main() {
         enter1: () async => log.add('enter1'),
       );
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       await tester.pump();
       expect(log, ['enter0']);
       expect(controller.currentState, isA<HintActive>());
@@ -1089,7 +1090,7 @@ void main() {
         enter1: () async => log.add('enter1'),
       );
 
-      await controller.start(tour);
+      await controller.showTour(tour);
       await tester.pump();
       expect(log, ['enter0']);
 
@@ -1135,7 +1136,7 @@ void main() {
       );
 
       try {
-        await controller.start(tour);
+        await controller.showTour(tour);
         await tester.pump();
         controller.next();
         await tester.pump();
@@ -1189,7 +1190,7 @@ void main() {
           ),
         ],
       );
-      await controller.start(tour);
+      await controller.showTour(tour);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(controller.currentState.stepIndex, 1);

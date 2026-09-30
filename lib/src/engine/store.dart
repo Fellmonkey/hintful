@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 /// When a show-once path records the shown-state — one policy knob for
-/// [HintController.startOnce] and `showHintTourOffer`.
+/// [HintController.tryShowTour] and `showHintTourOffer`.
 ///
 /// Closed in 1.x: no new values before 2.0.
 enum HintMarkPolicy {
@@ -53,8 +53,8 @@ enum HintMarkPolicy {
 /// dependency-free — see the example app.
 ///
 /// Typical use: configure it once at startup (`Hintful.configure(store: ...)`)
-/// and call `startOnce` with no per-call store — or the manual gate
-/// `shouldShow` before start + `markShown` on the exit you choose.
+/// and call `tryShowTour(tour, mark:)` with no per-call store — or the manual gate
+/// `shouldShow` before `showTour` + `markShown` on the exit you choose.
 abstract class HintStore {
   /// Whether the hint should show (see class doc). [minVersion] — the app
   /// version the hint targets; null — "show once ever".

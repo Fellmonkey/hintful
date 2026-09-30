@@ -41,7 +41,7 @@ class Hintful {
 
   /// Configure the app-wide [store].
   ///
-  /// Call once at startup, before the first [HintController.startOnce] /
+  /// Call once at startup, before the first [HintController.tryShowTour] /
   /// `showHintTourOffer`. Safe to call again — e.g. when async storage
   /// finishes loading after the first frames.
   static void configure({HintStore? store}) {

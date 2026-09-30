@@ -63,7 +63,7 @@ class _SyncScreenState extends State<_SyncScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         key: const Key('start'),
-        onPressed: () => unawaited(_controller.start(HintTour(
+        onPressed: () => unawaited(_controller.showTour(HintTour(
           id: 't',
           steps: const [
             HintStep(
@@ -207,7 +207,7 @@ void main() {
 
     // Start while the target is absent -> Waiting (full scrim, no hole).
     unawaited(
-      controller.start(
+      controller.showTour(
         HintTour(
           id: 't',
           steps: const [

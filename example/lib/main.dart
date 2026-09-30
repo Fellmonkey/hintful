@@ -128,7 +128,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// ("Bump version" re-enables it). Marking runs on ANY exit via
   /// [HintMarkPolicy.onAnyExit] (§6: finished, skipped or timed out all
   /// count — "the user has seen it").
-  void _startTour() {
+  void _showTour() {
     if (!_controller.currentState.isIdle) return; // one tour at a time
     final store = _store;
     if (store == null) return; // prefs not loaded yet
@@ -143,7 +143,7 @@ class _ExampleAppState extends State<ExampleApp> {
       );
       return;
     }
-    _controller.startOnce(
+    _controller.tryShowTour(
       introTour(minShowVersion: _appVersion),
       mark: HintMarkPolicy.onAnyExit,
       version: _appVersion,
@@ -192,26 +192,26 @@ class _ExampleAppState extends State<ExampleApp> {
     );
   }
 
-  void _startMultiTargetTour() => _guardStart(multiTargetTour());
+  void _showMultiTargetTour() => _guardShow(multiTargetTour());
 
-  void _startMultiContentTour() => _guardStart(multiContentTour());
+  void _showMultiContentTour() => _guardShow(multiContentTour());
 
-  void _startTapRegionsTour() => _guardStart(tapRegionsTour(_notify));
+  void _showTapRegionsTour() => _guardShow(tapRegionsTour(_notify));
 
-  void _startCircleHoleTour() => _guardStart(circleHoleTour());
-  void _startRoundedHoleTour() => _guardStart(roundedHoleTour());
-  void _startNegativePaddingTour() => _guardStart(negativePaddingTour());
-  void _startHooksTour() => _guardStart(hooksTour(_notify));
-  void _startFadeSlideTour() => _guardStart(fadeSlideTour());
-  void _startJsonTour() => _guardStart(jsonTour());
-  void _startL10nTour(BuildContext context) => _guardStart(l10nTour(context));
-  void _startAutoScrollStepTour() => _guardStart(autoScrollStepTour());
+  void _showCircleHoleTour() => _guardShow(circleHoleTour());
+  void _showRoundedHoleTour() => _guardShow(roundedHoleTour());
+  void _showNegativePaddingTour() => _guardShow(negativePaddingTour());
+  void _showHooksTour() => _guardShow(hooksTour(_notify));
+  void _showFadeSlideTour() => _guardShow(fadeSlideTour());
+  void _showJsonTour() => _guardShow(jsonTour());
+  void _showL10nTour(BuildContext context) => _guardShow(l10nTour(context));
+  void _showAutoScrollStepTour() => _guardShow(autoScrollStepTour());
 
   /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
   /// checkbox; the decision (start or decline) is persisted via the store —
   /// per page, or globally when the checkbox is on. The tour is a plain
   /// [HintTour] — see demo_tours.dart.
-  void _startOfferTour(BuildContext context) {
+  void _showOfferTour(BuildContext context) {
     if (!_controller.currentState.isIdle) return; // one tour at a time
     if (_store == null) return; // prefs not loaded yet
     showHintTourOffer(
@@ -223,9 +223,9 @@ class _ExampleAppState extends State<ExampleApp> {
     );
   }
 
-  /// One tour at a time: [HintController.tryStart] is the atomic guard —
+  /// One tour at a time: [HintController.tryShowTour] is the atomic guard —
   /// `false` when busy (or when nothing started) instead of an assert.
-  Future<void> _guardStart(HintTour tour) => _controller.tryStart(tour);
+  Future<void> _guardShow(HintTour tour) => _controller.tryShowTour(tour);
 
   /// Snackbar channel for tour callbacks (tap-region demo) — the shell owns
   /// the messenger key. A fresh notification replaces the previous one
@@ -297,7 +297,7 @@ class _ExampleAppState extends State<ExampleApp> {
             _store?.shouldShow('intro', minVersion: _appVersion) ?? false,
         hintStyle: _hintStyle,
         onToggleTheme: _toggleTheme,
-        onStartTour: _startTour,
+        onShowTour: _showTour,
         onShowHint: _showHint,
         onBumpVersion: _bumpVersion,
         onResetStore: _resetStore,
@@ -306,18 +306,18 @@ class _ExampleAppState extends State<ExampleApp> {
           _showStats = index == 1;
         }),
         onStyleChanged: _onStyleChanged,
-        onMultiTargetTour: _startMultiTargetTour,
-        onMultiContentTour: _startMultiContentTour,
-        onTapRegionsTour: _startTapRegionsTour,
-        onOfferTour: _startOfferTour,
-        onCircleHoleTour: _startCircleHoleTour,
-        onRoundedHoleTour: _startRoundedHoleTour,
-        onNegativePaddingTour: _startNegativePaddingTour,
-        onHooksTour: _startHooksTour,
-        onFadeSlideTour: _startFadeSlideTour,
-        onJsonTour: _startJsonTour,
-        onL10nTour: _startL10nTour,
-        onAutoScrollStepTour: _startAutoScrollStepTour,
+        onMultiTargetTour: _showMultiTargetTour,
+        onMultiContentTour: _showMultiContentTour,
+        onTapRegionsTour: _showTapRegionsTour,
+        onOfferTour: _showOfferTour,
+        onCircleHoleTour: _showCircleHoleTour,
+        onRoundedHoleTour: _showRoundedHoleTour,
+        onNegativePaddingTour: _showNegativePaddingTour,
+        onHooksTour: _showHooksTour,
+        onFadeSlideTour: _showFadeSlideTour,
+        onJsonTour: _showJsonTour,
+        onL10nTour: _showL10nTour,
+        onAutoScrollStepTour: _showAutoScrollStepTour,
       ),
     );
   }

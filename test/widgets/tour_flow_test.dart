@@ -35,7 +35,7 @@ void main() {
       expect(h.controller.currentState, isA<HintIdle>());
 
       // mount: step 1 is mounted → active right away (target wiring).
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(
         h.controller.currentState,
         HintActive(tour: tour, stepIndex: 0),
@@ -88,7 +88,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       final targetBefore = tester.getRect(find.text('stats'));
@@ -154,7 +154,7 @@ void main() {
         ),
       );
       await TourHarness.settle(tester);
-      await controller.start(HintTour(
+      await controller.showTour(HintTour(
         id: 'cull',
         steps: const [
           HintStep(
@@ -207,7 +207,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(find.text('Next'), findsOneWidget);
 
       await tester.tap(find.text('Next'));
@@ -242,7 +242,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       // No Back on the first step.
@@ -285,7 +285,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       // The tooltip is below the target (auto); (700, 560) is on the scrim,
       // outside the tooltip.
@@ -317,7 +317,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       final targetBefore = tester.getRect(find.text('stats'));
       final tipBefore = tester.getRect(find.text('Statistics'));
@@ -369,7 +369,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       final target = tester.getRect(find.text('stats'));
       final tip = tester.getRect(find.text('Statistics'));
@@ -397,7 +397,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       final tailFinder = find.byWidgetPredicate(
         (w) => w is CustomPaint && w.painter is TooltipTailPainter,
@@ -430,7 +430,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       expect(find.text('Statistics'), findsOneWidget,
           reason: 'the tooltip itself is still there');
@@ -470,7 +470,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
       expect(find.text('Statistics'), findsOneWidget);
 
@@ -507,7 +507,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       final tip = tester.getRect(find.byType(DefaultTooltip));
       expect(tip.top, greaterThanOrEqualTo(0),
@@ -555,7 +555,7 @@ void main() {
       await tester.pump();
       expect(focusNode.hasFocus, isTrue);
 
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       // The tour owns the keyboard while active — focus moved to its scope.
       expect(focusNode.hasFocus, isFalse);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
@@ -586,7 +586,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       // A follower per target: the primary (scrim host) + the secondary.
@@ -612,7 +612,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       expect(find.text('Statistics'), findsOneWidget);
       expect(find.text('Done'), findsNothing,
@@ -650,7 +650,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       // Both slots are visible; a single-step tour keeps no action row —
@@ -688,7 +688,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       // The target's label is inside the hole — tapping it is a target-region
       // tap (not the scrim). The overlay entry is above the label, so the
@@ -724,7 +724,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       final target = tester.getRect(
           find.byWidgetPredicate((w) => w is HintTarget && w.id == 'stats'));
@@ -775,7 +775,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       final offsetBefore = h.scrollController.offset;
@@ -820,7 +820,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
       expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -850,7 +850,7 @@ void main() {
         ],
       );
       await h.pump(tester);
-      await h.start(tester, tour);
+      await h.showTour(tester, tour);
 
       // Step 2 never appears — the 3s timeout gives a diagnosis.
       await tester.tap(find.text('Next'));

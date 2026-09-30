@@ -39,7 +39,7 @@ typedef UnknownHintTarget = ({
   List<String> candidates
 });
 
-/// Pure function — tested directly, applied by `start` on every tour start.
+/// Pure function — tested directly, applied by `showTour` on every tour start.
 /// Classifies a tour's steps by their target ids ([HintStep.targetIds] —
 /// extras included) against the registry's known ids.
 ///
@@ -108,7 +108,7 @@ class HintController implements HintActions {
   /// builds print the same event as one line **before** invoking it, so a
   /// custom handler never silences the console; in release the callback runs
   /// alone, or is absent — zero cost.
-  /// The store read by [startOnce] and `showHintTourOffer` is app-wide:
+  /// The store read by [tryShowTour] and `showHintTourOffer` is app-wide:
   /// configure it once with `Hintful.configure(store: ...)`. Without one,
   /// show-once works for this run through a session-scoped
   /// [InMemoryHintStore] (a one-time warning is printed) — configure a
@@ -189,7 +189,7 @@ class HintController implements HintActions {
     _registry.addListener(_onRegistryChanged);
     // The id set exists only while a tour runs (registry diffing). Held
     // while idle it would retain the registry's ids between tours (zero-idle
-    // cost) — [start] reseeds and rebuilds it.
+    // cost) — [showTour] reseeds and rebuilds it.
     _lastKnownIds = const {};
   }
 
@@ -276,7 +276,7 @@ class HintController implements HintActions {
   /// (`onStepExit` not yet fired). null — no open visit.
   ({HintTour tour, int index})? _hookedVisit;
 
-  /// Armed by [startOnce]: when and how to mark this tour's shown-state.
+  /// Armed by [tryShowTour]: when and how to mark this tour's shown-state.
   /// Cleared when the pending tour exits (finish or abort — the policy
   /// decides whether that exit writes).
   ({
@@ -298,25 +298,25 @@ class HintController implements HintActions {
   /// Current value of [state] — the machine state at this moment.
   HintState get currentState => _stateNotifier.value;
 
-  /// No tour is running — for UI state (disable Start buttons). Not an
-  /// atomic guard for `start` — use `tryStart` for that (see below).
+  /// No tour is running — for UI state (disable Show buttons). Not an
+  /// atomic guard for `showTour` — use `tryShowTour` for that (see below).
   bool get isIdle => _machine.state.isIdle;
 
-  /// Start a tour: typo validation → machine → seeding of already-mounted
+  /// Show a tour: typo validation → machine → seeding of already-mounted
   /// targets. The wait-for-target timer is armed by a machine effect.
   ///
   /// `Future` deliberately: (1) the typo AssertionError goes into the Future
   /// (loud failure in debug from `expectLater`) instead of being thrown in
-  /// the middle of someone's build; (2) later `start` will await fetching a
-  /// server-driven tour — the signature is already ready and won't need a
+  /// the middle of someone's build; (2) later `showTour` will await fetching
+  /// a server-driven tour — the signature is already ready and won't need a
   /// breaking change. For local tours you may `await` or fire-and-forget.
   ///
   /// One tour at a time — asserts in debug if busy. For an atomic
-  /// fire-and-forget without asserts, use [tryStart].
-  Future<void> start(HintTour tour) async {
+  /// fire-and-forget without asserts, use [tryShowTour].
+  Future<void> showTour(HintTour tour) async {
     assert(
       _machine.state.isIdle,
-      "hintful: start('${tour.id}') while ${_machine.state} is active"
+      "hintful: showTour('${tour.id}') while ${_machine.state} is active"
       ' — one tour at a time',
     );
     assert(
@@ -365,65 +365,58 @@ class HintController implements HintActions {
     };
   }
 
-  /// Start a tour unless one is already running — atomic, no assert.
-  /// Returns `false` when busy (no state change) or when nothing was shown
-  /// (a tour `start` declined to run — release only, see below), `true` when
-  /// the tour is actually on screen.
-  /// Prefer over `if (isIdle) await start(tour)` — that check-then-act
+  /// Show a tour unless one is already running — atomic, no assert.
+  /// Returns `false` when busy (no state change), when the versioned gate
+  /// [mark] installs is closed, or when nothing was shown; `true` when the
+  /// tour is actually on screen.
+  /// Prefer over `if (isIdle) await showTour(tour)` — that check-then-act
   /// races if two callers fire at once. `isIdle` stays for UI state.
-  Future<bool> tryStart(HintTour tour) async {
-    if (!isIdle) return false;
-    await start(tour);
-    // `start` can decline without starting (every step stripped as a typo,
-    // or an empty tour in release) — report what happened, not what was
-    // attempted: callers arm a mark on this return value.
-    return !isIdle;
-  }
-
-  /// Show-once from the box: [HintStore.shouldShow] → [start] →
-  /// [HintStore.markShown] under [mark] (default [HintMarkPolicy.onAnyExit]).
   ///
-  /// The store is app-wide: configure it once with
-  /// `Hintful.configure(store: ...)` and call `startOnce(tour)` with no
-  /// per-call store (the session-in-memory fallback works, but state lives
-  /// only for this run).
+  /// [mark] brings the versioned-hints store into the call — show-once lives
+  /// here rather than in a second entry point:
   ///
-  /// - Gate closed (`shouldShow` false) or busy → `false`, no state change;
-  ///   the version gate comes from [HintTour.minShowVersion];
-  /// - started → arms a one-shot mark for `tour.id`; the policy decides
-  ///   when `store.markShown` runs:
+  /// - omitted — the store is not consulted, the tour simply shows;
+  /// - otherwise [HintStore.shouldShow] gates first, and when the tour does
+  ///   start a one-shot mark for `tour.id` is armed; the policy decides when
+  ///   [HintStore.markShown] runs:
   ///   * [HintMarkPolicy.onFinish] — on [FinishedEffect] (Done / last step);
   ///   * [HintMarkPolicy.onAnyExit] — on any exit (finish, skip, abort);
   ///   * [HintMarkPolicy.manual] — never (the app owns the shown-state);
-  /// - [version] is what gets recorded; defaults to
-  ///   `tour.minShowVersion ?? 'true'`
-  ///   (same convention as the offer dialog's decline keys).
+  /// - the gate reads [HintTour.minShowVersion]; [version] is what gets
+  ///   recorded and defaults to `tour.minShowVersion ?? 'true'` (the same
+  ///   convention as the offer dialog's decline keys).
   ///
-  /// Prefer this over hand-rolled `shouldShow` + listener glue when the
-  /// "shown" definition is *finished* (see best practices §6); use
-  /// [HintMarkPolicy.onAnyExit] to retire the hand-rolled idle-listener
-  /// pattern.
-  Future<bool> startOnce(
+  /// The store is app-wide: configure it once with `Hintful.configure(store:
+  /// ...)` — there is no per-call store (the session-in-memory fallback
+  /// works, but state lives only for this run). Prefer this over hand-rolled
+  /// `shouldShow` + listener glue when the "shown" definition is *finished*
+  /// (see best practices §6).
+  Future<bool> tryShowTour(
     HintTour tour, {
-    HintMarkPolicy mark = HintMarkPolicy.onAnyExit,
+    HintMarkPolicy? mark,
     String? version,
   }) async {
-    final effective = store;
-    if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
-      return false;
+    ({HintStore store, HintMarkPolicy mark})? armed;
+    if (mark != null) {
+      final effective = store;
+      if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
+        return false; // the versioned gate is closed
+      }
+      armed = (store: effective, mark: mark);
     }
     if (!isIdle) return false;
-    final record = version ?? tour.minShowVersion ?? 'true';
-    _pendingOnce = (
-      tourId: tour.id,
-      store: effective,
-      version: record,
-      mark: mark,
-    );
-    await start(tour);
+    if (armed != null) {
+      _pendingOnce = (
+        tourId: tour.id,
+        store: armed.store,
+        version: version ?? tour.minShowVersion ?? 'true',
+        mark: armed.mark,
+      );
+    }
+    await showTour(tour);
     if (isIdle) {
-      // start() early-returned (all steps stripped as typos) — nothing
-      // was shown, do not leave a mark armed.
+      // showTour declined (every step stripped as typos, or an empty tour in
+      // release) — nothing was shown, do not leave a mark armed.
       _pendingOnce = null;
       return false;
     }
@@ -432,11 +425,11 @@ class HintController implements HintActions {
 
   /// Fast path for a single hint: a one-step tour without HintTour ceremony.
   ///
-  /// Equivalent to `start(HintTour(id: 'hint:<targetId>', steps: [step]))` —
-  /// the same wait-for-target, timeout, typo validation and diagnostics as a
-  /// full tour. One tour at a time: calling it during an active tour is an
-  /// assert (same as [start]).
-  Future<void> showHint(HintStep step) => start(
+  /// Equivalent to `showTour(HintTour(id: 'hint:<targetId>', steps: [step]))`
+  /// — the same wait-for-target, timeout, typo validation and diagnostics as
+  /// a full tour. One tour at a time: calling it during an active tour is an
+  /// assert (same as [showTour]).
+  Future<void> showHint(HintStep step) => showTour(
         HintTour(id: 'hint:${step.targetId}', steps: [step]),
       );
 
@@ -499,7 +492,7 @@ class HintController implements HintActions {
     // A microtask may have been scheduled before dispose — dispatching after
     // it would write into a destroyed notifier.
     if (_disposed) return;
-    // While idle the machine ignores target events and the next [start]
+    // While idle the machine ignores target events and the next [showTour]
     // reseeds from the registry — keep no id set between tours (zero-idle).
     if (_machine.state.isIdle) {
       _lastKnownIds = const {};
@@ -533,7 +526,7 @@ class HintController implements HintActions {
       _timer?.cancel();
       _timer = null;
       // Zero-idle: after the tour the controller retains no tour state —
-      // the registry-diff id set is dropped ([start] reseeds it) and the
+      // the registry-diff id set is dropped ([showTour] reseeds it) and the
       // overlay host (with its overlay/entry refs) is disposed. The next
       // tour lazily builds a fresh host and re-captures the overlay.
       _lastKnownIds = const {};
@@ -654,7 +647,7 @@ class HintController implements HintActions {
           break;
         case FinishedEffect(:final tourId):
           // Rendering follows the state (host.update); finish is not
-          // diagnosed. startOnce marks per its policy: onFinish and
+          // diagnosed. tryShowTour marks per its `mark:` policy: onFinish and
           // onAnyExit both count a normal finish as "shown"; manual never
           // writes.
           final pendingFinish = _pendingOnce;

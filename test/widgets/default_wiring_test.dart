@@ -32,7 +32,7 @@ void main() {
       ),
     );
 
-    await controller.start(HintTour(
+    await controller.showTour(HintTour(
       id: 'intro',
       steps: [
         HintStep(
@@ -82,7 +82,7 @@ void main() {
       ),
     );
 
-    await controller.start(HintTour(
+    await controller.showTour(HintTour(
       id: 'intro',
       steps: [
         HintStep(

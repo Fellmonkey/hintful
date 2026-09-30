@@ -29,7 +29,7 @@ class _EngineApp extends StatefulWidget {
 class _EngineAppState extends State<_EngineApp> {
   void _start() {
     if (widget.controller.currentState.isIdle) {
-      widget.controller.start(_tour());
+      widget.controller.showTour(_tour());
     }
   }
 

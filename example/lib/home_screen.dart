@@ -32,7 +32,7 @@ class HintHomeScreen extends StatelessWidget {
     required this.introWillShow,
     required this.hintStyle,
     required this.onToggleTheme,
-    required this.onStartTour,
+    required this.onShowTour,
     required this.onShowHint,
     required this.onBumpVersion,
     required this.onResetStore,
@@ -62,7 +62,7 @@ class HintHomeScreen extends StatelessWidget {
   final bool introWillShow;
   final HintStyle hintStyle;
   final VoidCallback onToggleTheme;
-  final VoidCallback onStartTour;
+  final VoidCallback onShowTour;
   final VoidCallback onShowHint;
   final VoidCallback onBumpVersion;
   final VoidCallback onResetStore;
@@ -108,7 +108,7 @@ class HintHomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Show tour',
             icon: const Icon(Icons.play_circle_outline),
-            onPressed: tourActive ? null : onStartTour,
+            onPressed: tourActive ? null : onShowTour,
           ),
         ],
       ),

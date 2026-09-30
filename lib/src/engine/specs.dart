@@ -510,7 +510,7 @@ class HintTour {
 
   /// When set, the tour is gated by [HintStore.shouldShow] against this
   /// version: it shows only if it was never shown or last shown before
-  /// `minShowVersion`. Read by [HintController.startOnce] and
+  /// `minShowVersion`. Read by [HintController.tryShowTour] and
   /// `showHintTourOffer` — the one place to declare "targets version X".
   final String? minShowVersion;
 
@@ -537,7 +537,7 @@ class HintTour {
   /// (one tour at a time, a duplicated target is ambiguous). Counts
   /// [HintStep.targetIds] (extras included); repeating an id WITHIN one step
   /// is not a duplicate (the same hole twice is harmless). The check is
-  /// cheap and lazy; used by the controller's start-validation.
+  /// cheap and lazy; used by the controller's showTour validation.
   Set<String> get duplicateTargetIds {
     final seen = <String>{};
     final duplicates = <String>{};

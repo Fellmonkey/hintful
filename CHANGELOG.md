@@ -37,9 +37,15 @@ Upgrading from **0.7.0** — the whole migration in one list.
   `DebugPrintDiagnostics` class; the animation presets
   (`HintEntryAnimation`, `HintStep.transition`, `hintTransitionDuration`) —
   entry animation is the `tooltipBuilder`'s job now; and two entry points
-  that only restated others: `restart` (an idle-checked `finish` + `start`,
-  and it marked a `startOnce` tour shown as a side effect) and
-  `tryShowHint` (never referenced — `tryStart` covers the quiet guard).
+  that only restated others: `restart` (an idle-checked `finish` + `showTour`,
+  and it marked a store-gated tour shown as a side effect) and
+  `tryShowHint` (never referenced — `tryShowTour` covers the quiet guard).
+- **The entry points are one `show*` family.** `start` → `showTour`,
+  `tryStart` → `tryShowTour`; show-once is no longer a second method but
+  `tryShowTour(tour, mark:, version:)` — an omitted `mark` means "the store
+  is not consulted", so `tryStart(tour)` is exactly `tryShowTour(tour)`.
+  `HintTourOfferResult.started` → `shown` (it now pairs with
+  `alreadyShown`).
 - **Renames:** `HintStep.waitTimeout` → `stepTimeout`; `moreTargets` →
   `additionalTargets`; `moreTooltips` → `additionalTooltips` (the JSON wire
   keys rename with them); `HintTooltip` → `HintAdditionalTooltip` (it only ever
@@ -69,7 +75,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - **Headless is a test seam.** `HintController()` always renders; the
   `@visibleForTesting` factory is `HintController.test()` — always headless,
   with an internal `host:` seam for the package's own overlay tests.
-- **`HintMarkPolicy` replaces `markOnFinish`** (on `startOnce` and
+- **`HintMarkPolicy` replaces `markOnFinish`** (on `tryShowTour(mark:)` and
   `showHintTourOffer`): `onAnyExit` (the default — finish, skip and timeout
   all count), `onFinish`, `manual`.
 - **`skipStep` is the tour default** (was `abortTour`) and is tour-level only —
@@ -87,7 +93,7 @@ Upgrading from **0.7.0** — the whole migration in one list.
 
 - `Hintful` (app-wide configuration), `CallbackHintStore` (a store in three
   lines over your own storage), the session `InMemoryHintStore` fallback and
-  `startOnce` (show-once from the box).
+  `mark:` on `tryShowTour` (show-once from the box).
 - `compareHintVersions` — the segment-wise version ordering the stores gate on
   (`"1.10.0" > "1.9.0"`), now public so an app-side `HintStore` shares the
   exact rule; `hintful_prefs` re-exports it.
@@ -107,15 +113,15 @@ Upgrading from **0.7.0** — the whole migration in one list.
 
 ### Fixed
 
-- `tryStart`/`tryShowHint` report what happened, not what was attempted: a
-  tour `start` declined to run (every step stripped as a typo in release, an
+- `tryShowTour` reports what happened, not what was attempted: a
+  tour `showTour` declined to run (every step stripped as a typo in release, an
   empty tour) now returns `false` instead of `true`. Callers that arm a
   mark on the return value no longer record a tour that never showed.
 - Diagnostics tell the truth: `overlayUnavailable` is reported once per tour
-  (not once per state change), a busy `start` no longer emits phantom
+  (not once per state change), a busy `showTour` no longer emits phantom
   `unknownTarget` events, typo filtering preserves tour-level fields, and a
   throwing step hook is logged in release too.
-- `showHintTourOffer` records an accepted tour through `startOnce` (`mark:`),
+- `showHintTourOffer` records an accepted tour through `tryShowTour(mark:)`,
   keeps its decline keys namespaced apart from the tour's own key, and takes an
   optional `pageId` (defaults to `tour.id`).
 - `HintTheme.copyWith` and `HintTooltipLabels.copyWith` are fully typed: the

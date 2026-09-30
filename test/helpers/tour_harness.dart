@@ -39,7 +39,7 @@ class DiagnosticsRecorder {
 /// ```dart
 /// final h = TourHarness(targets: [HarnessTarget('stats')]);
 /// await h.pump(tester);
-/// await h.start(tester, HintTour(id: 't', steps: [
+/// await h.showTour(tester, HintTour(id: 't', steps: [
 ///   HintStep(
 ///     targetId: 'stats',
 ///     content: HintStepContent(title: 'Title'),
@@ -140,10 +140,10 @@ class TourHarness {
     await tester.pumpWidget(_scene());
   }
 
-  /// Start the tour + two pumps: a scrim frame, then the tooltip on top of
+  /// Show the tour + two pumps: a scrim frame, then the tooltip on top of
   /// the snapshot.
-  Future<void> start(WidgetTester tester, HintTour tour) async {
-    await controller.start(tour);
+  Future<void> showTour(WidgetTester tester, HintTour tour) async {
+    await controller.showTour(tour);
     await settle(tester);
   }
 

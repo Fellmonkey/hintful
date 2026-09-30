@@ -12,8 +12,8 @@ import '../engine/theme/hint_theme.dart';
 /// `switch`es over this enum in app code are safe; genuinely new outcomes
 /// arrive as new API, not a new value.
 enum HintTourOfferResult {
-  /// The user accepted — the tour was started.
-  started,
+  /// The user accepted — the tour was shown.
+  shown,
 
   /// The user declined (the decline is remembered in the store).
   declined,
@@ -39,7 +39,7 @@ String _pageDeclineKey(String tourId, String pageId) =>
 String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 
 /// Show the pre-tour offer dialog — "Want a tour?" with an
-/// "Apply to all pages" checkbox — and start [tour] on accept.
+/// "Apply to all pages" checkbox — and show [tour] on accept.
 ///
 /// Two gates skip the dialog entirely (returns
 /// [HintTourOfferResult.alreadyShown]): the tour itself should not show
@@ -58,7 +58,7 @@ String _globalDeclineKey(String tourId) => '$_declinePrefix$tourId';
 /// own shown-state key, so the tour remains reachable through other entry
 /// points (e.g. a settings screen). Dismissing the dialog (barrier tap)
 /// counts as a decline — "not now" should not nag again. On accept the tour
-/// is started via [HintController.startOnce] with [mark] (default
+/// is started via [HintController.tryShowTour] with [mark] (default
 /// [HintMarkPolicy.onAnyExit]: finish, skip and abort all count as "seen" —
 /// best practices §6). When the controller is busy at accept the
 /// result is [HintTourOfferResult.busy] (asserts in debug).
@@ -130,8 +130,8 @@ Future<HintTourOfferResult> showHintTourOffer({
     }
     // Gate already passed above (from tour.minShowVersion) — a false return
     // here means the tour was stripped as typos or busy raced in (release).
-    final started = await controller.startOnce(tour, mark: mark);
-    return started ? HintTourOfferResult.started : HintTourOfferResult.busy;
+    final shown = await controller.tryShowTour(tour, mark: mark);
+    return shown ? HintTourOfferResult.shown : HintTourOfferResult.busy;
   }
   // Declined: remember it — per page, or for all pages when the checkbox
   // was on. The version string is arbitrary here: `shouldShow` without a

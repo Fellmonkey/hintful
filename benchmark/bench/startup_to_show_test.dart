@@ -1,7 +1,7 @@
 // custom.startup_to_show — hintful's own frame-count bench (M5), a
 // consumer-owned custom scenario (`custom.*`: own scene, own ref, outside
 // the S1–S7 contract templates). The contract S2 measures show latency in WALL ms;
-// this bench counts FRAMES from `start()` to the first DefaultTooltip
+// this bench counts FRAMES from `showTour()` to the first DefaultTooltip
 // frame — deterministic (2 frames: scrim pass + positioning pass) and
 // independent of build-mode timing. Not part of the contract scenario set:
 // hintful-specific, excluded from rivals and public tables; its golden
@@ -21,14 +21,14 @@ import 'package:flutter_bench_contract/flutter_bench_contract.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('start() → first tooltip frame', (tester) async {
+  testWidgets('showTour() → first tooltip frame', (tester) async {
     final controller = HintController();
     addTearDown(controller.dispose);
     await tester.pumpWidget(_StartupScene(controller: controller));
     await tester.pump();
 
     final stopwatch = Stopwatch()..start();
-    controller.start(_tour());
+    controller.showTour(_tour());
     var frames = 0;
     while (frames < 60 && find.byType(DefaultTooltip).evaluate().isEmpty) {
       await tester.pump();
@@ -71,7 +71,7 @@ class _StartupScene extends StatelessWidget {
 
   void _start() {
     if (controller.currentState.isIdle) {
-      controller.start(_tour());
+      controller.showTour(_tour());
     }
   }
 

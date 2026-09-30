@@ -141,7 +141,7 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pump();
 
-    expect(await result, HintTourOfferResult.started);
+    expect(await result, HintTourOfferResult.shown);
     expect(controller.currentState.isIdle, isFalse,
         reason: 'the tour started (headless machine)');
     // The started tour armed a wait-for-target timer — dispose in the body
@@ -334,7 +334,7 @@ void main() {
       await tester.tap(find.text('Start'));
       await tester.pump();
 
-      expect(await result, HintTourOfferResult.started);
+      expect(await result, HintTourOfferResult.shown);
       expect(controller.currentState.isIdle, isFalse);
 
       controller.finish(); // the one step's target never mounts → finish
@@ -360,7 +360,7 @@ void main() {
       await tester.tap(find.text('Start'));
       await tester.pump();
 
-      expect(await result, HintTourOfferResult.started);
+      expect(await result, HintTourOfferResult.shown);
       controller.skip();
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
@@ -385,7 +385,7 @@ void main() {
       await tester.tap(find.text('Start'));
       await tester.pump();
 
-      expect(await result, HintTourOfferResult.started);
+      expect(await result, HintTourOfferResult.shown);
       controller.finish();
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
@@ -409,7 +409,7 @@ void main() {
       await tester.tap(find.text('Start'));
       await tester.pump();
 
-      expect(await result, HintTourOfferResult.started);
+      expect(await result, HintTourOfferResult.shown);
       controller.skip();
       expect(controller.currentState.isIdle, isTrue);
       expect(store.shouldShow('t'), isFalse,
@@ -423,7 +423,7 @@ void main() {
       addTearDown(controller.dispose);
       final context = await _pumpApp(tester);
 
-      await controller.start(_oneStepTour('other')); // one tour at a time
+      await controller.showTour(_oneStepTour('other')); // one tour at a time
 
       final result = showHintTourOffer(
         context: context,

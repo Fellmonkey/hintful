@@ -70,6 +70,12 @@ void main() {
     expect(controller.currentState, isA<HintIdle>());
     expect(controller.isIdle, isTrue);
 
+    // Entry points — the `show*` family resolves through the barrel; the
+    // tear-offs pin the shape (loud `void` vs quiet `bool` + store params).
+    expect(controller.showTour, isNotNull);
+    expect(controller.tryShowTour, isNotNull);
+    expect(controller.showHint, isNotNull);
+
     // Machine states — the public observable (HintState + subtypes).
     expect(HintWaiting(tour: tour, stepIndex: 0), isA<HintState>());
     expect(HintActive(tour: tour, stepIndex: 0), isA<HintState>());
@@ -112,13 +118,13 @@ void main() {
     expect(
         const SizedBox().withHint('sugar'), isA<HintTarget>()); // HintTargetX
 
-    // Versioned hints — the store service + startOnce (method contract).
+    // Versioned hints — the store service + tryShowTour (method contract).
     final store = InMemoryHintStore();
     expect(store, isA<HintStore>());
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isTrue);
     store.markShown('intro', '1.0.0');
     expect(store.shouldShow('intro', minVersion: '1.0.0'), isFalse);
-    expect(controller.startOnce, isNotNull); // tear-off resolves via barrel
+    expect(controller.tryShowTour, isNotNull); // tear-off resolves via barrel
 
     // App-wide configuration — the store is installed once, not per controller.
     Hintful.configure(store: store);

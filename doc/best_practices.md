@@ -6,7 +6,7 @@ Keep tours easy to find, easy to change, and hard to break. Each rule below is o
 
 **Structure** — [0 Architecture](#0-architecture--one-file-owns-all-tours) · [1 Targets](#1-targets--shape-lives-on-the-widget) · [2 Tours](#2-tours--let-the-compiler-help) · [3 Text](#3-text--use-builders-for-localization)
 
-**Entry points** — [5 isIdle vs tryStart](#5-when-to-show--separate-ui-state-from-the-guard) · [6 Once per version](#6-once-per-version--hintstore) · [20 The offer dialog](#20-the-offer-dialog--want-a-tour)
+**Entry points** — [5 isIdle vs tryShowTour](#5-when-to-show--separate-ui-state-from-the-guard) · [6 Once per version](#6-once-per-version--hintstore) · [20 The offer dialog](#20-the-offer-dialog--want-a-tour)
 
 **Copy & look** — [4 Copy](#4-copy--hints-are-ui-not-docs) · [10 Shapes](#10-shapes--negative-padding-is-safe) · [11 Custom tooltip](#11-custom--tooltipbuilder-is-the-escape-hatch) · [16 Motion](#16-motion--animate-it-yourself)
 
@@ -36,7 +36,7 @@ abstract class AppTours {
 
 Tours become searchable, diffable in PRs, and serializable (`toJson`/`fromJson` for server-driven). Scattering `HintStep`s across screens hides duplicate `targetId`s until runtime — `duplicateTargetIds` then fires late.
 
-> **Rule:** `AppTours` owns *what* to show. Screens own *where* (`withHint` / `HintTarget`). App owns *when* (`HintStore` + `controller.tryStart`). Never keep tours in `State`.
+> **Rule:** `AppTours` owns *what* to show. Screens own *where* (`withHint` / `HintTarget`). App owns *when* (`HintStore` + `controller.tryShowTour`). Never keep tours in `State`.
 
 Where the controller lives: create it once at app level, pass it down, and
 `dispose()` it with its owner. It holds the registry listener, the wait timer and
@@ -184,22 +184,22 @@ HintStep(
 ## 5. When to show — separate UI state from the guard
 
 - `controller.isIdle` — for UI only (disable the Start button).
-- `controller.tryStart(tour)` — atomic guard for `start` (returns `false` if busy **or if nothing was shown** — a tour `start` declined to run; no assert).
+- `controller.tryShowTour(tour)` — atomic guard for `showTour` (returns `false` if busy **or if nothing was shown** — a tour `showTour` declined to run; no assert).
 
 ```dart
-IconButton(onPressed: controller.isIdle ? () => controller.start(tour) : null)
+IconButton(onPressed: controller.isIdle ? () => controller.showTour(tour) : null)
 
 // fire-and-forget without a race
-if (!await controller.tryStart(tour)) return; // busy — or nothing started
+if (!await controller.tryShowTour(tour)) return; // busy — or nothing started
 ```
 
-`start` returns a `Future` (so a server `fetch` can feed it later); for local tours you may fire-and-forget.
+`showTour` returns a `Future` (so a server `fetch` can feed it later); for local tours you may fire-and-forget.
 
 ---
 
 ## 6. Once per version — `HintStore`
 
-**Preferred:** `startOnce` — gate + start + mark under a policy in one call.
+**Preferred:** `tryShowTour(tour, mark:)` — gate + start + mark under a policy in one argument.
 Configure the store once app-wide (`Hintful.configure(store: store)`); there
 is no per-call store and no controller-level field. With no store
 configured, a session `InMemoryHintStore`
@@ -212,17 +212,17 @@ once-per-version semantics
 ```dart
 Hintful.configure(store: store); // once, at wiring
 
-final started = await controller.startOnce(
+final shown = await controller.tryShowTour(
   AppTours.intro(appVersion), // HintTour(..., minShowVersion: appVersion)
-  // mark: HintMarkPolicy.onAnyExit, // the default — see the policies below
+  mark: HintMarkPolicy.onAnyExit, // see the policies below
   version: appVersion, // what gets recorded (defaults to minShowVersion)
 );
-if (!started) return; // already shown for this version, or busy
+if (!shown) return; // already shown for this version, or busy
 ```
 
 `HintMarkPolicy` (closed in 1.x):
 
-- `onAnyExit` (default) — `markShown` runs on **any exit after the tour
+- `onAnyExit` — `markShown` runs on **any exit after the tour
   started**: finish (Done / last step), skip or timeout all count as "the
   user has seen it". Retires the hand-rolled idle-listener pattern below.
 - `onFinish` — `markShown` runs **only on finish** (Done / last step). Skip
@@ -230,13 +230,13 @@ if (!started) return; // already shown for this version, or busy
   launch. Use when only a completed tour counts as "seen".
 - `manual` — never marks; the app owns the shown-state entirely.
 
-Prefer `startOnce` when a standard policy fits. For anything else (mark on
+Prefer `tryShowTour(tour, mark:)` when a standard policy fits. For anything else (mark on
 first frame, mark a different key) roll your own:
 
 ```dart
 Future<void> startIntro() async {
   if (!store.shouldShow('intro', minVersion: appVersion)) return;
-  if (!await controller.tryStart(intro)) return; // busy — nothing was shown
+  if (!await controller.tryShowTour(intro)) return; // busy — nothing was shown
   _introRunning = true; // your own flag
 }
 
@@ -249,9 +249,9 @@ controller.state.addListener(() {
 });
 ```
 
-The trap with the manual path: `start` returns as soon as the tour is
+The trap with the manual path: `showTour` returns as soon as the tour is
 **seeded** (step 1 is on screen), not when it ends — marking straight after
-`start` records a tour the user may have skipped one frame later. Prefer
+`showTour` records a tour the user may have skipped one frame later. Prefer
 `HintMarkPolicy.onAnyExit`, which is exactly this listener, built in.
 
 Key and version rules:
@@ -422,7 +422,7 @@ Rules that matter:
 - the step activates only when **all** its targets are mounted — a deferred extra holds the whole step in the waiting phase, and the timeout names every missing target rather than just the first;
 - one tooltip, anchored to the primary `targetId` — that is also the target `autoScroll` scrolls (§7) and the one whose shape/padding applies to every hole (§1);
 - placement avoids **all** spotlighted targets, so the tooltip never covers the second hole;
-- an id cannot repeat across the steps of one tour (`duplicateTargetIds` asserts on `start`) — spotlight both chips in the *same* step instead of giving them a step each;
+- an id cannot repeat across the steps of one tour (`duplicateTargetIds` asserts on `showTour`) — spotlight both chips in the *same* step instead of giving them a step each;
 - a tap inside **any** hole counts as the target region (§15).
 
 Keep it to two, maybe three targets. Past that the step stops reading as one
@@ -552,7 +552,7 @@ try {
 } catch (_) {
   tour = AppTours.onboarding(); // bundled fallback — never strand the user
 }
-await controller.start(tour);
+await controller.showTour(tour);
 ```
 
 What the wire format carries: `id`, steps with
@@ -595,8 +595,8 @@ final controller = HintController.test(
   diagnostics: (e) => events.add(e), // or recorder.call / recorder.add
 );
 
-await controller.start(tour);                       // typo → assertion in debug
-expect(await controller.tryStart(tour), isFalse);   // busy: atomic guard
+await controller.showTour(tour);                       // typo → assertion in debug
+expect(await controller.tryShowTour(tour), isFalse);   // busy: atomic guard
 controller.next();
 expect(controller.currentState, isA<HintWaiting>());
 controller.dispose();
@@ -608,14 +608,14 @@ Notes:
 - assert on diagnostics with your own recording callback (`diagnostics: (e) => …`
   or a tear-off `recorder.call`), not by capturing `debugPrint` output —
   debug builds print the line *and* invoke your callback;
-- a typo'd `targetId` is designed for `expectLater(controller.start(tour), throwsAssertionError)` — `start` returns a `Future` so the failure surfaces in the test instead of inside someone's build;
+- a typo'd `targetId` is designed for `expectLater(controller.showTour(tour), throwsAssertionError)` — `showTour` returns a `Future` so the failure surfaces in the test instead of inside someone's build;
 - keep test tours on a short/`Duration.zero` `stepTimeout`, and remember timers must be pumped or a missing target fails after the real 3 s;
 - `dispose()` every controller (it is idempotent) — otherwise the registry listener and the timer outlive the test.
 
 For full-fidelity tests (scrim, tooltip copy, taps, positioning) build a real
 scene — `MaterialApp` + `HintTarget`s + `HintController()` — the way the
 package's own `test/helpers/tour_harness.dart` does, and remember the two-frame
-rule: `start` renders the scrim on frame 1 and the tooltip on frame 2, so pump
+rule: `showTour` renders the scrim on frame 1 and the tooltip on frame 2, so pump
 twice before asserting the tooltip.
 
 ---
@@ -640,7 +640,7 @@ What it handles for you: no dialog when the tour already ran for
 `tour.minShowVersion` (returns `alreadyShown`), a decline remembered per
 page (and globally when the checkbox is on) under namespaced keys, and a
 barrier dismissal counted as a decline — "not now" must not nag. Accepting
-runs `startOnce` for you: the shown-state is recorded per `mark:`
+runs `tryShowTour` for you: the shown-state is recorded per `mark:`
 (`HintMarkPolicy.onAnyExit` by default — finish/skip/timeout all count — §6
 semantics). Pass `HintMarkPolicy.onFinish` or `manual` only when
 your policy differs (§6).

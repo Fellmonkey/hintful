@@ -35,20 +35,20 @@ ChoiceChip(...).withHint('filters') // not Showcase(key: GlobalKey())
 
 ---
 
-### 3. `isIdle` vs `tryStart` — when to use which?
+### 3. `isIdle` vs `tryShowTour` — when to use which?
 
-- **`isIdle`** — for UI only: `onPressed: isIdle ? () => start(tour) : null`.
-- **`tryStart`** — atomic guard for `start` (returns `false` if busy **or if nothing was shown** — a tour `start` declined to run; no assert).
+- **`isIdle`** — for UI only: `onPressed: isIdle ? () => showTour(tour) : null`.
+- **`tryShowTour`** — atomic guard for `showTour` (returns `false` if busy **or if nothing was shown** — a tour `showTour` declined to run; no assert).
 
 ```dart
 // ❌ race
-if (controller.isIdle) await controller.start(tour);
+if (controller.isIdle) await controller.showTour(tour);
 
 // ✅ no race
-if (!await controller.tryStart(tour)) return;
+if (!await controller.tryShowTour(tour)) return;
 ```
 
-`start` returns a `Future` (so a server `fetch` can feed it later); for local tours you may fire-and-forget.
+`showTour` returns a `Future` (so a server `fetch` can feed it later); for local tours you may fire-and-forget.
 
 ---
 
@@ -126,7 +126,7 @@ final controller = HintController.test(
   diagnostics: (e) => reasons.add(e.reason),
 ); // headless — the whole machine, no render mechanics
 
-await controller.start(tour);
+await controller.showTour(tour);
 expect(reasons, [HintSkipReason.timeout]);
 controller.dispose();
 ```
@@ -136,11 +136,11 @@ A custom `registry:` must be shared: hand the same instance to every
 and every step dies as `timeout`.
 
 A typo'd `targetId` is an **assert in debug** — catch it with
-`expectLater(controller.start(tour), throwsAssertionError)`.
+`expectLater(controller.showTour(tour), throwsAssertionError)`.
 
 For full-fidelity tests (scrim, tooltip copy, taps) build a real scene the way
 the package's `test/helpers/tour_harness.dart` does — and pump **twice** after
-`start`: frame 1 draws the scrim, frame 2 the tooltip.
+`showTour`: frame 1 draws the scrim, frame 2 the tooltip.
 
 More: [best practices §19](best_practices.md#19-testing--headless-first).
 

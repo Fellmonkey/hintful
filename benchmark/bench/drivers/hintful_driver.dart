@@ -79,7 +79,7 @@ class HintfulDriver implements LibraryDriver {
   Future<void> show(int state) async {
     _expectedState = state;
     if (_controller.currentState.isIdle) {
-      await _controller.start(_tour());
+      await _controller.showTour(_tour());
     }
     _goToState(state);
   }

@@ -54,7 +54,7 @@ void main() {
       ],
     );
     await h.pump(tester);
-    await h.start(tester, tour);
+    await h.showTour(tester, tour);
 
     final screen = tester.getRect(find.byType(Scaffold));
     Rect target() => tester.getRect(
