@@ -476,6 +476,28 @@ void main() {
       controller.dispose();
     });
 
+    testWidgets('tryStart — nothing was shown → false, not true',
+        (tester) async {
+      final registry = HintTargetRegistry();
+      final controller = HintController.test(registry: registry);
+      addTearDown(controller.dispose);
+
+      // Reaches start()'s declined-to-run guard from a debug test: the
+      // constructor assert passes at construction, the steps are emptied
+      // afterwards. A release build reaches the same guard when every step
+      // is stripped as a typo.
+      final steps = [
+        HintStep(targetId: 'target0', content: HintStepContent(title: 'A')),
+      ];
+      final tour = HintTour(id: 't', steps: steps);
+      steps.clear();
+
+      expect(await controller.tryStart(tour), isFalse);
+      expect(controller.isIdle, isTrue);
+
+      controller.dispose();
+    });
+
     testWidgets('restart replaces the running tour without diagnostics',
         (tester) async {
       final ctx = await _pumpContext(tester);

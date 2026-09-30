@@ -104,6 +104,10 @@ Upgrading from **0.7.0** — the whole migration in one list.
 
 ### Fixed
 
+- `tryStart`/`tryShowHint` report what happened, not what was attempted: a
+  tour `start` declined to run (every step stripped as a typo in release, an
+  empty tour) now returns `false` instead of `true`. Callers that arm a
+  mark on the return value no longer record a tour that never showed.
 - Diagnostics tell the truth: `overlayUnavailable` is reported once per tour
   (not once per state change), a busy `start` no longer emits phantom
   `unknownTarget` events, typo filtering preserves tour-level fields, and a

@@ -38,7 +38,7 @@ ChoiceChip(...).withHint('filters') // not Showcase(key: GlobalKey())
 ### 3. `isIdle` vs `tryStart` — when to use which?
 
 - **`isIdle`** — for UI only: `onPressed: isIdle ? () => start(tour) : null`.
-- **`tryStart`** — atomic guard for `start` (returns `false` if busy, no assert).
+- **`tryStart`** — atomic guard for `start` (returns `false` if busy **or if nothing was shown** — a tour `start` declined to run; no assert).
 
 ```dart
 // ❌ race

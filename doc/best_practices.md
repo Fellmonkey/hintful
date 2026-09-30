@@ -184,13 +184,13 @@ HintStep(
 ## 5. When to show — separate UI state from the guard
 
 - `controller.isIdle` — for UI only (disable the Start button).
-- `controller.tryStart(tour)` — atomic guard for `start` (returns `false` if busy, no assert).
+- `controller.tryStart(tour)` — atomic guard for `start` (returns `false` if busy **or if nothing was shown** — a tour `start` declined to run; no assert).
 
 ```dart
 IconButton(onPressed: controller.isIdle ? () => controller.start(tour) : null)
 
 // fire-and-forget without a race
-if (!await controller.tryStart(tour)) return; // busy
+if (!await controller.tryStart(tour)) return; // busy — or nothing started
 ```
 
 `start` returns a `Future` (so a server `fetch` can feed it later); for local tours you may fire-and-forget.

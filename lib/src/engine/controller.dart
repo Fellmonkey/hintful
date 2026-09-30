@@ -366,13 +366,18 @@ class HintController implements HintActions {
   }
 
   /// Start a tour unless one is already running — atomic, no assert.
-  /// Returns `false` when busy (no state change), `true` when started.
+  /// Returns `false` when busy (no state change) or when nothing was shown
+  /// (a tour `start` declined to run — release only, see below), `true` when
+  /// the tour is actually on screen.
   /// Prefer over `if (isIdle) await start(tour)` — that check-then-act
   /// races if two callers fire at once. `isIdle` stays for UI state.
   Future<bool> tryStart(HintTour tour) async {
     if (!isIdle) return false;
     await start(tour);
-    return true;
+    // `start` can decline without starting (every step stripped as a typo,
+    // or an empty tour in release) — report what happened, not what was
+    // attempted: callers arm a mark on this return value.
+    return !isIdle;
   }
 
   /// Show-once from the box: [HintStore.shouldShow] → [start] →
