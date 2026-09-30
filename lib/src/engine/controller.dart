@@ -430,14 +430,6 @@ class HintController implements HintActions {
     return true;
   }
 
-  /// Replace the running tour with [tour]: finishes the current one silently
-  /// (normal completion — no skip diagnostics) and starts the new tour.
-  /// When idle, equivalent to [start].
-  Future<void> restart(HintTour tour) async {
-    if (!isIdle) finish();
-    await start(tour);
-  }
-
   /// Fast path for a single hint: a one-step tour without HintTour ceremony.
   ///
   /// Equivalent to `start(HintTour(id: 'hint:<targetId>', steps: [step]))` —
@@ -445,11 +437,6 @@ class HintController implements HintActions {
   /// full tour. One tour at a time: calling it during an active tour is an
   /// assert (same as [start]).
   Future<void> showHint(HintStep step) => start(
-        HintTour(id: 'hint:${step.targetId}', steps: [step]),
-      );
-
-  /// [showHint] unless a tour is already running (false when busy).
-  Future<bool> tryShowHint(HintStep step) => tryStart(
         HintTour(id: 'hint:${step.targetId}', steps: [step]),
       );
 

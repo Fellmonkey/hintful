@@ -220,8 +220,8 @@ Headless vs full-fidelity, and the two-frame rule:
 
 **Tour control**
 
-- `start/next/previous/goTo/skip/finish`; safe variants
-  `tryStart/restart/tryShowHint` + `isIdle` — no manual guards before starting
+- `start/next/previous/goTo/skip/finish`; the atomic guard `tryStart`
+  (+ `isIdle` for UI state) — no manual guards before starting
 - Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
 - Missing targets: `HintMissingTargetPolicy.skipStep` (the tour default)
   skips an absent target with a `timeout` diagnosis and continues the tour;

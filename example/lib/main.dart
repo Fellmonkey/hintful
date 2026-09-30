@@ -192,30 +192,20 @@ class _ExampleAppState extends State<ExampleApp> {
     );
   }
 
-  void _startMultiTargetTour() =>
-      _guardStart(() => _controller.start(multiTargetTour()));
+  void _startMultiTargetTour() => _guardStart(multiTargetTour());
 
-  void _startMultiContentTour() =>
-      _guardStart(() => _controller.start(multiContentTour()));
+  void _startMultiContentTour() => _guardStart(multiContentTour());
 
-  void _startTapRegionsTour() =>
-      _guardStart(() => _controller.start(tapRegionsTour(_notify)));
+  void _startTapRegionsTour() => _guardStart(tapRegionsTour(_notify));
 
-  void _startCircleHoleTour() =>
-      _guardStart(() => _controller.start(circleHoleTour()));
-  void _startRoundedHoleTour() =>
-      _guardStart(() => _controller.start(roundedHoleTour()));
-  void _startNegativePaddingTour() =>
-      _guardStart(() => _controller.start(negativePaddingTour()));
-  void _startHooksTour() =>
-      _guardStart(() => _controller.start(hooksTour(_notify)));
-  void _startFadeSlideTour() =>
-      _guardStart(() => _controller.start(fadeSlideTour()));
-  void _startJsonTour() => _guardStart(() => _controller.start(jsonTour()));
-  void _startL10nTour(BuildContext context) =>
-      _guardStart(() => _controller.start(l10nTour(context)));
-  void _startAutoScrollStepTour() =>
-      _guardStart(() => _controller.start(autoScrollStepTour()));
+  void _startCircleHoleTour() => _guardStart(circleHoleTour());
+  void _startRoundedHoleTour() => _guardStart(roundedHoleTour());
+  void _startNegativePaddingTour() => _guardStart(negativePaddingTour());
+  void _startHooksTour() => _guardStart(hooksTour(_notify));
+  void _startFadeSlideTour() => _guardStart(fadeSlideTour());
+  void _startJsonTour() => _guardStart(jsonTour());
+  void _startL10nTour(BuildContext context) => _guardStart(l10nTour(context));
+  void _startAutoScrollStepTour() => _guardStart(autoScrollStepTour());
 
   /// The pre-tour offer: "Want a tour?" with an "Apply to all pages"
   /// checkbox; the decision (start or decline) is persisted via the store —
@@ -233,9 +223,9 @@ class _ExampleAppState extends State<ExampleApp> {
     );
   }
 
-  void _guardStart(VoidCallback start) {
-    if (_controller.currentState.isIdle) start();
-  }
+  /// One tour at a time: [HintController.tryStart] is the atomic guard —
+  /// `false` when busy (or when nothing started) instead of an assert.
+  Future<void> _guardStart(HintTour tour) => _controller.tryStart(tour);
 
   /// Snackbar channel for tour callbacks (tap-region demo) — the shell owns
   /// the messenger key. A fresh notification replaces the previous one

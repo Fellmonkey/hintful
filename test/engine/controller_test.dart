@@ -446,7 +446,7 @@ void main() {
     });
   });
 
-  group('safe start (tryStart/restart/isIdle)', () {
+  group('safe start (tryStart/isIdle)', () {
     testWidgets('tryStart while busy — false, no assert, tour untouched',
         (tester) async {
       final registry = HintTargetRegistry();
@@ -494,59 +494,6 @@ void main() {
 
       expect(await controller.tryStart(tour), isFalse);
       expect(controller.isIdle, isTrue);
-
-      controller.dispose();
-    });
-
-    testWidgets('restart replaces the running tour without diagnostics',
-        (tester) async {
-      final ctx = await _pumpContext(tester);
-      final registry = HintTargetRegistry();
-      final diag = _DiagRecorder();
-      final controller = HintController.test(
-        registry: registry,
-        diagnostics: diag.call,
-      );
-      addTearDown(controller.dispose);
-
-      registry.register(HintTargetRegistration(
-        id: 'target0',
-        link: LayerLink(),
-        context: ctx,
-      ));
-      registry.register(HintTargetRegistration(
-        id: 'target1',
-        link: LayerLink(),
-        context: ctx,
-      ));
-
-      final first = _tour2();
-      await controller.start(first);
-      expect(controller.currentState, HintActive(tour: first, stepIndex: 0));
-
-      final second = HintTour(
-        id: 'second',
-        steps: const [
-          HintStep(
-            targetId: 'target1',
-            content: HintStepContent(title: 'B'),
-          )
-        ],
-      );
-      await controller.restart(second);
-
-      expect(controller.currentState, HintActive(tour: second, stepIndex: 0));
-      expect(diag.events, isEmpty,
-          reason: 'restart finishes the old tour silently');
-    });
-
-    testWidgets('restart while idle — equivalent to start', (tester) async {
-      final registry = HintTargetRegistry();
-      final controller = HintController.test(registry: registry);
-      addTearDown(controller.dispose);
-
-      await controller.restart(_tour2());
-      expect(controller.currentState, isA<HintWaiting>());
 
       controller.dispose();
     });

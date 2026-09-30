@@ -34,9 +34,12 @@ Upgrading from **0.7.0** — the whole migration in one list.
 - **Removed:** `HintTour.fromEnum`; the factory trio
   (`HintTourFactory`/`InMemoryHintTourFactory`/`FetcherHintTourFactory` — use
   `HintTour.fromJson` + your own HTTP client); the adapter stubs; the
-  `DebugPrintDiagnostics` class; and the animation presets
+  `DebugPrintDiagnostics` class; the animation presets
   (`HintEntryAnimation`, `HintStep.transition`, `hintTransitionDuration`) —
-  entry animation is the `tooltipBuilder`'s job now.
+  entry animation is the `tooltipBuilder`'s job now; and two entry points
+  that only restated others: `restart` (an idle-checked `finish` + `start`,
+  and it marked a `startOnce` tour shown as a side effect) and
+  `tryShowHint` (never referenced — `tryStart` covers the quiet guard).
 - **Renames:** `HintStep.waitTimeout` → `stepTimeout`; `moreTargets` →
   `additionalTargets`; `moreTooltips` → `additionalTooltips` (the JSON wire
   keys rename with them); `HintTooltip` → `HintAdditionalTooltip` (it only ever
