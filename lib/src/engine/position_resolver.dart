@@ -54,33 +54,45 @@ class CompositorHintResolver implements HintPositionResolver {
 
   @override
   PositionedHint? resolve() {
-    final size = _follower.link.leaderSize;
+    final leaderSize = _follower.link.leaderSize;
     final transform = _follower.layer?.getLastTransform();
-    if (size == null || transform == null) {
+    if (leaderSize == null || transform == null) {
       return null;
     }
     assert(
-        _isAxisAligned(transform),
-        'non-axis-aligned transform: '
+        _isAxisAlignedOrUniformScale(transform),
+        'non-axis-aligned (rotated / non-uniformly scaled) transform: '
         '${transform.storage}');
+    // A **uniform** ancestor scale is representable as an axis-aligned rect:
+    // the compositor's translation is the leader origin in follower space, and
+    // the leader's local size scales with it. Rotation/shear and non-uniform
+    // scale have no axis-aligned representation and are rejected above (debug
+    // assert): in release they would otherwise be silently misplaced.
+    final scale = transform.storage[0];
     return PositionedHint(
       translation: Offset(transform.storage[12], transform.storage[13]),
-      size: size,
+      size: scale == 1.0
+          ? leaderSize
+          : Size(leaderSize.width * scale, leaderSize.height * scale),
     );
   }
 
-  /// A leader is always axis-aligned (the engine does not rotate/scale
-  /// targets); translation is taken from storage[12..13], so we verify that
-  /// there is no rotation/scale — otherwise the coordinates would be wrong.
+  /// A leader is axis-aligned under a **uniform** scale (no rotation/shear,
+  /// `s[0] == s[5] > 0`): a uniformly scaled ancestor (`Transform.scale`,
+  /// `FittedBox`) stays an axis-aligned rectangle, so it is accepted and its
+  /// size is scaled in [resolve]. Non-uniform scale and rotation have no
+  /// axis-aligned representation and are rejected.
   ///
-  /// Comparison uses an epsilon, not `== 0.0`: the compositor multiplies
-  /// ancestor matrices and ortho-components pick up numerical noise ~1e-16
-  /// (found while exercising the example app's FAB).
-  static bool _isAxisAligned(Matrix4 matrix) {
+  /// Comparison uses an epsilon, not `==`: the compositor multiplies ancestor
+  /// matrices and ortho-components pick up numerical noise ~1e-16 (found while
+  /// exercising the example app's FAB).
+  static bool _isAxisAlignedOrUniformScale(Matrix4 matrix) {
     const epsilon = 1e-6;
     final s = matrix.storage;
-    return (s[0] - 1.0).abs() < epsilon &&
-        (s[5] - 1.0).abs() < epsilon &&
+    final sx = s[0];
+    final sy = s[5];
+    return sx > epsilon &&
+        (sx - sy).abs() < epsilon &&
         (s[10] - 1.0).abs() < epsilon &&
         s[1].abs() < epsilon &&
         s[2].abs() < epsilon &&

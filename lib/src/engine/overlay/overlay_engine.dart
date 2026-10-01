@@ -846,8 +846,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     final translation = _translation;
     if (translation == null) return Rect.zero;
     final primary = widget.registrations.first;
-    return (translation & (primary.link.leaderSize ?? Size.zero))
-        .inflate(_effectivePadding());
+    // Prefer the resolver's size: unlike the raw (unscaled) leaderSize it
+    // applies a uniform ancestor scale, so the hole matches a scaled target.
+    // Falls back to leaderSize before the primary resolver exists.
+    final size = _resolvers[primary.id]?.resolve()?.size ??
+        primary.link.leaderSize ??
+        Size.zero;
+    return (translation & size).inflate(_effectivePadding());
   }
 
   /// Visible rects of the secondary targets (for placement vetoes and tap

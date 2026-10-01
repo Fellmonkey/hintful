@@ -63,6 +63,95 @@ void main() {
       expect(p.translation.dy, closeTo(actual.dy, 0.1));
     });
 
+    testWidgets('uniform ancestor scale scales size, keeps translation',
+        (tester) async {
+      final link = LayerLink();
+      late CompositorHintResolver resolver;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              Positioned(
+                left: 40,
+                top: 60,
+                // topLeft alignment: the scaled origin stays at (40, 60), so
+                // the expected translation is exact.
+                child: Transform.scale(
+                  scale: 2,
+                  alignment: Alignment.topLeft,
+                  child: CompositedTransformTarget(
+                    link: link,
+                    child: const SizedBox(width: 100, height: 50),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: CompositedTransformFollower(
+                  link: link,
+                  showWhenUnlinked: false,
+                  child: Builder(
+                    builder: (context) {
+                      final follower = context.findAncestorRenderObjectOfType<
+                          RenderFollowerLayer>()!;
+                      resolver = CompositorHintResolver(follower);
+                      return const SizedBox.expand();
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      final p = resolver.resolve()!;
+      expect(p.translation, const Offset(40, 60));
+      expect(p.size, const Size(200, 100)); // leaderSize (100x50) × 2
+    });
+
+    testWidgets('rotation trips the debug assert (no axis-aligned rect)',
+        (tester) async {
+      final link = LayerLink();
+      late CompositorHintResolver resolver;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              Positioned(
+                left: 40,
+                top: 60,
+                child: Transform.rotate(
+                  angle: 0.3,
+                  child: CompositedTransformTarget(
+                    link: link,
+                    child: const SizedBox(width: 100, height: 50),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: CompositedTransformFollower(
+                  link: link,
+                  showWhenUnlinked: false,
+                  child: Builder(
+                    builder: (context) {
+                      final follower = context.findAncestorRenderObjectOfType<
+                          RenderFollowerLayer>()!;
+                      resolver = CompositorHintResolver(follower);
+                      return const SizedBox.expand();
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(() => resolver.resolve(), throwsAssertionError);
+    });
+
     testWidgets('scroll: translation follows the target from the compositor',
         (tester) async {
       final link = LayerLink();

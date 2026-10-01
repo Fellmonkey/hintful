@@ -80,7 +80,8 @@ HintStep(targetId: 'avatar', content: HintStepContent(title: 'Profile'))
 Two more target rules:
 
 - ids are the contract between `AppTours` and the screens — keep them stable, screen-scoped and unique. A duplicate id on two mounted widgets is "last registration wins" (with a warning), and a renamed id silently turns the step into a diagnosed typo;
-- `HintTarget(semanticsLabel: ...)` labels the spotlighted widget itself for the screen reader — set it when the spotlight sits on an icon-only control.
+- `HintTarget(semanticsLabel: ...)` labels the spotlighted widget itself for the screen reader — set it when the spotlight sits on an icon-only control;
+- the target (and any ancestor up to the overlay) must stay axis-aligned: a **uniform** `Transform.scale` is followed correctly — the hole scales with the target — but rotation, shear and non-uniform scale have no axis-aligned spotlight and trip a debug `assert`. Avoid wrapping a `HintTarget` in `Transform.rotate`/a non-uniform `FittedBox`.
 
 ---
 

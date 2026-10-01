@@ -14,6 +14,11 @@ import '../engine/specs.dart';
 ///
 /// Identification is by string id, not GlobalKey. The State creates its own
 /// [LayerLink] (id is the external key, link is internal mechanics).
+///
+/// The target (and any ancestor up to the overlay) must stay axis-aligned: a
+/// **uniform** `Transform.scale` is followed correctly (the spotlight hole
+/// scales with the target), but rotation, shear and non-uniform scale have no
+/// axis-aligned spotlight and trip a debug `assert`.
 class HintTarget extends StatefulWidget {
   /// Registers [id] for the lifetime of this widget and wraps [child]
   /// in the transform leader the overlay follows.
