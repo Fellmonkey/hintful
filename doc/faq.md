@@ -12,7 +12,9 @@ Check the debug log:
 ```
 
 - **`timeout`** — the target never appeared within `stepTimeout` (default 3s). Check the `targetId` and that the widget is mounted. For conditional widgets, use `stepTimeout: Duration.zero` + `skipStep`.
-- **`unknown-target`** — typo. The log shows the closest `targetId`s.
+- **`unknown-target`** — typo. The log shows the closest `targetId`s (when an
+  unregistered id counts as a typo and when it is instead a deferred target
+  the tour should wait for: [§12](#12-correct-id-yet-the-step-reports-unknown-target)).
 - **`user-skipped`** — the user tapped Skip or pressed Esc.
 - **`overlay-unavailable`** — the engine could not mount its render host: no `OverlayState` was reachable and no mounted target could supply one. It happens when a tour starts before any `HintTarget` has mounted — let the first target build first.
 
@@ -199,3 +201,47 @@ tour's own key.
 More: [best practices §20](best_practices.md#20-the-offer-dialog--want-a-tour).
 
 ---
+
+### 11. Does positioning work in RTL?
+
+Yes. `TooltipPosition.auto` (the default) picks the side with the most free
+space and never reads the text direction — an RTL screen needs no
+configuration. `left`/`right` are **physical** sides of the target, not
+`start`/`end`; the enum is closed in 1.x, so a screen that needs the logical
+side maps it at the call site:
+
+```dart
+final rtl = Directionality.of(context) == TextDirection.rtl;
+final step = HintStep(
+  targetId: 'save',
+  content: HintStepContent(title: 'Save'),
+  position: rtl ? TooltipPosition.right : TooltipPosition.left,
+);
+```
+
+The hole, scrim and tail are direction-agnostic, and the tooltip body is your
+own widget tree — it inherits `Directionality` like the rest of the app.
+
+---
+
+### 12. Correct id, yet the step reports `unknown-target`?
+
+Classification runs once at tour start and compares each unregistered id with
+the registry (see [§1](#1-my-hint-didnt-show--why)):
+
+- **within edit distance 2** of a registered id (`statz` vs `stats`) — a
+  typo: assertion in debug, the step is **skipped in release** (waiting for
+  an id that will never mount is pointless);
+- **no close match** — a legitimate deferred target: the tour waits for it;
+- **differs from a registered id only in digits** (`row-2` vs a registered
+  `row-1`) — deferred too: numeric suffixes are naming, not typos.
+
+The sharp edge is the first rule, and it applies at tour start — when a
+deferred target is still unregistered. An id that *reads* like a registered
+one within two edits is taken for a typo: `filter-all-2` next to a registered
+`filter-all` is distance 2, and it is not digits-only (the hyphen is a real
+difference on top of the digit), so that step is skipped in release. A
+numbered **sibling** is fine (`row-2` beside `row-1`); a numbered
+**extension of the registered name itself** is not. When in doubt, give the
+deferred id a purely numeric suffix (`filter-all2`) or more than two edits of
+distance from every registered id.

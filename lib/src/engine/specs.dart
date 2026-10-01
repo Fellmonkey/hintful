@@ -8,6 +8,11 @@ import 'package:flutter/widgets.dart';
 /// an explicit side mirrors when it stops fitting and [TooltipPosition.auto]
 /// re-picks the side with the most free space.
 ///
+/// Sides are **physical**: `left`/`right` are screen sides, not
+/// `start`/`end`. [TooltipPosition.auto] never reads the text direction, so
+/// an RTL layout needs no configuration — map start/end at the call site if
+/// a screen needs them.
+///
 /// Closed in 1.x: no new values before 2.0 — exhaustive `switch`es in app
 /// code are safe.
 enum TooltipPosition {

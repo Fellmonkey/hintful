@@ -125,7 +125,7 @@ Widget _tooltipBody({
   // A single-step hint is informational, not a tour: no action row at all
   // (tap-on-overlay/target and keyboard already dismiss it). No Done keeps
   // a lone hint visually distinct from a tour step.
-  final isSingle = ctx.totalSteps <= 1;
+  final isSingle = ctx.isSingle;
   final onSurface = theme.tooltipForeground;
   final screenSize = MediaQuery.sizeOf(context);
   final maxWidth = math.min(360.0, screenSize.width - 32).clamp(160.0, 360.0);

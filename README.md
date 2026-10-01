@@ -324,6 +324,12 @@ registry (`HintTargetRegistry`), machine states
 config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
 `CallbackHintStore`/`HintMarkPolicy`/`compareHintVersions`).
 
+Two testing seams ride on that surface: `HintController.test()` (the
+headless `@visibleForTesting` factory) and `Hintful.reset()` (drops the
+app-wide configuration and the session store between tests). Everything
+marked `@internal` (`HintController.store`, `Hintful.sessionStore`) is
+engine plumbing — the analyzer reports its use outside this package.
+
 Every rule behind the bullets above — what to do, what not to, and why — lives
 in [best practices](doc/best_practices.md#index), one decision per section:
 targets and shape (§1), `isIdle` vs `tryShowTour` (§5), versions (§6), multi-target
@@ -374,7 +380,7 @@ blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer
   tours findable and hard to break, one per section, with the code to copy;
 - [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryShowTour`,
   text scale, taps, multi-target vs multi-content, testing,
-  server-driven tours and the offer dialog;
+  server-driven tours, the offer dialog, RTL sides and id typos;
 - [`doc/migration_guide.md`](doc/migration_guide.md) — coming from
   `showcaseview` or `tutorial_coach_mark`, API-to-API;
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x → 1.0.0;

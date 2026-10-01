@@ -206,34 +206,13 @@ class UserFinish extends HintEvent {
 // ──────────────────────────────── Effects ────────────────────────────────
 
 /// Outward commands: the machine executes nothing itself — the controller
-/// applies effects (timers, overlay, diagnostics). The machine's purity is
-/// what makes it headlessly testable and independent of render mechanics.
+/// applies effects (timers, diagnostics, store marks). Rendering is not an
+/// effect: the overlay follows [HintState] directly, so "step entered" needs
+/// no command of its own. The machine's purity is what makes it headlessly
+/// testable and independent of render mechanics.
 @immutable
 sealed class HintEffect {
   const HintEffect();
-}
-
-/// Show the step: the controller updates the overlay content (scrim + tooltip).
-///
-/// Emitted exactly when a step enters the active phase — the first activation
-/// after waiting and every step forward.
-@immutable
-class EnterStepEffect extends HintEffect {
-  /// Activates the step at [stepIndex] (updates the overlay content).
-  const EnterStepEffect({required this.stepIndex});
-
-  /// 0-based index of the step to show.
-  final int stepIndex;
-
-  @override
-  bool operator ==(Object other) =>
-      other is EnterStepEffect && other.stepIndex == stepIndex;
-
-  @override
-  int get hashCode => Object.hash(runtimeType, stepIndex);
-
-  @override
-  String toString() => 'EnterStepEffect($stepIndex)';
 }
 
 /// Arm the wait-for-target timer; emitted exactly when entering waiting.
@@ -459,7 +438,6 @@ class HintMachine {
   }) {
     if (_allPresent(targetPresent, tour.steps[index])) {
       if (clearTimeout) effects.add(const ClearTimeoutEffect());
-      effects.add(EnterStepEffect(stepIndex: index));
       return HintActive(tour: tour, stepIndex: index);
     }
     return _armWaiting(tour, index, effects);
@@ -521,7 +499,6 @@ class HintMachine {
         // step's targets before activating.
         if (_allPresent(targetPresent, step)) {
           effects.add(const ClearTimeoutEffect());
-          effects.add(EnterStepEffect(stepIndex: index));
           return HintActive(tour: tour, stepIndex: index);
         }
         return HintWaiting(tour: tour, stepIndex: index);

@@ -12,10 +12,14 @@
 /// - observable machine state ([HintState] + subtypes) — the public
 ///   observable; events/effects/the machine itself are NOT exported;
 /// - app-wide configuration ([Hintful]) — the single place to install the
-///   versioned-hints store (`Hintful.configure(store: ...)`);
-/// - controller ([HintController]) — the single control point; the render
-///   contract (`HintOverlayHost`, position types, the overlay factory) is
-///   deliberately internal and can change without breaking changes;
+///   versioned-hints store (`Hintful.configure(store: ...)`) plus its
+///   `@visibleForTesting` seam `Hintful.reset()` (drop the configuration and
+///   the session store between tests);
+/// - controller ([HintController]) — the single control point, with the
+///   `@visibleForTesting` factory [HintController.test] (headless) as its
+///   test seam; the render contract (`HintOverlayHost`, position types, the
+///   overlay factory) is deliberately internal and can change without
+///   breaking changes;
 /// - diagnostics ([HintDiagnosticsHandler] as a plain function type,
 ///   [HintSkipEvent], [HintSkipReason]) — failed shows arrive as one event
 ///   object; debug builds always print the line, then invoke your callback;
@@ -40,7 +44,10 @@
 /// resolver `CompositorHintResolver` (it touches Flutter's layer internals).
 /// They stay public inside `lib/src/` for the package's own tests — a public
 /// member of an exported *class* is API by definition, so engine-only
-/// helpers live in unexported *extensions*.
+/// helpers live in unexported *extensions*. The only members that ride on an
+/// exported class without being API are the two `@internal` ones
+/// (`HintController.store`, `Hintful.sessionStore`): the analyzer reports
+/// their use outside this package.
 ///
 /// Deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
 /// are NOT part of the contract — the implementation lives under `lib/src/`

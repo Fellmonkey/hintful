@@ -612,6 +612,7 @@ Notes:
   debug builds print the line *and* invoke your callback;
 - a typo'd `targetId` is designed for `expectLater(controller.showTour(tour), throwsAssertionError)` — `showTour` returns a `Future` so the failure surfaces in the test instead of inside someone's build;
 - keep test tours on a short/`Duration.zero` `stepTimeout`, and remember timers must be pumped or a missing target fails after the real 3 s;
+- reset app-wide state between tests — `Hintful.reset()` drops the configured store and the shared session store, so a test never inherits the previous one's shown-state; to isolate a single controller instead, pass `store:` to `HintController.test()` (`HintController.store` and `Hintful.sessionStore` are `@internal` — engine plumbing, not API);
 - `dispose()` every controller (it is idempotent) — otherwise the registry listener and the timer outlive the test.
 
 For full-fidelity tests (scrim, tooltip copy, taps, positioning) build a real

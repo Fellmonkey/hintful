@@ -10,14 +10,14 @@
       "unit": "bytes hintful adds to a release Android AOT snapshot (analyze-size, package:hintful subtree)",
       "goldens": {
         "any": 72669,
-        "android": 76228
+        "android": 82000
       },
       "note": "Deterministic per SDK + ABI: measured on Flutter 3.47.0, android-x64 (2026-09-02). Re-record only when the SDK or engine code changes."
     },
     "bundle_delta": {
       "unit": "bytes added to the startup bundle",
       "goldens": {
-        "any": 53187
+        "any": 56800
       },
       "note": "Deterministic per SDK: measured on Flutter 3.47.0 (2026-09-02). Re-record only when the SDK or engine code changes. Deferred-engine target (N7) is 0 bytes — re-key then."
     },

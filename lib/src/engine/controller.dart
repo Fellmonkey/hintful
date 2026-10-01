@@ -703,8 +703,6 @@ class HintController implements HintActions {
             _pendingOnce = null;
           }
           break;
-        case EnterStepEffect():
-          break;
         case FinishedEffect(:final tourId):
           // Rendering follows the state (host.update); finish is not
           // diagnosed. tryShowTour marks per its `mark:` policy: onFinish and

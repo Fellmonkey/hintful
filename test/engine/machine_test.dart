@@ -127,15 +127,12 @@ void main() {
         effects: const [],
       ),
       (
-        name: 'the awaited target appears → active + show step',
+        name: 'the awaited target appears → active step',
         from: waiting0,
         event: const TargetAppeared(targetId: 'target0'),
         present: const {'target0': true},
         expected: active0,
-        effects: const [
-          ClearTimeoutEffect(),
-          EnterStepEffect(stepIndex: 0),
-        ],
+        effects: const [ClearTimeoutEffect()],
       ),
       (
         name: 'a foreign target appearing while waiting is ignored',
@@ -232,7 +229,7 @@ void main() {
         event: const UserPrevious(),
         present: const {'target0': true},
         expected: active0,
-        effects: const [EnterStepEffect(stepIndex: 0)],
+        effects: const [],
       ),
       (
         name: 'previous without step-0 target → waiting step 0 + timer',
@@ -256,10 +253,7 @@ void main() {
         event: const UserPrevious(),
         present: const {'target0': true},
         expected: active0,
-        effects: const [
-          ClearTimeoutEffect(),
-          EnterStepEffect(stepIndex: 0),
-        ],
+        effects: const [ClearTimeoutEffect()],
       ),
       (
         name: 'previous from waiting without the target → re-arm on step 0',
@@ -283,7 +277,7 @@ void main() {
         event: const UserGoTo(index: 1),
         present: const {'target1': true},
         expected: active1,
-        effects: const [EnterStepEffect(stepIndex: 1)],
+        effects: const [],
       ),
       (
         name: 'goTo(1) without the target → waiting step 1 + timer',
@@ -299,7 +293,7 @@ void main() {
         event: const UserGoTo(index: 0),
         present: const {'target0': true},
         expected: active0,
-        effects: const [EnterStepEffect(stepIndex: 0)],
+        effects: const [],
       ),
       (
         name: 'goTo the current index — a no-op',
@@ -315,10 +309,7 @@ void main() {
         event: const UserGoTo(index: 1),
         present: const {'target1': true},
         expected: active1,
-        effects: const [
-          ClearTimeoutEffect(),
-          EnterStepEffect(stepIndex: 1),
-        ],
+        effects: const [ClearTimeoutEffect()],
       ),
       (
         name: 'goTo from waiting without the target → re-arm on target step',
@@ -334,7 +325,7 @@ void main() {
         event: const UserNext(),
         present: const {'target1': true},
         expected: active1,
-        effects: const [EnterStepEffect(stepIndex: 1)],
+        effects: const [],
       ),
       (
         name: 'next without the target → waiting the next step + timer',
@@ -476,10 +467,7 @@ void main() {
         targetPresent: (id) => id == 'a' || id == 'b',
       );
       expect(transition.state, active0);
-      expect(transition.effects, const [
-        ClearTimeoutEffect(),
-        EnterStepEffect(stepIndex: 0),
-      ]);
+      expect(transition.effects, const [ClearTimeoutEffect()]);
     });
 
     test('a foreign target appearing while waiting — still waiting', () {
@@ -510,10 +498,7 @@ void main() {
         targetPresent: (id) => id == 'a' || id == 'b',
       );
       expect(transition.state, active0);
-      expect(transition.effects, const [
-        ClearTimeoutEffect(),
-        EnterStepEffect(stepIndex: 0),
-      ]);
+      expect(transition.effects, const [ClearTimeoutEffect()]);
     });
 
     test('timeout while waiting for several targets — lists the missing ones',
@@ -679,7 +664,6 @@ void main() {
         [
           const ClearTimeoutEffect(),
           isA<StepSkippedEffect>(),
-          const EnterStepEffect(stepIndex: 1),
         ],
       );
     });
@@ -881,24 +865,16 @@ void _expectInvariants(
       break;
     case HintActive(:final stepIndex):
       expect(stepIndex, inInclusiveRange(0, tour.steps.length - 1));
+      expect(
+        tour.steps[stepIndex].targetIds.every((id) => present[id] ?? false),
+        isTrue,
+        reason: 'an active step runs only with all its targets present',
+      );
       break;
   }
 
   for (final effect in transition.effects) {
     switch (effect) {
-      case EnterStepEffect(:final stepIndex):
-        expect(state, isA<HintActive>(), reason: 'EnterStep ⇒ active');
-        expect(
-          state.stepIndex,
-          stepIndex,
-          reason: 'EnterStep ⇒ the same step',
-        );
-        expect(
-          present[tour.steps[stepIndex].targetId],
-          isTrue,
-          reason: 'EnterStep is only possible for a present target',
-        );
-        break;
       case ArmTimeoutEffect():
         expect(state, isA<HintWaiting>(), reason: 'ArmTimeout ⇒ waiting');
         break;
