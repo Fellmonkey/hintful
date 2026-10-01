@@ -68,7 +68,7 @@ void main() {
           paintedPath(canvas).getBounds(), const Rect.fromLTWH(46, 46, 88, 48));
     });
 
-    test('circle — the inscribed square oval path', () {
+    test('circle — the longer side becomes the diameter', () {
       final canvas = TestRecordingCanvas();
       final r = _FakeResolver(const PositionedHint(
           translation: Offset(50, 50), size: Size(80, 40)));

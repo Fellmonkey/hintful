@@ -71,7 +71,7 @@ void main() {
       expect(shape.getBounds(), hole);
     });
 
-    test('circle — oval inscribed by the longest side', () {
+    test('circle — the longer side becomes the diameter', () {
       const hole = Rect.fromLTWH(10, 20, 80, 40);
       final shape = RectScrimPainter.holeShape(hole, FocusShape.circle)!;
       expect(shape.getBounds(), const Rect.fromLTWH(10, 0, 80, 80));

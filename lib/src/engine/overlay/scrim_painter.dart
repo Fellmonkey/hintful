@@ -66,7 +66,8 @@ class RectScrimPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// One hole shape for [hole]: rectangle / inscribed circle / rounded rect
+  /// One hole shape for [hole]: rectangle / circle (longer-side diameter) /
+  /// rounded rect
   /// with clamped corners. Null — an over-shrunk (inverted/empty) rect cuts
   /// nothing. Shared by the painters (drawn with the clear paint) and the
   /// blur clip below, so the shape semantics lives in exactly one place.

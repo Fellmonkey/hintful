@@ -35,7 +35,10 @@ enum FocusShape {
   /// Sharp-cornered rectangle (the default).
   rectangle,
 
-  /// Circle inscribed in the target bounds.
+  /// Circle around the target: its diameter is the target's **longer side**
+  /// (centered), so on a non-square target the circle extends beyond the
+  /// shorter axis. Square targets (round icons) get an exact circumscribed
+  /// circle.
   circle,
 
   /// Rectangle with rounded corners.

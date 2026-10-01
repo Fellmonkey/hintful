@@ -61,7 +61,8 @@ class PulsePainter extends CustomPainter {
     final ringRect = localRing.shift(hole.topLeft);
     // One shape table for the package: the ring strokes exactly the path the
     // scrim punches (stroked, so corners read as the hole's corners — a
-    // stroked rect is sharp, an inscribed oval round, a rounded rect clamped
+    // stroked rect is sharp, a circle round (longer-side diameter), a rounded
+    // rect clamped
     // the same way as the scrim's).
     final path =
         RectScrimPainter.holeShape(ringRect, focusShape, radius: holeRadius);
