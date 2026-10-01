@@ -113,6 +113,9 @@ controller.showHint(
     content: HintStepContent(title: 'Swipe left to delete a set'),
   ),
 );
+// Two tips on the SAME widget? Give each its own id — otherwise the default
+// key `hint:<targetId>` is shared and the first shown suppresses the second:
+controller.showHint(step, id: 'addSet-tip2');
 ```
 
 **Production wiring** — store once, then three ways in:

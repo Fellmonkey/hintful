@@ -441,16 +441,27 @@ class HintController implements HintActions {
 
   /// Fast path for a single hint: a one-step tour without HintTour ceremony.
   ///
-  /// Equivalent to `tryShowTour` on a tour whose id is the step's target id
-  /// prefixed with `hint:` — the same wait-for-target, timeout, typo
-  /// validation and diagnostics as a full tour. The derived id is what
+  /// Equivalent to `tryShowTour` on a tour whose id is [id] (default: the
+  /// step's target id prefixed with `hint:`) — the same wait-for-target,
+  /// timeout, typo validation and diagnostics as a full tour. The id is what
   /// diagnostics, store keys and the offer dialog see for this hint.
+  ///
+  /// The default id (`hint:<targetId>`) is **shared** by every hint on the
+  /// same target: with a store / [mark], marking the first tip shown also
+  /// suppresses a later tip that targets the same widget in the same version
+  /// (and both report the same `tourId` in diagnostics). Pass an explicit
+  /// [id] when more than one tip can point at one widget.
   ///
   /// Delegates to [tryShowTour], so it is atomic (returns `false` when
   /// busy) and takes [mark] for show-once. For the loud, assert-based
   /// variant use `showTour(HintTour(id: 'hint:…', steps: [step]))`.
-  Future<bool> showHint(HintStep step, {HintMarkPolicy? mark}) => tryShowTour(
-        HintTour(id: 'hint:${step.targetId}', steps: [step]),
+  Future<bool> showHint(
+    HintStep step, {
+    String? id,
+    HintMarkPolicy? mark,
+  }) =>
+      tryShowTour(
+        HintTour(id: id ?? 'hint:${step.targetId}', steps: [step]),
         mark: mark,
       );
 

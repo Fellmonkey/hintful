@@ -322,6 +322,8 @@ controller.showHint(HintStep(targetId: 'fab', content: HintStepContent(title: 'S
 
 No `Done`/`Skip` row when `totalSteps == 1`. The hint closes by tap or keyboard and looks distinct from a tour.
 
+The hint's id (its store key, diagnostics `tourId` and offer key) defaults to `hint:<targetId>`, **shared** by every hint on the same target. Two tips that can point at one widget need explicit ids — pass `showHint(step, id: 'addSet-tip2')` — or the first shown suppresses the second in the same version.
+
 ---
 
 ## 10. Shapes — negative padding is safe

@@ -288,6 +288,78 @@ void main() {
       // stepTimeout.
       controller.dispose();
     });
+
+    testWidgets('showHint: the default id collides for two tips on one target',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final host = _RecordingHost();
+      final controller = hintControllerWithHost(
+        host: (_) => host,
+        registry: registry,
+        store: store,
+      );
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'stats',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      const marker = HintMarkPolicy.onAnyExit;
+      await controller.showHint(
+        const HintStep(targetId: 'stats', content: HintStepContent(title: 'a')),
+        mark: marker,
+      );
+      expect(controller.state.value.tour?.id, 'hint:stats');
+      controller.finish();
+
+      // Same widget, second tip, same default key: already marked → gated.
+      final shown = await controller.showHint(
+        const HintStep(targetId: 'stats', content: HintStepContent(title: 'b')),
+        mark: marker,
+      );
+      expect(shown, isFalse);
+    });
+
+    testWidgets('showHint: explicit ids are independent store/diagnostic keys',
+        (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final store = InMemoryHintStore();
+      final host = _RecordingHost();
+      final controller = hintControllerWithHost(
+        host: (_) => host,
+        registry: registry,
+        store: store,
+      );
+      addTearDown(controller.dispose);
+      registry.register(HintTargetRegistration(
+        id: 'stats',
+        link: LayerLink(),
+        context: ctx,
+      ));
+
+      const marker = HintMarkPolicy.onAnyExit;
+      await controller.showHint(
+        const HintStep(targetId: 'stats', content: HintStepContent(title: 'a')),
+        id: 'tip-a',
+        mark: marker,
+      );
+      expect(controller.state.value.tour?.id, 'tip-a');
+      controller.finish();
+
+      final shown = await controller.showHint(
+        const HintStep(targetId: 'stats', content: HintStepContent(title: 'b')),
+        id: 'tip-b',
+        mark: marker,
+      );
+      expect(shown, isTrue, reason: 'tip-b is a different key → still shows');
+      expect(controller.state.value.tour?.id, 'tip-b');
+      controller.finish();
+    });
+
     testWidgets('previous: next → previous returns to the previous step',
         (tester) async {
       final ctx = await _pumpContext(tester);
