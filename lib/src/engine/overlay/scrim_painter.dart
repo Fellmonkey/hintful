@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 
-import '../specs.dart' show FocusShape;
+import '../specs.dart' show FocusShape, kHintHoleRadius;
 
 /// Screen dimming with holes over explicit screen-space rects — the single
 /// scrim painter for every mode (active spotlight and waiting).
@@ -33,6 +33,7 @@ class RectScrimPainter extends CustomPainter {
     required this.holes,
     required this.color,
     this.focusShape = FocusShape.rectangle,
+    this.holeRadius = kHintHoleRadius,
   });
 
   /// Hole rects in the canvas's own (screen) coordinates, padding already
@@ -45,6 +46,10 @@ class RectScrimPainter extends CustomPainter {
   /// Hole shape — see [holeShape].
   final FocusShape focusShape;
 
+  /// Corner radius of a rounded-rect hole — see [holeShape]; the other two
+  /// shapes ignore it.
+  final double holeRadius;
+
   @override
   void paint(Canvas canvas, Size size) {
     final screen = Offset.zero & size;
@@ -54,7 +59,7 @@ class RectScrimPainter extends CustomPainter {
     canvas.drawRect(screen, Paint()..color = color);
     final clear = Paint()..blendMode = BlendMode.clear;
     for (final h in holes) {
-      final shape = holeShape(h, focusShape);
+      final shape = holeShape(h, focusShape, radius: holeRadius);
       if (shape == null) continue;
       canvas.drawPath(shape, clear);
     }
@@ -65,7 +70,13 @@ class RectScrimPainter extends CustomPainter {
   /// with clamped corners. Null — an over-shrunk (inverted/empty) rect cuts
   /// nothing. Shared by the painters (drawn with the clear paint) and the
   /// blur clip below, so the shape semantics lives in exactly one place.
-  static Path? holeShape(Rect hole, FocusShape focusShape) {
+  /// [radius] only feeds [FocusShape.roundedRect] and is clamped to half the
+  /// shortest side (tiny targets + negative padding would invert it).
+  static Path? holeShape(
+    Rect hole,
+    FocusShape focusShape, {
+    double radius = kHintHoleRadius,
+  }) {
     // Over-shrunk (negative padding beyond the target size) inverts the
     // rect — skip explicitly: an empty hole cuts nothing.
     if (hole.isEmpty) return null;
@@ -77,11 +88,9 @@ class RectScrimPainter extends CustomPainter {
           Rect.fromCenter(center: hole.center, width: side, height: side),
         );
       case FocusShape.roundedRect:
-        // The corner radius must not exceed the hole itself (tiny targets +
-        // negative padding) — clamp to half the shortest side.
-        final radius = math.min(12.0, hole.shortestSide / 2);
+        final clamped = math.min(radius, hole.shortestSide / 2);
         path.addRRect(
-          RRect.fromRectAndRadius(hole, Radius.circular(radius)),
+          RRect.fromRectAndRadius(hole, Radius.circular(clamped)),
         );
       case FocusShape.rectangle:
         path.addRect(hole);
@@ -97,11 +106,12 @@ class RectScrimPainter extends CustomPainter {
   static Path scrimClipPath(
     Rect screen,
     List<Rect> holes,
-    FocusShape focusShape,
-  ) {
+    FocusShape focusShape, {
+    double radius = kHintHoleRadius,
+  }) {
     final path = Path()..addRect(screen);
     for (final h in holes) {
-      final shape = holeShape(h, focusShape);
+      final shape = holeShape(h, focusShape, radius: radius);
       if (shape == null) continue;
       path.addPath(shape, Offset.zero);
     }
@@ -113,5 +123,6 @@ class RectScrimPainter extends CustomPainter {
   bool shouldRepaint(covariant RectScrimPainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.focusShape != focusShape ||
+      oldDelegate.holeRadius != holeRadius ||
       !listEquals(oldDelegate.holes, holes);
 }

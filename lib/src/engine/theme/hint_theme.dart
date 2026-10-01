@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../labels.dart';
+import '../specs.dart' show kHintHoleRadius;
 
 /// Hint theme — a product design-system `ThemeExtension`.
 ///
@@ -24,6 +25,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     required this.scrimColor,
     required this.tooltipRadius,
     required this.tooltipPadding,
+    this.holeRadius = kHintHoleRadius,
     this.tooltipTitleStyle,
     this.tooltipDescriptionStyle,
     this.showTail = true,
@@ -48,6 +50,12 @@ class HintTheme extends ThemeExtension<HintTheme> {
   /// Inner padding of the tooltip (default via [HintTheme.minimal] — 16).
   final EdgeInsets tooltipPadding;
 
+  /// Corner radius of a `FocusShape.roundedRect` spotlight hole (default 12).
+  /// Clamped to half the shortest side of the hole, so a tiny target cannot
+  /// invert itself; the other two [FocusShape]s ignore it. The pulse ring
+  /// uses the same value — ring and hole stay one shape.
+  final double holeRadius;
+
   /// Title/description styles; null — the tooltip resolves defaults from
   /// [tooltipForeground] (a partially custom theme does not break
   /// zero-config).
@@ -69,10 +77,10 @@ class HintTheme extends ThemeExtension<HintTheme> {
 
   /// Optional background blur behind the scrim (`ImageFilter.blur(...)`),
   /// replacing the plain dim with a "frosted" look. Off by default: the
-  /// plain dim is cheaper (zero backdrop sampling). When set, the scrim is
-  /// rendered in the global layer (the hole rect comes from the position
-  /// watcher, one frame behind the compositor — the same lag as the
-  /// tooltip), instead of the live follower painter.
+  /// plain dim is cheaper (zero backdrop sampling). Its clip is rebuilt from
+  /// the hole snapshot on every movement write (one frame behind the
+  /// compositor - the same lag as the tooltip), while the pulse ring reads
+  /// the target's transform live at paint time.
   final ImageFilter? imageFilter;
 
   /// A pulsing ring around the primary target (Material feature-discovery
@@ -124,6 +132,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Color? scrimColor,
     BorderRadius? tooltipRadius,
     EdgeInsets? tooltipPadding,
+    double? holeRadius,
     TextStyle? tooltipTitleStyle,
     TextStyle? tooltipDescriptionStyle,
     bool? showTail,
@@ -138,6 +147,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
         scrimColor: scrimColor ?? this.scrimColor,
         tooltipRadius: tooltipRadius ?? this.tooltipRadius,
         tooltipPadding: tooltipPadding ?? this.tooltipPadding,
+        holeRadius: holeRadius ?? this.holeRadius,
         tooltipTitleStyle: tooltipTitleStyle ?? _keep,
         tooltipDescriptionStyle: tooltipDescriptionStyle ?? _keep,
         showTail: showTail ?? this.showTail,
@@ -170,6 +180,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Object? scrimColor = _keep,
     Object? tooltipRadius = _keep,
     Object? tooltipPadding = _keep,
+    Object? holeRadius = _keep,
     Object? tooltipTitleStyle = _keep,
     Object? tooltipDescriptionStyle = _keep,
     Object? showTail = _keep,
@@ -184,6 +195,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
         scrimColor: _or(scrimColor, this.scrimColor),
         tooltipRadius: _or(tooltipRadius, this.tooltipRadius),
         tooltipPadding: _or(tooltipPadding, this.tooltipPadding),
+        holeRadius: _or(holeRadius, this.holeRadius),
         tooltipTitleStyle: _or(tooltipTitleStyle, this.tooltipTitleStyle),
         tooltipDescriptionStyle:
             _or(tooltipDescriptionStyle, this.tooltipDescriptionStyle),
@@ -207,6 +219,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       scrimColor: Color.lerp(scrimColor, other.scrimColor, t)!,
       tooltipRadius: BorderRadius.lerp(tooltipRadius, other.tooltipRadius, t)!,
       tooltipPadding: EdgeInsets.lerp(tooltipPadding, other.tooltipPadding, t)!,
+      holeRadius: holeRadius + (other.holeRadius - holeRadius) * t,
       tooltipTitleStyle:
           TextStyle.lerp(tooltipTitleStyle, other.tooltipTitleStyle, t),
       tooltipDescriptionStyle: TextStyle.lerp(
@@ -232,6 +245,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
       other.scrimColor == scrimColor &&
       other.tooltipRadius == tooltipRadius &&
       other.tooltipPadding == tooltipPadding &&
+      other.holeRadius == holeRadius &&
       other.tooltipTitleStyle == tooltipTitleStyle &&
       other.tooltipDescriptionStyle == tooltipDescriptionStyle &&
       other.showTail == showTail &&
@@ -247,6 +261,7 @@ class HintTheme extends ThemeExtension<HintTheme> {
         scrimColor,
         tooltipRadius,
         tooltipPadding,
+        holeRadius,
         tooltipTitleStyle,
         tooltipDescriptionStyle,
         showTail,

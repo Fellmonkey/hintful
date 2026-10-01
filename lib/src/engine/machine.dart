@@ -39,11 +39,12 @@ sealed class HintState {
   /// Whether the state is [HintWaiting].
   bool get isWaiting => this is HintWaiting;
 
-  // Value semantics live here, once for all three states — the concrete states
-  // only carry their data. Two states are equal when they are the same state
-  // of the SAME tour (compared by identity: a tour is a value object rebuilt
-  // per entry point, so `==` would make every redeclared tour a new state) at
-  // the same step. [HintIdle] has neither, so any two idles are equal.
+  /// Value semantics live here, once for all three states — the concrete
+  /// states only carry their data. Two states are equal when they are the
+  /// same state of the SAME tour (compared by identity: a tour is a value
+  /// object rebuilt per entry point, so `==` would make every redeclared
+  /// tour a new state) at the same step. [HintIdle] has neither, so any
+  /// two idles are equal.
   @override
   bool operator ==(Object other) =>
       other is HintState &&
@@ -464,6 +465,44 @@ class HintMachine {
     return _armWaiting(tour, index, effects);
   }
 
+  /// The four user-driven events (previous / goTo / skip / finish) that the
+  /// waiting and the active reducer handle identically — the only difference
+  /// being the wait timer: armed while waiting, never while active.
+  /// Returns null for anything else, so the caller's own switch keeps
+  /// owning the events that actually differ between the two states.
+  HintState? _reduceUser(
+    HintTour tour,
+    int index,
+    HintEvent event,
+    List<HintEffect> effects,
+    bool Function(String targetId)? targetPresent, {
+    required bool fromWaiting,
+  }) {
+    switch (event) {
+      case UserPrevious():
+        return _previous(tour, index, effects, targetPresent,
+            fromWaiting: fromWaiting);
+      case UserGoTo(index: final toIndex):
+        return _goTo(tour, index, toIndex, effects, targetPresent,
+            fromWaiting: fromWaiting);
+      case UserSkip():
+        if (fromWaiting) effects.add(const ClearTimeoutEffect());
+        effects.add(
+          const AbortEffect(
+            reason: HintSkipReason.userSkipped,
+            detail: 'user skipped',
+          ),
+        );
+        return const HintIdle();
+      case UserFinish():
+        if (fromWaiting) effects.add(const ClearTimeoutEffect());
+        effects.add(FinishedEffect(tourId: tour.id));
+        return const HintIdle();
+      default:
+        return null;
+    }
+  }
+
   HintState _reduceWaiting(
     HintTour tour,
     int index,
@@ -472,6 +511,9 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
   ) {
     final step = tour.steps[index];
+    final user = _reduceUser(tour, index, event, effects, targetPresent,
+        fromWaiting: true);
+    if (user != null) return user;
     switch (event) {
       case TargetAppeared(:final targetId)
           when step.targetIds.contains(targetId):
@@ -483,12 +525,6 @@ class HintMachine {
           return HintActive(tour: tour, stepIndex: index);
         }
         return HintWaiting(tour: tour, stepIndex: index);
-      case UserPrevious():
-        return _previous(tour, index, effects, targetPresent,
-            fromWaiting: true);
-      case UserGoTo(index: final toIndex):
-        return _goTo(tour, index, toIndex, effects, targetPresent,
-            fromWaiting: true);
       case WaitTimeout():
         final timeout = step.resolveTimeout(tour.stepTimeout);
         effects.add(const ClearTimeoutEffect());
@@ -513,19 +549,6 @@ class HintMachine {
           AbortEffect(reason: HintSkipReason.timeout, detail: detail),
         );
         return const HintIdle();
-      case UserSkip():
-        effects.add(const ClearTimeoutEffect());
-        effects.add(
-          const AbortEffect(
-            reason: HintSkipReason.userSkipped,
-            detail: 'user skipped',
-          ),
-        );
-        return const HintIdle();
-      case UserFinish():
-        effects.add(const ClearTimeoutEffect());
-        effects.add(FinishedEffect(tourId: tour.id));
-        return const HintIdle();
       default:
         // Foreign targets, UserNext, HintStart — all ignored while waiting
         // (taps do not skip target-waiting). Idempotent.
@@ -541,6 +564,9 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
   ) {
     final step = tour.steps[index];
+    final user = _reduceUser(tour, index, event, effects, targetPresent,
+        fromWaiting: false);
+    if (user != null) return user;
     switch (event) {
       case TargetVanished(:final targetId)
           when step.targetIds.contains(targetId):
@@ -555,12 +581,6 @@ class HintMachine {
           ),
         );
         return HintWaiting(tour: tour, stepIndex: index);
-      case UserPrevious():
-        return _previous(tour, index, effects, targetPresent,
-            fromWaiting: false);
-      case UserGoTo(index: final toIndex):
-        return _goTo(tour, index, toIndex, effects, targetPresent,
-            fromWaiting: false);
       case UserNext():
         final nextIndex = index + 1;
         if (nextIndex >= tour.steps.length) {
@@ -574,17 +594,6 @@ class HintMachine {
           targetPresent,
           clearTimeout: false, // active → active: no wait timer is armed
         );
-      case UserSkip():
-        effects.add(
-          const AbortEffect(
-            reason: HintSkipReason.userSkipped,
-            detail: 'user skipped',
-          ),
-        );
-        return const HintIdle();
-      case UserFinish():
-        effects.add(FinishedEffect(tourId: tour.id));
-        return const HintIdle();
       default:
         // TargetAppeared (any), TargetVanished (foreign), WaitTimeout (no
         // timer is armed on an active step) — state stays unchanged.

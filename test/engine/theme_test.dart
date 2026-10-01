@@ -136,6 +136,16 @@ void main() {
       expect(changed.showTail, a.showTail);
     });
 
+    test('holeRadius: 12 by default, copyWith/lerp/== all carry it', () {
+      expect(a.holeRadius, 12);
+      final changed = a.copyWith(holeRadius: 4);
+      expect(changed.holeRadius, 4);
+      expect(a.holeRadius, 12); // the original is unchanged
+      expect(changed == a, isFalse);
+      final halfway = a.lerp(a.copyWith(holeRadius: 20), 0.5);
+      expect(halfway.holeRadius, 16);
+    });
+
     test('copyWith(showTail: false) turns the tail off', () {
       expect(a.copyWith(showTail: false).showTail, isFalse);
       expect(a.showTail, isTrue); // the original is unchanged

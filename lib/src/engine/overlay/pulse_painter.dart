@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../position_resolver.dart';
-import '../specs.dart' show FocusShape, kHintFocusPadding;
+import '../specs.dart' show FocusShape, kHintFocusPadding, kHintHoleRadius;
 import 'scrim_painter.dart';
 
 /// Pulsing ring around the primary target (Material feature-discovery
@@ -23,6 +23,7 @@ class PulsePainter extends CustomPainter {
     required this.color,
     this.focusShape = FocusShape.rectangle,
     this.focusPadding = kHintFocusPadding,
+    this.holeRadius = kHintHoleRadius,
   });
 
   /// Pulse progress animation (0..1). Null — the ring is drawn at phase 0
@@ -42,6 +43,10 @@ class PulsePainter extends CustomPainter {
   /// Padding from the target bounds — the ring starts at the hole edge.
   final double focusPadding;
 
+  /// Corner radius of a rounded-rect ring - the same knob the scrim hole
+  /// uses, so ring and hole always read as one shape.
+  final double holeRadius;
+
   @override
   void paint(Canvas canvas, Size size) {
     final position = resolver?.resolve();
@@ -58,7 +63,8 @@ class PulsePainter extends CustomPainter {
     // scrim punches (stroked, so corners read as the hole's corners — a
     // stroked rect is sharp, an inscribed oval round, a rounded rect clamped
     // the same way as the scrim's).
-    final path = RectScrimPainter.holeShape(ringRect, focusShape);
+    final path =
+        RectScrimPainter.holeShape(ringRect, focusShape, radius: holeRadius);
     if (path == null) return;
     canvas.drawPath(
       path,
@@ -75,7 +81,8 @@ class PulsePainter extends CustomPainter {
       !identical(oldDelegate.resolver, resolver) ||
       oldDelegate.color != color ||
       oldDelegate.focusShape != focusShape ||
-      oldDelegate.focusPadding != focusPadding;
+      oldDelegate.focusPadding != focusPadding ||
+      oldDelegate.holeRadius != holeRadius;
 
   /// The expanding ring for a pulse [phase] in 0..1 around a hole of [size]:
   /// `(rect, opacity)`. The rect inflates from the hole by up to [expansion]

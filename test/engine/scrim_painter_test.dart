@@ -96,7 +96,27 @@ void main() {
       expect(shape.contains(const Offset(10, 10)), isTrue);
     });
 
-    test('empty hole — null (cuts nothing)', () {
+    test('custom radius - the theme knob drives the corner arc', () {
+      const hole = Rect.fromLTWH(10, 20, 80, 40);
+      final big = RectScrimPainter.holeShape(
+        hole,
+        FocusShape.roundedRect,
+        radius: 40,
+      )!;
+      final small = RectScrimPainter.holeShape(
+        hole,
+        FocusShape.roundedRect,
+        radius: 4,
+      )!;
+      // 40 exceeds half the shortest side (20) - clamped to the pill.
+      expect(big.contains(const Offset(11, 21)), isFalse);
+      // 4 rounds only the very corner: 5px inside is filled, 0.5px is not.
+      expect(small.contains(const Offset(15, 25)), isTrue);
+      expect(small.contains(const Offset(10.5, 20.5)), isFalse);
+      expect(small.getBounds(), hole);
+    });
+
+    test('empty hole - null (cuts nothing)', () {
       expect(
           RectScrimPainter.holeShape(Rect.zero, FocusShape.rectangle), isNull);
       expect(

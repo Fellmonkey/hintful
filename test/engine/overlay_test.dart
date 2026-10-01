@@ -33,6 +33,9 @@ class _FakeInput implements HintActions {
   void previous() => previousCalls++;
 
   @override
+  void goTo(int index) {}
+
+  @override
   void skip() => skipCalls++;
 
   @override
@@ -105,7 +108,7 @@ Widget _harness({
 
 void main() {
   group('HintOverlayEngine', () {
-    testWidgets('active: scrim hole + tooltip in the follower; tap = next',
+    testWidgets('active: global scrim hole + tooltip; tap = next',
         (tester) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
@@ -131,7 +134,8 @@ void main() {
       // it by a zero transform).
       await tester.pump(); // snapshot → tooltip at the right place.
 
-      // The scrim layer and the tooltip are mounted, both inside the follower.
+      // The scrim layer and the tooltip are mounted; the follower only
+      // tracks the target (its child is empty).
       expect(_scrimFinder, findsOneWidget);
       expect(find.byType(CompositedTransformFollower), findsOneWidget);
       expect(find.text('Title'), findsOneWidget);

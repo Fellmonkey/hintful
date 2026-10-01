@@ -151,10 +151,10 @@ class HintOverlayEngine implements HintOverlayHost {
     final targetId = switch (state) {
       HintWaiting(:final targetId) => targetId,
       HintActive(:final targetId) => targetId,
-      _ => '?',
+      _ => null,
     };
     _diagnostics?.call(HintSkipEvent(
-      tourId: state?.tour?.id ?? '?',
+      tourId: state?.tour?.id,
       stepIndex: stepIndex,
       targetId: targetId,
       reason: HintSkipReason.overlayUnavailable,
@@ -380,19 +380,20 @@ class _HintOverlayViewState extends State<_HintOverlayView>
 
 /// Scrim holes + placed tooltip.
 ///
-/// One follower per spotlighted target, two layer kinds:
-/// - **Scrim — inside the primary's `CompositedTransformFollower`**: the
-///   primary hole sits at local (0,0) with `leaderSize`; the step's other
-///   holes are translated into this canvas from their own followers' live
-///   transforms. The on-screen position is moved by the compositor (scroll,
-///   animations, re-layout — without repaints). The screen in follower-local
-///   coordinates is drawn by the painter from the resolvers' live transforms.
-///   Secondary targets get resolver-only followers (nothing visible) — their
-///   transforms feed the scrim painter and the tap regions.
-/// - **Tooltip — in a global full-screen layout box** above the followers. In
+/// One follower per spotlighted target — link tracking only (their child is
+/// an empty box; nothing is painted inside them) — then three layers:
+/// - **Scrim — a global full-screen box** above the followers. It never
+///   moves: the holes are punched at the targets' live *global* rects, so
+///   there is no follower offset and no bottom flicker when the page scrolls
+///   under it. Plain dim is a `RectScrimPainter`; the opt-in blur is a
+///   `BackdropFilter` clipped to the screen minus the same holes (one even-odd
+///   path, no boolean geometry).
+/// - **Pulse ring** (opt-in) in that same global layer, above the scrim so it
+///   stays visible over the blur too.
+/// - **Tooltip — in a global full-screen layout box** above everything. In
 ///   follower-local coordinates the screen extends into the negative region
 ///   (the target is not at a screen corner), and hit-testing is bounded by
-///   the box's bounds — tooltip buttons above/left of the target would be
+///   the box's bounds - tooltip buttons above/left of the target would be
 ///   unreachable (found while exercising the example app). The global box:
 ///   `screenLocal = Rect(0,0,W,H)`, `holeLocal` = the primary's **visual**
 ///   hole (target bounds + the effective focus padding, see
@@ -459,8 +460,10 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   /// per id within a step and reused when the id stays across steps.
   final Map<String, GlobalKey> _followerKeys = {};
 
-  /// Live resolvers per target id (created once the follower mounts); read
-  /// by the scrim painter at paint time and by the tap regions per tap.
+  /// Live resolvers per target id (created once the follower mounts). Read
+  /// when a hole snapshot is taken - on every `_holeNotifier` write for the
+  /// scrim, and per tap for the region dispatch - and by the pulse painter at
+  /// paint time (its animation tick repaints without a rebuild).
   final Map<String, HintPositionResolver> _resolvers = {};
 
   /// The primary target's position (global coordinates). null — the tooltip
@@ -500,6 +503,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
 
   double _effectivePadding() =>
       _resolveFocusPadding(widget.step, widget.registrations.first);
+
+  double _effectiveHoleRadius() => widget.theme.holeRadius;
 
   bool _effectiveAutoScroll() =>
       widget.step.autoScroll ?? widget.tourAutoScroll;
@@ -626,8 +631,15 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     }
   }
 
-  void _repaintPulse() {
-    final renderObject = _pulsePaintKey.currentContext?.findRenderObject();
+  void _repaintPulse() => _repaint(_pulsePaintKey);
+
+  /// Ask the CustomPaint under [key] to repaint without a rebuild. The pulse
+  /// needs it on every animation tick (nothing it listens to changes); the
+  /// scrim needs it when a rebuild would produce an identical painter —
+  /// [RectScrimPainter.shouldRepaint] compares the resolved holes, so a
+  /// follower re-linking onto the same rects would not repaint otherwise.
+  void _repaint(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
     (renderObject as RenderCustomPaint?)?.markNeedsPaint();
   }
 
@@ -679,6 +691,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
                           holes: holes,
                           color: widget.theme.scrimColor,
                           focusShape: _effectiveShape(),
+                          holeRadius: _effectiveHoleRadius(),
                         ),
                         child: const SizedBox.expand(),
                       ),
@@ -874,6 +887,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
             color: widget.theme.tooltipForeground,
             focusShape: _effectiveShape(),
             focusPadding: _effectivePadding(),
+            holeRadius: _effectiveHoleRadius(),
           ),
           child: const SizedBox.expand(),
         ),
@@ -888,6 +902,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       screen: screen,
       holes: holes,
       focusShape: _effectiveShape(),
+      holeRadius: _effectiveHoleRadius(),
       theme: widget.theme,
     );
   }
@@ -953,9 +968,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
           // Always repaint explicitly: a rebuild with identical resolvers
           // skips it via `shouldRepaint` (e.g. the follower re-linking
           // after the target was culled from painting).
-          final renderObject =
-              _scrimPaintKey.currentContext?.findRenderObject();
-          (renderObject as RenderCustomPaint?)?.markNeedsPaint();
+          _repaint(_scrimPaintKey);
           _holeNotifier.value = _translation;
         } else if (position == null && _translation != null) {
           // The target cannot be measured at all any more (its render object
@@ -1062,8 +1075,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     final delta = _scrollAxis == Axis.vertical ? Offset(0, -d) : Offset(-d, 0);
     _translation = _translation! + delta;
     _holeNotifier.value = _translation;
-    final ro = _scrimPaintKey.currentContext?.findRenderObject();
-    (ro as RenderCustomPaint?)?.markNeedsPaint();
+    _repaint(_scrimPaintKey);
     _repaintPulse();
   }
 }
@@ -1121,6 +1133,7 @@ Widget _blurScrim({
   required Size screen,
   required List<Rect> holes,
   required FocusShape focusShape,
+  required double holeRadius,
   required HintTheme theme,
 }) {
   return ClipPath(
@@ -1129,6 +1142,7 @@ Widget _blurScrim({
         Offset.zero & screen,
         holes,
         focusShape,
+        radius: holeRadius,
       ),
     ),
     child: BackdropFilter(
