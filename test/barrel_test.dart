@@ -67,7 +67,7 @@ void main() {
     addTearDown(controller.dispose);
     expect(controller.registry, same(registry));
     expect(registry.ids, isEmpty);
-    expect(controller.currentState, isA<HintIdle>());
+    expect(controller.state.value, isA<HintIdle>());
     expect(controller.isIdle, isTrue);
 
     // Entry points — the `show*` family resolves through the barrel; the
@@ -178,7 +178,7 @@ void main() {
       const HintTourOfferLabels(),
       const HintTourOfferLabels(), // == / hashCode
     );
-    expect(HintTourOfferResult.values, hasLength(4));
+    expect(HintTourOfferResult.values, hasLength(6));
     expect(showHintTourOffer, isNotNull);
 
     // Mark policy — exported from the barrel.

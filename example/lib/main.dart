@@ -106,7 +106,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// `HintMarkPolicy.onAnyExit` in their entry points (§6) — no hand-rolled
   /// idle listener for that anymore.
   void _onTourStateChanged() {
-    final state = _controller.currentState;
+    final state = _controller.state.value;
     if (state.isIdle) {
       _statsRevealScheduled = false;
       if (mounted) setState(() {});
@@ -129,7 +129,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// [HintMarkPolicy.onAnyExit] (§6: finished, skipped or timed out all
   /// count — "the user has seen it").
   void _showTour() {
-    if (!_controller.currentState.isIdle) return; // one tour at a time
+    if (!_controller.state.value.isIdle) return; // one tour at a time
     final store = _store;
     if (store == null) return; // prefs not loaded yet
     if (!store.shouldShow('intro', minVersion: _appVersion)) {
@@ -180,7 +180,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// Quick path for a single tip: a one-step tour without the HintTour
   /// ceremony.
   void _showHint() {
-    if (!_controller.currentState.isIdle) return;
+    if (!_controller.state.value.isIdle) return;
     _controller.showHint(
       const HintStep(
         targetId: 'fab',
@@ -211,7 +211,7 @@ class _ExampleAppState extends State<ExampleApp> {
   /// per page, or globally when the checkbox is on. The tour is a plain
   /// [HintTour] — see demo_tours.dart.
   void _showOfferTour(BuildContext context) {
-    if (!_controller.currentState.isIdle) return; // one tour at a time
+    if (!_controller.state.value.isIdle) return; // one tour at a time
     if (_store == null) return; // prefs not loaded yet
     showHintTourOffer(
       context: context,

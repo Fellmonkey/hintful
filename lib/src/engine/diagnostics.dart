@@ -46,6 +46,9 @@ enum HintSkipReason {
 /// screen, timestamp) can be added in 1.x without breaking implementations
 /// of [HintDiagnosticsHandler] — **optional fields only** (a new `required`
 /// constructor parameter would break event construction in app tests).
+///
+/// Value semantics: two events with the same payload are `==`, so a test
+/// can assert `expect(event, HintSkipEvent(...))` instead of field-by-field.
 @immutable
 class HintSkipEvent {
   /// Builds an event from the skipped step's context.
@@ -57,20 +60,37 @@ class HintSkipEvent {
     required this.detail,
   });
 
-  /// Tour the skipped step belongs to (`'?'` when the tour is unknown).
-  final String tourId;
+  /// Tour the skipped step belongs to (null when the tour is unknown).
+  final String? tourId;
 
   /// 0-based index of the skipped step.
   final int stepIndex;
 
-  /// Target the step was waiting on (`'?'` when unknown).
-  final String targetId;
+  /// Target the step was waiting on (null when unknown).
+  final String? targetId;
 
   /// Why the step was not shown.
   final HintSkipReason reason;
 
   /// Reason context (timeout value, closest candidates, message).
   final String detail;
+
+  @override
+  bool operator ==(Object other) =>
+      other is HintSkipEvent &&
+      other.tourId == tourId &&
+      other.stepIndex == stepIndex &&
+      other.targetId == targetId &&
+      other.reason == reason &&
+      other.detail == detail;
+
+  @override
+  int get hashCode => Object.hash(tourId, stepIndex, targetId, reason, detail);
+
+  /// One-line dump, same shape as [formatHintSkipped]'s payload.
+  @override
+  String toString() => 'HintSkipEvent(tourId: $tourId, stepIndex: $stepIndex,'
+      ' targetId: $targetId, reason: ${reason.label}, detail: $detail)';
 }
 
 /// Handler for "why didn't it show" diagnostics — a plain function taking
@@ -103,8 +123,10 @@ typedef HintDiagnosticsHandler = void Function(HintSkipEvent event);
 /// Format: `[hintful] statsIntro step 2 not shown: overlay-unavailable
 /// (target 'statsPeriodSelector') — detail`
 String formatHintSkipped(HintSkipEvent event) {
-  return "[hintful] ${event.tourId} step ${event.stepIndex + 1} not shown:"
-      " ${event.reason.label} (target '${event.targetId}') — ${event.detail}";
+  final tour = event.tourId ?? '?';
+  final target = event.targetId ?? '?';
+  return "[hintful] $tour step ${event.stepIndex + 1} not shown:"
+      " ${event.reason.label} (target '$target') — ${event.detail}";
 }
 
 /// Debug-build default sink: the one-line diagnosis through [debugPrint].

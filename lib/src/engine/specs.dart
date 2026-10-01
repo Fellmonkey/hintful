@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show debugPrint, internal, kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/widgets.dart';
 
 /// Preferred side of the tooltip relative to its target.
@@ -55,14 +55,17 @@ abstract class HintActions {
 
   /// Go one step back.
   ///
-  /// **No-op contract:** the default body is intentionally empty. It is a
-  /// no-op (1) on the first step of a tour, and (2) for custom tooltips /
-  /// [HintActions] implementations that do not expose back-navigation —
-  /// calling `previous()` is always safe and never throws. Override only
-  /// when the surface actually moves backward (`HintController` dispatches
-  /// `UserPrevious`); forgetting to override is a silent no-op, not a bug
-  /// in the caller's code.
+  /// **No-op contract:** the default body is intentionally empty — it is a
+  /// no-op (1) on the first step of a tour and (2) for implementations that
+  /// do not expose back-navigation. Calling `previous()` is always safe and
+  /// never throws; `HintController` dispatches the real move.
   void previous() {}
+
+  /// Jump to the 0-based [index] of the tour (out of range: a debug assert,
+  /// a no-op in release). This is what makes page-indicator dots clickable
+  /// in a custom tooltip — without it the dots could only be rendered, not
+  /// driven.
+  void goTo(int index);
 
   /// Abort the tour (the user chose to skip).
   void skip();
@@ -102,6 +105,12 @@ class HintTooltipContext {
 
   /// Last step of the tour: Next becomes Done.
   bool get isLast => stepIndex == totalSteps - 1;
+
+  /// The whole tour is this one step: a lone hint keeps no action row at
+  /// all (no Done next to a Skip that does the same). Every tooltip —
+  /// default or custom — needs this decision; without the getter each one
+  /// re-derives `totalSteps <= 1`.
+  bool get isSingle => totalSteps <= 1;
 }
 
 /// What to do when a step's target never appears within its wait timeout.
@@ -124,9 +133,14 @@ enum HintMissingTargetPolicy {
 }
 
 /// Default focus padding when neither the step nor the target sets one.
-/// Engine-internal — not part of the public barrel (referenced only by
+/// Engine-internal - not part of the public barrel (referenced only by
 /// engine docs and resolvers).
 const double kHintFocusPadding = 4.0;
+
+/// Default corner radius of a [FocusShape.roundedRect] hole when the theme
+/// does not set `HintTheme.holeRadius`. Engine-internal, same as
+/// [kHintFocusPadding] - the public knob is the theme field.
+const double kHintHoleRadius = 12.0;
 
 /// Step/slot copy: strings and/or localized builders — one place for the
 /// zero-config ↔ l10n precedence (builders win), shared by [HintStep],
@@ -142,10 +156,12 @@ class HintStepContent {
     this.descriptionBuilder,
   });
 
-  /// Zero-config title/description; ignored when a `tooltipBuilder` is set.
+  /// Zero-config title; not rendered by the engine when a `tooltipBuilder`
+  /// is set — your builder may still show it (call back into
+  /// `DefaultTooltip(step:, ctx:)`, which renders this content).
   final String? title;
 
-  /// Zero-config description; ignored when a `tooltipBuilder` is set.
+  /// Zero-config description; same rendering contract as [title].
   final String? description;
 
   /// Localized builders; called with the overlay's BuildContext at show
@@ -204,30 +220,33 @@ sealed class HintTapBehavior {
 
 /// Tap in the region advances the tour (the historical default).
 ///
-/// Engine-internal variant — construct through
-/// [HintTapBehavior.advance].
-@internal
+/// One of the three concrete [HintTapBehavior] variants — construct through
+/// [HintTapBehavior.advance]; the subtype is exported so a `switch` over a
+/// `sealed` family is exhaustive.
 final class HintTapAdvance extends HintTapBehavior {
+  /// The default behavior.
   const HintTapAdvance();
 }
 
 /// Tap in the region is ignored.
 ///
-/// Engine-internal variant — construct through
+/// One of the three concrete [HintTapBehavior] variants - construct through
 /// [HintTapBehavior.ignore].
-@internal
 final class HintTapIgnore extends HintTapBehavior {
+  /// No advance, no callback.
   const HintTapIgnore();
 }
 
 /// Tap in the region runs a custom handler instead of advancing.
 ///
-/// Engine-internal variant — construct through
+/// One of the three concrete [HintTapBehavior] variants - construct through
 /// [HintTapBehavior.custom].
-@internal
 final class HintTapCustom extends HintTapBehavior {
+  /// Binds [onTap] as the region's handler.
   const HintTapCustom(this.onTap);
 
+  /// Runs instead of advancing; the handler calls `ctx.actions.next()` itself
+  /// when the step should continue.
   final void Function(HintTooltipContext ctx, TapDownDetails details) onTap;
 }
 
@@ -242,8 +261,11 @@ final class HintTapCustom extends HintTapBehavior {
 class HintStep {
   /// Creates a step: non-empty [targetId], and [content] or a
   /// [tooltipBuilder] (authoring rule — empty content with no custom
-  /// tooltip renders nothing useful, but is not asserted: property access
-  /// is not a potentially-constant expression in a const constructor).
+  /// tooltip renders an empty bubble). Enforced neither by an assert (a
+  /// property access is not a potentially-constant expression in a `const`
+  /// constructor) nor by diagnostics ([HintSkipReason] is closed in 1.x and
+  /// deliberately has no `invalidContent` case) — the rule lives here, in
+  /// the docs, and nowhere else.
   const HintStep({
     required this.targetId,
     this.content = const HintStepContent(),
@@ -347,6 +369,14 @@ class HintStep {
   List<String> get targetIds => [targetId, ...additionalTargets];
 
   /// Serializes the step to the frozen JSON wire format (see `fromJson`).
+  ///
+  /// Two deliberate divergences from the Dart names, both fixed by the 1.x
+  /// wire: `stepTimeout` → `stepTimeoutMs` and `targetTap`/`overlayTap` →
+  /// `tapOnTarget`/`tapOnOverlay`. The tap bools lose their handler:
+  /// [HintTapBehavior.custom] serializes as `true` and parses back as
+  /// [HintTapBehavior.advance] — callbacks are code-side, so a custom
+  /// handler must be re-applied in code after a round-trip. The always /
+  /// only-when-non-default split mirrors [HintTour.toJson]'s.
   Map<String, dynamic> toJson() => {
         'targetId': targetId,
         if (additionalTargets.isNotEmpty)
@@ -354,8 +384,7 @@ class HintStep {
         if (additionalTooltips.isNotEmpty)
           'additionalTooltips':
               additionalTooltips.map((t) => t.toJson()).toList(),
-        if (content.title != null) 'title': content.title,
-        if (content.description != null) 'description': content.description,
+        ...content.toJson(),
         'position': position.name,
         if (stepTimeout != null) 'stepTimeoutMs': stepTimeout!.inMilliseconds,
         'showSkip': showSkip,
@@ -382,12 +411,19 @@ class HintStep {
         "hintful: step JSON is missing a non-empty 'targetId'",
       );
     }
+    // The single most plausible producer mistake is mirroring the Dart API:
+    // {"targetId": …, "content": {"title": …}} would otherwise parse into an
+    // empty bubble with no diagnosis at all.
+    if (json.containsKey('content')) {
+      _warn(
+        "hintful: step JSON key 'content' is not part of the wire format —"
+        " the wire is flat ('title'/'description' at the step level)",
+        onWarning,
+      );
+    }
     return HintStep(
       targetId: targetId,
-      content: HintStepContent(
-        title: _stringOrNull(json['title'], 'title'),
-        description: _stringOrNull(json['description'], 'description'),
-      ),
+      content: HintStepContent.fromJson(json),
       additionalTargets:
           _stringListOrNull(json['additionalTargets'], 'additionalTargets') ??
               const [],
@@ -458,8 +494,7 @@ class HintAdditionalTooltip {
   /// copy; builders are code-side only).
   Map<String, dynamic> toJson() => {
         'position': position.name,
-        if (content.title != null) 'title': content.title,
-        if (content.description != null) 'description': content.description,
+        ...content.toJson(),
       };
 
   /// Parses a slot payload; an unknown `position` falls back to
@@ -485,6 +520,28 @@ const Duration _kDefaultStepTimeout = Duration(seconds: 3);
 ///
 /// Pure data, serializable 1-to-1 to JSON (server-driven tours via
 /// `fromJson`): `{id, steps: [{targetId, title, ...}], stepTimeoutMs}`.
+///
+/// ## Where each knob lives
+///
+/// The knobs are not uniformly inheritable — this is the whole model, so
+/// you never have to guess which tier a setting belongs to:
+///
+/// | knob | on `HintTarget` | on `HintTour` | on `HintStep` |
+/// |---|---|---|---|
+/// | `focusShape` / `focusPadding` | ✓ | – | ✓ (overrides the target) |
+/// | `autoScroll` | – | ✓ (default) | ✓ (overrides the tour) |
+/// | `stepTimeout` | – | ✓ (default) | ✓ (overrides the tour) |
+/// | `position` | – | – | ✓ (plus one per extra tooltip) |
+/// | `showSkip` | – | – | ✓ |
+/// | `targetTap` / `overlayTap` | – | – | ✓ |
+/// | `missingTargetPolicy` | – | ✓ | – (tour-wide by design) |
+/// | `disableBackButton` | – | ✓ | – |
+/// | `minShowVersion` | – | ✓ | – |
+/// | `onStepEnter` / `onStepExit` | – | – | ✓ |
+///
+/// Only `focusShape`/`focusPadding` are set on the widget — everything else
+/// is tour data, so a tour stays serializable and a target stays reusable
+/// across tours.
 @immutable
 class HintTour {
   /// Creates a tour of [steps] under a non-empty [id].
@@ -496,6 +553,7 @@ class HintTour {
     this.missingTargetPolicy = HintMissingTargetPolicy.skipStep,
     this.autoScroll = false,
     this.minShowVersion,
+    this.onExited,
   })  : assert(id != '', 'HintTour.id must not be empty'),
         assert(steps.length > 0, 'HintTour.steps must not be empty');
 
@@ -508,10 +566,16 @@ class HintTour {
   /// Default wait-for-target timeout for all steps of the tour.
   final Duration stepTimeout;
 
-  /// When set, the tour is gated by [HintStore.shouldShow] against this
-  /// version: it shows only if it was never shown or last shown before
-  /// `minShowVersion`. Read by [HintController.tryShowTour] and
-  /// `showHintTourOffer` — the one place to declare "targets version X".
+  /// When set, the guarded entry points show this tour only if it was never
+  /// shown or was last shown before `minShowVersion`: [HintController
+  /// .tryShowTour] (which `showHint` and `showHintTourOffer` go through)
+  /// checks it on every call and records the result with
+  /// [HintMarkPolicy.onAnyExit] when no `mark:` was given — so declaring the
+  /// floor is enough, no second knob.
+  ///
+  /// [HintController.showTour] is deliberately NOT gated: it is the loud,
+  /// assert-based path ("show this now"), and a silent store no-op there
+  /// would contradict it.
   final String? minShowVersion;
 
   /// Default missing-target policy for all steps of the tour: abort the
@@ -533,6 +597,17 @@ class HintTour {
   /// Per-step [HintStep.autoScroll] overrides this tour default.
   final bool autoScroll;
 
+  /// Fires once when the tour leaves the screen — the tour-level half of the
+  /// per-step [HintStep.onStepEnter]/[HintStep.onStepExit] pair, and the
+  /// only way to tell "finished" from "abandoned" without bookkeeping: the
+  /// observable state before the tour and after it are both [HintIdle].
+  ///
+  /// `finished` is `true` when the tour ran to the end (Done / last step)
+  /// and `false` when it was skipped, aborted or timed out. Async; runs
+  /// through the same serialized hook queue as the step hooks, after the
+  /// last step's `onStepExit`. Not serializable (like every callback).
+  final Future<void> Function(bool finished)? onExited;
+
   /// Target ids referenced by more than one step — a tour-authoring error
   /// (one tour at a time, a duplicated target is ambiguous). Counts
   /// [HintStep.targetIds] (extras included); repeating an id WITHIN one step
@@ -552,6 +627,14 @@ class HintTour {
   }
 
   /// Serializes the tour to the frozen JSON wire format (see `fromJson`).
+  ///
+  /// **What is written:** the identity and structural fields always (`id`,
+  /// `steps`, `stepTimeoutMs`, `disableBackButton`, `missingTargetPolicy`);
+  /// the optional behaviour flags only when they differ from their Dart
+  /// default (`autoScroll`, `minShowVersion`); callbacks (`onStepEnter`,
+  /// `onStepExit`, `onExited`, `tooltipBuilder`) never — they are code-side
+  /// only. `fromJson` applies the same defaults on read, so an
+  /// under-specified payload round-trips to the same tour.
   Map<String, dynamic> toJson() => {
         'id': id,
         'steps': steps.map((s) => s.toJson()).toList(),
@@ -632,7 +715,15 @@ HintTour hintTourWithSteps(HintTour tour, List<HintStep> steps) => HintTour(
       missingTargetPolicy: tour.missingTargetPolicy,
       autoScroll: tour.autoScroll,
       minShowVersion: tour.minShowVersion,
+      onExited: tour.onExited,
     );
+
+/// Reports a non-fatal wire problem: `debugPrint` in debug builds, plus the
+/// optional `onWarning` the `fromJson` entry points thread down.
+void _warn(String warning, void Function(String warning)? onWarning) {
+  if (kDebugMode) debugPrint(warning);
+  onWarning?.call(warning);
+}
 
 /// Enum value from a JSON [name]: null when the field is absent, null + a
 /// warning when the name is unknown.
@@ -651,9 +742,7 @@ T? _enumOrNull<T extends Enum>(
   for (final value in values) {
     if (value.name == name) return value;
   }
-  final warning = "hintful: unknown $field '$name' — using the default";
-  if (kDebugMode) debugPrint(warning);
-  onWarning?.call(warning);
+  _warn("hintful: unknown $field '$name' — using the default", onWarning);
   return null;
 }
 

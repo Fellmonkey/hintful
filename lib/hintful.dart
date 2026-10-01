@@ -35,12 +35,12 @@
 /// `resolveTimeout`,
 /// `HintControllerScope` / `inScope`), the diagnostics helpers
 /// (`formatHintSkipped`, `debugPrintHintSkip`, `closestTargetIds`,
-/// `editDistance`), the focus-padding fallback constant `kHintFocusPadding`,
-/// the internal `hintTourWithSteps`, and the concrete resolver
-/// `CompositorHintResolver` (it touches Flutter's layer internals). They stay
-/// public inside `lib/src/` for the
-/// package's own tests — a public member of an exported *class* is API by
-/// definition, so engine-only helpers live in unexported *extensions*.
+/// `editDistance`), the fallback constants `kHintFocusPadding` and
+/// `kHintHoleRadius`, the internal `hintTourWithSteps`, and the concrete
+/// resolver `CompositorHintResolver` (it touches Flutter's layer internals).
+/// They stay public inside `lib/src/` for the package's own tests — a public
+/// member of an exported *class* is API by definition, so engine-only
+/// helpers live in unexported *extensions*.
 ///
 /// Deep imports (`package:hintful/engine/...`, `package:hintful/widgets/...`)
 /// are NOT part of the contract — the implementation lives under `lib/src/`
@@ -62,7 +62,10 @@ export 'src/engine/specs.dart'
         HintMissingTargetPolicy,
         HintStep,
         HintStepContent,
+        HintTapAdvance,
         HintTapBehavior,
+        HintTapCustom,
+        HintTapIgnore,
         HintAdditionalTooltip,
         HintTooltipContext,
         HintTour,

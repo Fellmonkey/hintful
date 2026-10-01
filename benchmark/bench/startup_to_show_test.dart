@@ -70,7 +70,7 @@ class _StartupScene extends StatelessWidget {
   final HintController controller;
 
   void _start() {
-    if (controller.currentState.isIdle) {
+    if (controller.state.value.isIdle) {
       controller.showTour(_tour());
     }
   }

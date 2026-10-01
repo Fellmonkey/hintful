@@ -78,7 +78,7 @@ class HintfulDriver implements LibraryDriver {
   @override
   Future<void> show(int state) async {
     _expectedState = state;
-    if (_controller.currentState.isIdle) {
+    if (_controller.state.value.isIdle) {
       await _controller.showTour(_tour());
     }
     _goToState(state);
@@ -86,7 +86,7 @@ class HintfulDriver implements LibraryDriver {
 
   @override
   Future<void> update(int state) async {
-    if (_controller.currentState.isIdle) {
+    if (_controller.state.value.isIdle) {
       await show(state);
     } else {
       _expectedState = state;
@@ -102,7 +102,7 @@ class HintfulDriver implements LibraryDriver {
   /// scenario pumps — the scenario owns pumping, Р7).
   @override
   bool isStable() {
-    final s = _controller.currentState;
+    final s = _controller.state.value;
     if (s is! HintActive) return false;
     return _states[s.stepIndex] == _expectedState &&
         !SchedulerBinding.instance.hasScheduledFrame;
