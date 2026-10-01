@@ -489,14 +489,18 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
   Axis _scrollAxis = Axis.vertical;
 
   /// Cached tooltip slots (the content widgets incl. the tail wrapper),
-  /// with the step they were built for. Rebuilt only when the STEP changes;
-  /// reused across movement frames so the tooltip content stays identical
-  /// while scrolling — identical widget instances mean no re-layout of the
-  /// tooltip text on every movement frame (a fresh DefaultTooltip/TextSpan
-  /// per frame would re-measure paragraphs on every scroll tick).
-  /// Position/layout updates still happen (the placement delegate rebuilds
-  /// with the fresh hole), only the content subtree is skipped.
-  ({HintStep step, int index, List<Widget> slots})? _slotCache;
+  /// with the step and the resolved theme they were built for. Rebuilt when
+  /// the step (or its index) changes **or the resolved [HintTheme] changes**
+  /// — the tail's color/`showTail` come from the theme, so a mid-tour theme
+  /// switch (system dark mode) must not leave a stale tail; the tooltip
+  /// content itself follows `Theme.of` on its own. Reused across movement
+  /// frames so the content stays identical while scrolling — identical widget
+  /// instances mean no re-layout of the tooltip text on every movement frame
+  /// (a fresh DefaultTooltip/TextSpan per frame would re-measure paragraphs
+  /// on every scroll tick). Position/layout updates still happen (the
+  /// placement delegate rebuilds with the fresh hole), only the content
+  /// subtree is skipped.
+  ({HintStep step, int index, HintTheme theme, List<Widget> slots})? _slotCache;
 
   FocusShape _effectiveShape() =>
       _resolveFocusShape(widget.step, widget.registrations.first);
@@ -780,11 +784,13 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     var cache = _slotCache;
     if (cache == null ||
         !identical(cache.step, widget.step) ||
-        cache.index != widget.stepIndex) {
+        cache.index != widget.stepIndex ||
+        cache.theme != widget.theme) {
       final extras = widget.step.additionalTooltips;
       cache = _slotCache = (
         step: widget.step,
         index: widget.stepIndex,
+        theme: widget.theme,
         slots: [
           _tooltipSlot(context, null, ctx),
           for (var i = 0; i < extras.length; i++)
