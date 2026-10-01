@@ -16,3 +16,17 @@ pubspec_overrides.yaml
 # IDE/editor junk.
 *.iml
 .idea/
+
+# Generated docs, tooling state and CI plumbing. The archive is normally
+# shaped by git tracking on top of this file, but a checkout without git
+# (a tarball, a vendored copy) would otherwise ship all of it — state the
+# essentials here so the rule does not depend on `.gitignore` still being
+# consulted alongside.
+**/doc/api/
+.dart_tool/
+coverage/
+pubspec.lock
+.metadata
+.github/
+.flutter-plugins
+.flutter-plugins-dependencies

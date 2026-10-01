@@ -28,9 +28,10 @@ Upgrading from **0.7.0** — the whole migration in one list.
   overlay pair collapse into `HintTapBehavior` per region:
   `targetTap`/`overlayTap` with `advance()` / `ignore()` / `custom(onTap)`.
   The JSON wire keeps the historical bools (`true` ⇔ advance).
-- **`HintTourOfferResult` is four-valued.** `declined` splits into `declined`
-  (this dialog), `alreadyShown` (gate closed) and `busy` (accept while another
-  tour is running; nothing started).
+- **`HintTourOfferResult` is six-valued.** `declined` splits into `declined`
+  (this dialog), `versionGated` (already ran for this version), `previouslyDeclined`
+  (the offer was declined before), `busy` (accept while another tour is
+  running) and `nothingToShow` (accepted, but no valid steps left).
 - **Removed:** `HintTour.fromEnum`; the factory trio
   (`HintTourFactory`/`InMemoryHintTourFactory`/`FetcherHintTourFactory` — use
   `HintTour.fromJson` + your own HTTP client); the adapter stubs; the
@@ -44,8 +45,23 @@ Upgrading from **0.7.0** — the whole migration in one list.
   `tryStart` → `tryShowTour`; show-once is no longer a second method but
   `tryShowTour(tour, mark:)` — an omitted `mark` means "the store
   is not consulted", so `tryStart(tour)` is exactly `tryShowTour(tour)`.
-  `HintTourOfferResult.started` → `shown` (it now pairs with
-  `alreadyShown`).
+  `HintTourOfferResult.started`  `shown` (it now pairs with
+  `versionGated`/`previouslyDeclined`).
+- **`HintController.currentState` is gone.** Read `controller.state.value`
+  (`controller.state.value.isIdle`, or the `isIdle` shorthand) - one source of
+  truth, so `state` and its current value can never disagree.
+- **`showTour`/`showHint` return `Future<bool>`.** `true` means the tour
+  went on screen; the Future completes when it *starts*, not when it ends
+  (`HintTour.onExited` observes the end). `showHint` now takes `mark:` and
+  runs through `tryShowTour`, so it returns `false` instead of asserting when
+  a tour is already running.
+- **`HintSkipEvent.tourId`/`targetId` are `String?`** (null = unknown - the
+  `'?'` sentinel is gone) and the event has value semantics (`==`,
+  `hashCode`, `toString`).
+- **`HintActions` gained `goTo(int)`.** Implementations of the contract must
+  add it; the three tap-behavior subtypes (`HintTapAdvance`/`HintTapIgnore`/
+  `HintTapCustom`) are exported so a `switch` over the sealed family is
+  exhaustive.
 - **Renames:** `HintStep.waitTimeout` → `stepTimeout`; `moreTargets` →
   `additionalTargets`; `moreTooltips` → `additionalTooltips` (the JSON wire
   keys rename with them); `HintTooltip` → `HintAdditionalTooltip` (it only ever
@@ -107,6 +123,10 @@ Upgrading from **0.7.0** — the whole migration in one list.
   `HintTarget(focusShape/focusPadding)`, the `withHint` sugar, `autoScroll`,
   the multi-content `additionalTooltips`, and structural JSON validation
   (`FormatException` on a missing/empty `id`/`steps`/`targetId`).
+- `HintTheme.holeRadius` - the corner radius of a rounded-rect spotlight hole
+  (12, until now hardcoded inside the painter): the pulse ring reads the same
+  value so ring and hole stay one shape, and it is clamped to half the
+  shortest side so a tiny target cannot invert itself.
 - **`hintful_prefs` 1.0.0** — the new companion package: a
   `shared_preferences`-backed `HintStore` (namespaced keys, `clear()` dev tool,
   public `compareHintVersions`). The core stays dependency-free.
