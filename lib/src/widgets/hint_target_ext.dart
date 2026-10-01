@@ -5,8 +5,9 @@ import '../engine/specs.dart';
 import 'hint_target.dart';
 
 /// Ergonomic sugar over [HintTarget]: `child.withHint('id')` instead of
-/// `HintTarget(id: 'id', child: child)`. Keep `HintTarget` for full
-/// control (custom registry, semantics) — this is just the short path.
+/// `HintTarget(id: 'id', child: child)`. Every constructor parameter
+/// (registry, semantics label, focus shape/padding, key) is available here
+/// as a named argument too — the two forms differ only in spelling.
 extension HintTargetX on Widget {
   /// Wrap this widget as a tour target.
   Widget withHint(

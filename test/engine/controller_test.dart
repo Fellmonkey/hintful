@@ -135,7 +135,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.test(host: (_) => host, registry: registry);
+          hintControllerWithHost(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -148,7 +148,7 @@ void main() {
       await controller.showTour(tour);
 
       expect(
-        controller.currentState,
+        controller.state.value,
         HintActive(tour: tour, stepIndex: 0),
       );
       // Wiring of mounted targets: waiting first, then activation.
@@ -162,12 +162,12 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.test(host: (_) => host, registry: registry);
+          hintControllerWithHost(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
       await controller.showTour(tour);
-      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintWaiting(tour: tour, stepIndex: 0));
 
       registry.register(HintTargetRegistration(
         id: 'target0',
@@ -176,7 +176,7 @@ void main() {
       ));
       await tester.pump(); // registry-sync microtask
 
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
     });
 
     testWidgets(
@@ -185,17 +185,17 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final diag = _DiagRecorder();
-      final controller = HintController.test(
+      final controller = hintControllerWithHost(
           host: (_) => host, registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
       await controller.showTour(tour);
-      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintWaiting(tour: tour, stepIndex: 0));
 
       await tester.pump(const Duration(seconds: 3));
 
-      expect(controller.currentState, isA<HintIdle>());
+      expect(controller.state.value, isA<HintIdle>());
       expect(host.updates.last, isA<HintIdle>());
       expect(diag.events, hasLength(1));
       expect(diag.events.single.reason, HintSkipReason.timeout);
@@ -212,7 +212,7 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.test(
+      final controller = hintControllerWithHost(
           host: (_) => host, registry: registry, diagnostics: diag.call);
       final tour = _tour2();
       addTearDown(controller.dispose);
@@ -229,13 +229,13 @@ void main() {
       ));
 
       await controller.showTour(tour);
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       controller.next();
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 1));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 1));
 
       controller.next();
-      expect(controller.currentState, isA<HintIdle>());
+      expect(controller.state.value, isA<HintIdle>());
       expect(diag.events, isEmpty,
           reason: 'a normal finish is not diagnosed as a skip');
     });
@@ -247,7 +247,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.test(host: (_) => host, registry: registry);
+          hintControllerWithHost(host: (_) => host, registry: registry);
       addTearDown(controller.dispose);
 
       registry.register(HintTargetRegistration(
@@ -261,11 +261,11 @@ void main() {
         content: HintStepContent(title: 'One tip'),
       ));
 
-      expect(controller.currentState, isA<HintActive>());
-      expect(controller.currentState.tour?.id, 'hint:stats');
+      expect(controller.state.value, isA<HintActive>());
+      expect(controller.state.value.tour?.id, 'hint:stats');
 
       controller.next();
-      expect(controller.currentState, isA<HintIdle>(),
+      expect(controller.state.value, isA<HintIdle>(),
           reason: 'next on the only step = finish');
     });
 
@@ -279,9 +279,9 @@ void main() {
         content: HintStepContent(title: 'x'),
       ));
 
-      expect(controller.currentState, isA<HintWaiting>());
-      expect(controller.currentState.tour?.id, 'hint:never');
-      expect(controller.currentState.stepIndex, 0);
+      expect(controller.state.value, isA<HintWaiting>());
+      expect(controller.state.value.tour?.id, 'hint:never');
+      expect(controller.state.value.stepIndex, 0);
 
       // In the test body, not in addTearDown: the "no pending timers" check
       // runs before teardown callbacks, and waiting holds a Timer for
@@ -294,7 +294,7 @@ void main() {
       final registry = HintTargetRegistry();
       final host = _RecordingHost();
       final controller =
-          HintController.test(host: (_) => host, registry: registry);
+          hintControllerWithHost(host: (_) => host, registry: registry);
       final tour = _tour2();
       addTearDown(controller.dispose);
 
@@ -311,13 +311,13 @@ void main() {
 
       await controller.showTour(tour);
       controller.next();
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 1));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 1));
 
       controller.previous();
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       controller.previous(); // on the first step — a no-op
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
     });
 
     testWidgets('goTo: jump to a step; out of range — assert in debug',
@@ -341,7 +341,7 @@ void main() {
       final tour = _tour2();
       await controller.showTour(tour);
       controller.goTo(1);
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 1));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 1));
 
       expect(
         () => controller.goTo(99),
@@ -369,11 +369,11 @@ void main() {
       ));
 
       await controller.showTour(tour);
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       controller.skip();
 
-      expect(controller.currentState, isA<HintIdle>());
+      expect(controller.state.value, isA<HintIdle>());
       expect(diag.events, hasLength(1));
       expect(diag.events.single.reason, HintSkipReason.userSkipped);
       expect(diag.events.single.stepIndex, 0);
@@ -425,7 +425,7 @@ void main() {
         controller.showTour(typoTour),
         throwsA(isA<AssertionError>()),
       );
-      expect(controller.currentState, isA<HintIdle>(),
+      expect(controller.state.value, isA<HintIdle>(),
           reason: 'the tour did not start');
     });
 
@@ -434,7 +434,7 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.test(
+      final controller = hintControllerWithHost(
           host: (_) => host, registry: registry, diagnostics: diag.call);
 
       await controller.showTour(_tour2()); // waiting(0) + 3s timer
@@ -458,7 +458,7 @@ void main() {
 
       // No AssertionError (unlike start): a plain false.
       expect(await controller.tryShowTour(_tour2()), isFalse);
-      expect(controller.currentState.stepIndex, 0);
+      expect(controller.state.value.stepIndex, 0);
 
       controller.dispose();
     });
@@ -862,7 +862,7 @@ void main() {
       );
       await controller.showTour(tour);
       // Waiting: the foreign target must not satisfy the step.
-      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintWaiting(tour: tour, stepIndex: 0));
 
       registry.register(HintTargetRegistration(
         id: 'greenhouse-target',
@@ -870,7 +870,7 @@ void main() {
         context: ctx,
       ));
       await tester.pump();
-      expect(controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintActive(tour: tour, stepIndex: 0));
     });
 
     testWidgets('typo candidates ignore out-of-scope ids', (tester) async {
@@ -900,7 +900,7 @@ void main() {
         ],
       );
       await controller.showTour(tour);
-      expect(controller.currentState, HintWaiting(tour: tour, stepIndex: 0));
+      expect(controller.state.value, HintWaiting(tour: tour, stepIndex: 0));
 
       controller.dispose();
     });
@@ -1045,16 +1045,16 @@ void main() {
       await controller.showTour(tour);
       await tester.pump();
       expect(log, ['enter0']);
-      expect(controller.currentState, isA<HintActive>());
+      expect(controller.state.value, isA<HintActive>());
 
       registry.unregister(reg); // Active → Waiting (same step)
       await tester.pump();
-      expect(controller.currentState, isA<HintWaiting>());
+      expect(controller.state.value, isA<HintWaiting>());
       expect(log, ['enter0'], reason: 'vanish keeps the visit open');
 
       registry.register(reg); // Waiting → Active (same step)
       await tester.pump();
-      expect(controller.currentState, isA<HintActive>());
+      expect(controller.state.value, isA<HintActive>());
       expect(log, ['enter0'], reason: 'reappear does not re-fire enter');
 
       controller.finish();
@@ -1162,7 +1162,7 @@ void main() {
       final registry = HintTargetRegistry();
       final diag = _DiagRecorder();
       final host = _RecordingHost();
-      final controller = HintController.test(
+      final controller = hintControllerWithHost(
           host: (_) => host, registry: registry, diagnostics: diag.call);
       addTearDown(controller.dispose);
 
@@ -1191,8 +1191,8 @@ void main() {
       await controller.showTour(tour);
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(controller.currentState.stepIndex, 1);
-      expect(controller.currentState, isA<HintActive>());
+      expect(controller.state.value.stepIndex, 1);
+      expect(controller.state.value, isA<HintActive>());
       expect(diag.events, hasLength(1));
       expect(diag.events.single.reason, HintSkipReason.timeout);
       expect(diag.events.single.stepIndex, 0);
@@ -1200,7 +1200,7 @@ void main() {
 
       // The tour continues to a normal finish (no abort).
       controller.next();
-      expect(controller.currentState, isA<HintIdle>());
+      expect(controller.state.value, isA<HintIdle>());
     });
   });
 

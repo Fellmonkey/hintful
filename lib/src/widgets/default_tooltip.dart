@@ -152,9 +152,9 @@ Widget _tooltipBody({
   // accent button carries its own flat Material for the inverted pair.
   // `Semantics(button: true)` keeps the button role + tap action for
   // screen readers. Measured: three Material buttons cost ~45 KB more heap
-  // than this row while mounted (see benchmark/bench/
-  // memory_tooltip_decomp_test.dart); the mechanics and the look are the
-  // same — Skip at the far edge, small and quiet, Back/Next/Done grouped
+  // than this row while mounted (benchmark/bench/contract); the mechanics
+  // and the look are the
+  // same - Skip at the far edge, small and quiet, Back/Next/Done grouped
   // at the end (the primary action is always at the very corner).
   Widget plainButton(String label, VoidCallback onPressed,
           {bool compact = false}) =>

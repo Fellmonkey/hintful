@@ -32,12 +32,12 @@ void main() {
 
       // Idle before start: zero engine widgets in the tree.
       h.expectIdleClean();
-      expect(h.controller.currentState, isA<HintIdle>());
+      expect(h.controller.state.value, isA<HintIdle>());
 
       // mount: step 1 is mounted → active right away (target wiring).
       await h.showTour(tester, tour);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintActive(tour: tour, stepIndex: 0),
       );
       expect(find.text('Statistics'), findsOneWidget);
@@ -47,7 +47,7 @@ void main() {
       await tester.tap(find.text('Next'));
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
       );
       expect(find.text('Preparing…'), findsOneWidget);
@@ -57,7 +57,7 @@ void main() {
       await h.reveal(tester, HarnessTarget('records', top: 200));
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintActive(tour: tour, stepIndex: 1),
       );
       expect(find.text('Records'), findsOneWidget);
@@ -66,7 +66,7 @@ void main() {
       // finish: the last step → "Done", the overlay is removed.
       await tester.tap(find.text('Done'));
       await tester.pump();
-      expect(h.controller.currentState, isA<HintIdle>());
+      expect(h.controller.state.value, isA<HintIdle>());
       h.expectIdleClean();
     });
 
@@ -89,7 +89,7 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       final targetBefore = tester.getRect(find.text('stats'));
       final tipBefore = tester.getRect(find.text('Statistics'));
@@ -172,14 +172,14 @@ void main() {
       // that the tour survives it, not the retract-while-culled path.
       setOffstage(() => offstage = true);
       await tester.pump();
-      expect(controller.currentState.isActive, isTrue);
+      expect(controller.state.value.isActive, isTrue);
       expect(find.text('Statistics'), findsOneWidget);
 
       // Painted again: the follower re-links, the snapshot re-mounts the
       // tooltip (and the hole) through the first-snapshot path.
       setOffstage(() => offstage = false);
       await TourHarness.settle(tester);
-      expect(controller.currentState.isActive, isTrue);
+      expect(controller.state.value.isActive, isTrue);
       expect(find.text('Statistics'), findsOneWidget);
 
       await tester.tap(find.text('stats'));
@@ -214,7 +214,7 @@ void main() {
       await TourHarness.settle(tester);
 
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
         reason: 'the next step (not an abort/skip)',
       );
@@ -243,7 +243,7 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       // No Back on the first step.
       expect(find.text('Back'), findsNothing);
@@ -251,14 +251,14 @@ void main() {
       await tester.tap(find.text('Next'));
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintActive(tour: tour, stepIndex: 1),
       );
       expect(find.text('Back'), findsOneWidget);
 
       await tester.tap(find.text('Back'));
       await TourHarness.settle(tester);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
       expect(find.text('Statistics'), findsOneWidget);
       expect(find.text('Back'), findsNothing);
 
@@ -293,7 +293,7 @@ void main() {
       await TourHarness.settle(tester);
 
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
@@ -471,13 +471,13 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
       expect(find.text('Statistics'), findsOneWidget);
 
       await tester.tap(find.text('Next'));
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
@@ -558,7 +558,7 @@ void main() {
       await h.showTour(tester, tour);
       // The tour owns the keyboard while active — focus moved to its scope.
       expect(focusNode.hasFocus, isFalse);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       // Dismiss the single-step hint: dispatch is by global position (the
       // overlay entry sits above the label, so the finder itself is not hit).
@@ -587,7 +587,7 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       // A follower per target: the primary (scrim host) + the secondary.
       expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
@@ -625,7 +625,7 @@ void main() {
       // A tap on the target finishes a single-step tour.
       await tester.tap(find.text('stats'));
       await tester.pump();
-      expect(h.controller.currentState, isA<HintIdle>());
+      expect(h.controller.state.value, isA<HintIdle>());
       h.expectIdleClean();
     });
 
@@ -651,7 +651,7 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       // Both slots are visible; a single-step tour keeps no action row —
       // the primary is informational like the extra slot (tap on the target
@@ -697,7 +697,7 @@ void main() {
       await tester.tap(find.text('stats'), warnIfMissed: false);
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
       );
       h.disposeNow(); // waiting holds a timer — release in the body
@@ -739,7 +739,7 @@ void main() {
       await tester.tapAt(outsideHole);
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintActive(tour: tour, stepIndex: 0),
         reason: 'outside the visual hole = overlay region → ignored',
       );
@@ -747,7 +747,7 @@ void main() {
       await tester.tapAt(inRing);
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
         reason: 'inside the clear ring = target region → next',
       );
@@ -776,7 +776,7 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       final offsetBefore = h.scrollController.offset;
       // Drag on the scrim (bottom-right, away from the tooltip) — the page
@@ -787,7 +787,7 @@ void main() {
       expect(h.scrollController.offset, greaterThan(offsetBefore),
           reason: 'the drag reached the scrollable below the scrim');
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintActive(tour: tour, stepIndex: 0),
         reason: 'a drag is not a tap — the step did not advance',
       );
@@ -821,12 +821,12 @@ void main() {
       );
       await h.pump(tester);
       await h.showTour(tester, tour);
-      expect(h.controller.currentState, HintActive(tour: tour, stepIndex: 0));
+      expect(h.controller.state.value, HintActive(tour: tour, stepIndex: 0));
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
 
-      expect(h.controller.currentState, isA<HintIdle>());
+      expect(h.controller.state.value, isA<HintIdle>());
       h.expectIdleClean();
       final diag = h.recorder;
       expect(diag.events.single.reason, HintSkipReason.userSkipped);
@@ -856,13 +856,13 @@ void main() {
       await tester.tap(find.text('Next'));
       await TourHarness.settle(tester);
       expect(
-        h.controller.currentState,
+        h.controller.state.value,
         HintWaiting(tour: tour, stepIndex: 1),
       );
 
       await tester.pump(const Duration(seconds: 4));
 
-      expect(h.controller.currentState, isA<HintIdle>());
+      expect(h.controller.state.value, isA<HintIdle>());
       h.expectIdleClean();
       final diag = h.recorder;
       expect(diag.events.single.reason, HintSkipReason.timeout);

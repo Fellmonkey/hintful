@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/registry.dart';
+import 'package:hintful/src/engine/specs.dart';
 import 'package:hintful/src/widgets/hint_target.dart';
 
 Widget _app(Widget body) => MaterialApp(home: Scaffold(body: body));
@@ -69,6 +70,41 @@ void main() {
       ));
 
       expect(registry.lookup('stats'), same(first));
+    });
+
+    testWidgets(
+        'a changed focusShape/focusPadding re-registers with the same link '
+        '(and no duplicate-id warning)', (tester) async {
+      final registry = HintTargetRegistry();
+      final warnings = <String>[];
+      registry.onWarning = warnings.add;
+
+      await tester.pumpWidget(_app(
+        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
+      ));
+      final first = registry.lookup('stats');
+      expect(first, isNotNull);
+      expect(first!.focusShape, isNull);
+
+      await tester.pumpWidget(_app(
+        HintTarget(
+          id: 'stats',
+          registry: registry,
+          focusShape: FocusShape.circle,
+          focusPadding: 8,
+          child: const Text('c'),
+        ),
+      ));
+
+      final second = registry.lookup('stats');
+      expect(second, isNotNull);
+      expect(second, isNot(same(first)));
+      expect(second!.focusShape, FocusShape.circle);
+      expect(second.focusPadding, 8);
+      // Same target entity: the leader keeps its link, and a target
+      // updating itself is not a duplicate-id collision.
+      expect(second.link, same(first.link));
+      expect(warnings, isEmpty);
     });
 
     testWidgets(

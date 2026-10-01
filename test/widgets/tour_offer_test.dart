@@ -142,7 +142,7 @@ void main() {
     await tester.pump();
 
     expect(await result, HintTourOfferResult.shown);
-    expect(controller.currentState.isIdle, isFalse,
+    expect(controller.state.value.isIdle, isFalse,
         reason: 'the tour started (headless machine)');
     // The started tour armed a wait-for-target timer — dispose in the body
     // (a tearDown would run after the pending-timer check).
@@ -168,8 +168,8 @@ void main() {
     await _pumpDialog(tester);
 
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result, HintTourOfferResult.alreadyShown);
-    expect(controller.currentState.isIdle, isTrue);
+    expect(await result, HintTourOfferResult.versionGated);
+    expect(controller.state.value.isIdle, isTrue);
   });
 
   testWidgets('decline: remembered per page, other pages still offer',
@@ -198,7 +198,7 @@ void main() {
     expect(store.shouldShow('offer:t'), isTrue,
         reason: 'no global decline without the checkbox');
 
-    // The same page no longer offers → alreadyShown…
+    // The same page no longer offers — previouslyDeclined:
     result = showHintTourOffer(
       context: context,
       controller: controller,
@@ -207,7 +207,7 @@ void main() {
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result, HintTourOfferResult.alreadyShown);
+    expect(await result, HintTourOfferResult.previouslyDeclined);
 
     // …a different page still does.
     result = showHintTourOffer(
@@ -254,7 +254,7 @@ void main() {
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await result2, HintTourOfferResult.alreadyShown);
+    expect(await result2, HintTourOfferResult.previouslyDeclined);
   });
 
   testWidgets('a decline does not suppress the tour from other entry points',
@@ -313,7 +313,7 @@ void main() {
     );
     await _pumpDialog(tester);
     expect(find.text('Want a tour?'), findsNothing);
-    expect(await again, HintTourOfferResult.alreadyShown);
+    expect(await again, HintTourOfferResult.previouslyDeclined);
   });
 
   group('HintMarkPolicy (offer accept path)', () {
@@ -335,10 +335,10 @@ void main() {
       await tester.pump();
 
       expect(await result, HintTourOfferResult.shown);
-      expect(controller.currentState.isIdle, isFalse);
+      expect(controller.state.value.isIdle, isFalse);
 
       controller.finish(); // the one step's target never mounts → finish
-      expect(controller.currentState.isIdle, isTrue);
+      expect(controller.state.value.isIdle, isTrue);
       expect(store.shouldShow('t'), isFalse,
           reason: 'finish marks the tour shown');
     });
@@ -362,7 +362,7 @@ void main() {
 
       expect(await result, HintTourOfferResult.shown);
       controller.skip();
-      expect(controller.currentState.isIdle, isTrue);
+      expect(controller.state.value.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
           reason: 'skip must not record — the tour may show again');
     });
@@ -387,7 +387,7 @@ void main() {
 
       expect(await result, HintTourOfferResult.shown);
       controller.finish();
-      expect(controller.currentState.isIdle, isTrue);
+      expect(controller.state.value.isIdle, isTrue);
       expect(store.shouldShow('t'), isTrue,
           reason: 'manual: the app records the shown-state itself');
     });
@@ -411,7 +411,7 @@ void main() {
 
       expect(await result, HintTourOfferResult.shown);
       controller.skip();
-      expect(controller.currentState.isIdle, isTrue);
+      expect(controller.state.value.isIdle, isTrue);
       expect(store.shouldShow('t'), isFalse,
           reason: 'onAnyExit marks even on skip');
     });

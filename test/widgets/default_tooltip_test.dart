@@ -19,6 +19,9 @@ class _FakeActions implements HintActions {
   void previous() => previousCalls++;
 
   @override
+  void goTo(int index) {}
+
+  @override
   void skip() => skipCalls++;
 
   @override

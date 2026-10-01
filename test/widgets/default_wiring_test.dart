@@ -46,7 +46,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Stats'), findsOneWidget);
-    expect(controller.currentState, isA<HintActive>());
+    expect(controller.state.value, isA<HintActive>());
     controller.finish();
     await tester.pump();
     await tester.pump();

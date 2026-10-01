@@ -130,27 +130,20 @@ class HintController implements HintActions {
 
   /// Test seam — not part of the public contract. Runs headless: the whole
   /// machine, timers and diagnostics with no render mechanics. [store]
-  /// overrides the app-wide `Hintful` store for this one controller. [host] —
-  /// an engine test seam: a custom [HintOverlayHost] builder for the
-  /// package's own overlay tests; null — no host is built at all. The
+  /// overrides the app-wide `Hintful` store for this one controller. The
   /// production path is the unnamed constructor plus `Hintful.configure`.
-  ///
-  /// [host] is only usable from inside the package: `HintOverlayHost` is
-  /// deliberately not exported (the render contract stays hidden), so a
-  /// consumer's headless tests assert on `controller.currentState` instead.
   @visibleForTesting
   HintController.test({
     HintTargetRegistry? registry,
     HintDiagnosticsHandler? diagnostics,
     String? scopePrefix,
     HintStore? store,
-    HintOverlayHost Function(HintController)? host,
   }) : this._(
           registry: registry,
           diagnostics: diagnostics,
           scopePrefix: scopePrefix,
           store: store,
-          overlayHostBuilder: host,
+          overlayHostBuilder: null,
         );
 
   /// The single initializer behind [HintController] and [HintController.test]:
@@ -292,18 +285,24 @@ class HintController implements HintActions {
   final List<Future<void> Function()> _pendingHooks = [];
   bool _hooksRunning = false;
 
-  /// Observable tour state.
+  /// Observable tour state. Read the current value with `state.value`
+  /// (`state.value.isIdle` — or the [isIdle] shorthand below).
   ValueListenable<HintState> get state => _stateNotifier;
 
-  /// Current value of [state] — the machine state at this moment.
-  HintState get currentState => _stateNotifier.value;
-
   /// No tour is running — for UI state (disable Show buttons). Not an
-  /// atomic guard for `showTour` — use `tryShowTour` for that (see below).
-  bool get isIdle => _machine.state.isIdle;
+  /// atomic guard for `showTour` — use [tryShowTour] for that (see below).
+  ///
+  /// Reads the same notifier [state] publishes, so the two can never
+  /// disagree — even while a lifecycle hook is mid-transition.
+  bool get isIdle => _stateNotifier.value.isIdle;
 
   /// Show a tour: typo validation → machine → seeding of already-mounted
   /// targets. The wait-for-target timer is armed by a machine effect.
+  ///
+  /// **The returned `Future` completes when the tour is *started*, not when
+  /// it ends** — awaiting it means "the tour is (or will be) on screen". To
+  /// observe the end, use [HintTour.onExited] or listen to [state] and watch
+  /// for [HintIdle].
   ///
   /// `Future` deliberately: (1) the typo AssertionError goes into the Future
   /// (loud failure in debug from `expectLater`) instead of being thrown in
@@ -311,9 +310,14 @@ class HintController implements HintActions {
   /// a server-driven tour — the signature is already ready and won't need a
   /// breaking change. For local tours you may `await` or fire-and-forget.
   ///
+  /// Returns `true` when the tour went on screen, `false` when it declined
+  /// to start — busy (release only: debug asserts), an empty tour, or every
+  /// step stripped as a typo. In release this is the only signal;
+  /// [tryShowTour] reports the same cases without the debug assert.
+  ///
   /// One tour at a time — asserts in debug if busy. For an atomic
   /// fire-and-forget without asserts, use [tryShowTour].
-  Future<void> showTour(HintTour tour) async {
+  Future<bool> showTour(HintTour tour) async {
     assert(
       _machine.state.isIdle,
       "hintful: showTour('${tour.id}') while ${_machine.state} is active"
@@ -328,13 +332,13 @@ class HintController implements HintActions {
     // release — an empty tour must not reach the machine (`steps[0]` would
     // RangeError). No HintSkipEvent: HintSkipReason is a closed enum (no new
     // value before 2.0) and there is no step to describe.
-    if (tour.steps.isEmpty) return;
+    if (tour.steps.isEmpty) return false;
 
     // Release: the busy assert above is stripped — return before typo
     // classification, otherwise _withoutTypoSteps emits unknownTarget
     // diagnostics for a tour that never starts and the seed loop below
     // clobbers the running tour's registry diff.
-    if (!isIdle) return;
+    if (!isIdle) return false;
 
     final classification = classifyStepTargets(
       tour,
@@ -347,7 +351,7 @@ class HintController implements HintActions {
       final message = _describeTypos(tour, classification.typos);
       assert(false, message); // debug: loud failure with candidates
       tour = _withoutTypoSteps(tour, classification.typos); // release: skip
-      if (tour.steps.isEmpty) return; // nothing to show
+      if (tour.steps.isEmpty) return false; // nothing to show
     }
 
     _dispatch(HintStart(tour: tour));
@@ -363,29 +367,36 @@ class HintController implements HintActions {
       for (final id in _registry.ids)
         if (inScope(id)) id
     };
+    return true;
   }
 
   /// Show a tour unless one is already running — atomic, no assert.
   /// Returns `false` when busy (no state change), when the versioned gate
-  /// [mark] installs is closed, or when nothing was shown; `true` when the
-  /// tour is actually on screen.
+  /// is closed, or when nothing was shown; `true` when the tour is actually
+  /// on screen.
   /// Prefer over `if (isIdle) await showTour(tour)` — that check-then-act
   /// races if two callers fire at once. `isIdle` stays for UI state.
   ///
-  /// [mark] brings the versioned-hints store into the call — show-once lives
-  /// here rather than in a second entry point:
+  /// [mark] decides when the store records the shown-state. The store is
+  /// consulted whenever either [mark] is given **or** the tour declares
+  /// [HintTour.minShowVersion] — a version floor on the tour always gates,
+  /// so the field means what it says. Three cases cover everything:
   ///
-  /// - omitted — the store is not consulted, the tour simply shows;
-  /// - otherwise [HintStore.shouldShow] gates first, and when the tour does
-  ///   start a one-shot mark for `tour.id` is armed; the policy decides when
-  ///   [HintStore.markShown] runs:
-  ///   * [HintMarkPolicy.onFinish] — on [FinishedEffect] (Done / last step);
+  /// - no [mark] and no [HintTour.minShowVersion] — the store is not
+  ///   touched at all, the tour simply shows;
+  /// - no [mark] but a [HintTour.minShowVersion] — gated, and recorded with
+  ///   [HintMarkPolicy.onAnyExit] (declare the floor, nothing else);
+  /// - [mark] — gated, and recorded per the policy:
+  ///   * [HintMarkPolicy.onFinish] — when the tour finishes (Done / last
+  ///     step); skip, timeout and abort do not mark;
   ///   * [HintMarkPolicy.onAnyExit] — on any exit (finish, skip, abort);
-  ///   * [HintMarkPolicy.manual] — never (the app owns the shown-state);
-  /// - the gate reads [HintTour.minShowVersion], and that same value is what
-  ///   [HintStore.markShown] records (a tour with no floor records the string
-  ///   `'true'` — "never show again", the same convention as the offer
-  ///   dialog's decline keys).
+  ///   * [HintMarkPolicy.manual] — never (the app owns the shown-state; the
+  ///     gate still runs — that is the difference from omitting [mark] on a
+  ///     tour with no version floor).
+  ///
+  /// The recorded value is [HintTour.minShowVersion] (a tour with no floor
+  /// records the string `'true'` — "never show again", the same convention
+  /// as the offer dialog's decline keys).
   ///
   /// The store is app-wide: configure it once with `Hintful.configure(store:
   /// ...)` — there is no per-call store (the session-in-memory fallback
@@ -397,12 +408,17 @@ class HintController implements HintActions {
     HintMarkPolicy? mark,
   }) async {
     ({HintStore store, HintMarkPolicy mark})? armed;
-    if (mark != null) {
+    if (mark != null || tour.minShowVersion != null) {
       final effective = store;
       if (!effective.shouldShow(tour.id, minVersion: tour.minShowVersion)) {
         return false; // the versioned gate is closed
       }
-      armed = (store: effective, mark: mark);
+      if (mark != null) {
+        armed = (store: effective, mark: mark);
+      } else {
+        // Version floor without a policy: gate + record, nothing to decide.
+        armed = (store: effective, mark: HintMarkPolicy.onAnyExit);
+      }
     }
     if (!isIdle) return false;
     if (armed != null) {
@@ -425,12 +441,17 @@ class HintController implements HintActions {
 
   /// Fast path for a single hint: a one-step tour without HintTour ceremony.
   ///
-  /// Equivalent to `showTour(HintTour(id: 'hint:<targetId>', steps: [step]))`
-  /// — the same wait-for-target, timeout, typo validation and diagnostics as
-  /// a full tour. One tour at a time: calling it during an active tour is an
-  /// assert (same as [showTour]).
-  Future<void> showHint(HintStep step) => showTour(
+  /// Equivalent to `tryShowTour` on a tour whose id is the step's target id
+  /// prefixed with `hint:` — the same wait-for-target, timeout, typo
+  /// validation and diagnostics as a full tour. The derived id is what
+  /// diagnostics, store keys and the offer dialog see for this hint.
+  ///
+  /// Delegates to [tryShowTour], so it is atomic (returns `false` when
+  /// busy) and takes [mark] for show-once. For the loud, assert-based
+  /// variant use `showTour(HintTour(id: 'hint:…', steps: [step]))`.
+  Future<bool> showHint(HintStep step, {HintMarkPolicy? mark}) => tryShowTour(
         HintTour(id: 'hint:${step.targetId}', steps: [step]),
+        mark: mark,
       );
 
   @override
@@ -441,15 +462,11 @@ class HintController implements HintActions {
 
   /// Jump to a specific step (0-based).
   ///
-  /// Out-of-range: assert in debug (a loud tour-authoring error), no-op in
-  /// release. In idle (no active tour) — a no-op.
+  /// Out-of-range and idle are both no-ops (the range assert lives in the
+  /// machine — one message, one place).
+  @override
   void goTo(int index) {
-    final steps = _machine.state.tour?.steps;
-    if (steps == null) return; // no active tour
-    assert(
-      index >= 0 && index < steps.length,
-      "hintful: goTo($index) out of range 0..${steps.length - 1}",
-    );
+    if (_machine.state.tour == null) return; // no active tour
     _dispatch(UserGoTo(index: index));
   }
 
@@ -503,13 +520,24 @@ class HintController implements HintActions {
         if (inScope(id)) id
     };
     final previous = _lastKnownIds;
-    for (final id in current.difference(previous)) {
+    final appeared = current.difference(previous);
+    final vanished = previous.difference(current);
+    for (final id in appeared) {
       _dispatch(TargetAppeared(targetId: id));
     }
-    for (final id in previous.difference(current)) {
+    for (final id in vanished) {
       _dispatch(TargetVanished(targetId: id));
     }
     _lastKnownIds = current;
+    // Registration-only change (same id set — a target updated its
+    // focusShape/focusPadding, or a list recycled an item). Nothing for the
+    // machine, but the overlay must re-read the registry: its view looks
+    // registrations up on every build, and `update()` is just a
+    // markNeedsBuild on the live entry.
+    if (appeared.isEmpty && vanished.isEmpty) {
+      final state = _stateNotifier.value;
+      _hostFor(state)?.update(state);
+    }
   }
 
   void _dispatch(HintEvent event) {
@@ -521,8 +549,16 @@ class HintController implements HintActions {
     _applyEffects(transition, before);
     _stateNotifier.value = transition.state;
     _syncStepHooks(transition.state);
-    _hostFor(transition.state)?.update(transition.state);
-    if (transition.state.isIdle) {
+    _syncTourExit(before, transition);
+    // A hook may call next()/finish()/showTour() — the hook runner drains
+    // synchronously up to the first `await`, so a nested `_dispatch` can run
+    // to completion *inside* `_syncStepHooks` above. Rendering this
+    // (possibly stale) transition then would repaint the outer step over the
+    // nested one — worst case a fresh host built on top of an already
+    // released (idle) one. Always render whatever is current *now*.
+    final current = _stateNotifier.value;
+    _hostFor(current)?.update(current);
+    if (current.isIdle) {
       _timer?.cancel();
       _timer = null;
       // Zero-idle: after the tour the controller retains no tour state —
@@ -532,6 +568,19 @@ class HintController implements HintActions {
       _lastKnownIds = const {};
       _releaseHost();
     }
+  }
+
+  /// The tour-level exit hook ([HintTour.onExited]) — queued after the step
+  /// hooks so the order out of a tour is `step.onStepExit → tour.onExited`.
+  /// `finished` comes from this transition's own effects: a
+  /// [FinishedEffect] is a normal end, everything else (skip, timeout,
+  /// abort) is an early exit.
+  void _syncTourExit(HintState before, HintTransition transition) {
+    if (before.isIdle || !transition.state.isIdle) return;
+    final hook = before.tour?.onExited;
+    if (hook == null) return;
+    final finished = transition.effects.any((e) => e is FinishedEffect);
+    _enqueueHook(() => hook(finished));
   }
 
   /// Lazily builds the host at the first non-idle state: the builder is not
@@ -671,11 +720,11 @@ class HintController implements HintActions {
     HintSkipReason reason,
     String detail,
   ) {
-    final tourId = before.tour?.id ?? '?';
+    final tourId = before.tour?.id;
     final targetId = switch (before) {
       HintWaiting(:final targetId) => targetId,
       HintActive(:final targetId) => targetId,
-      _ => '?',
+      _ => null,
     };
     _diagnostics?.call(HintSkipEvent(
       tourId: tourId,
@@ -725,3 +774,26 @@ extension HintControllerScope on HintController {
   /// True when [id] belongs to this controller's scope.
   bool inScope(String id) => scopePrefix == null || id.startsWith(scopePrefix!);
 }
+
+/// A controller that renders through a custom [HintOverlayHost] builder —
+/// the package's own overlay tests need it, consumers cannot: the barrel
+/// exports neither this function nor the host type, so it never appears in
+/// the public contract (unlike a `host:` parameter, which would force the
+/// hidden type into a documented signature).
+///
+/// [store] overrides the app-wide `Hintful` store for this controller.
+@visibleForTesting
+HintController hintControllerWithHost({
+  required HintOverlayHost Function(HintController) host,
+  HintTargetRegistry? registry,
+  HintDiagnosticsHandler? diagnostics,
+  String? scopePrefix,
+  HintStore? store,
+}) =>
+    HintController._(
+      registry: registry,
+      diagnostics: diagnostics,
+      scopePrefix: scopePrefix,
+      store: store,
+      overlayHostBuilder: host,
+    );

@@ -70,17 +70,29 @@ class _HintTargetState extends State<HintTarget> {
   @override
   void didUpdateWidget(covariant HintTarget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.id != widget.id || oldWidget.registry != widget.registry) {
-      // "Reused key": an id change means a new target. Without re-registering,
-      // the old id would linger in the registry and the tour would point at a
-      // dead target (the classic dangling case). A new LayerLink is a new
-      // target entity; the old one is removed by identity (not by id).
-      _registry.unregister(_registration);
-      _link = LayerLink();
-      _registry = widget.registry ?? HintTargetRegistry.defaultInstance;
-      _registration = _buildRegistration();
-      _registry.register(_registration);
-    }
+    // "Reused key": an id change means a new target. Without re-registering,
+    // the old id would linger in the registry and the tour would point at a
+    // dead target (the classic dangling case). A new LayerLink is a new
+    // target entity; the old one is removed by identity (not by id).
+    final newTarget =
+        oldWidget.id != widget.id || oldWidget.registry != widget.registry;
+    // The hole shape/padding ride on the registration the overlay reads when
+    // it builds — without re-registering, a changed focusShape/focusPadding
+    // would keep punching the old hole for the rest of the tour (and every
+    // tour after it).
+    final holesChanged = !newTarget &&
+        (oldWidget.focusShape != widget.focusShape ||
+            oldWidget.focusPadding != widget.focusPadding);
+    if (!newTarget && !holesChanged) return;
+
+    // Unregister first, then register: same tick, so the controller's
+    // registry diff (a microtask later) never sees the id vanish, and the
+    // "duplicate id" warning does not fire for a target updating itself.
+    _registry.unregister(_registration);
+    if (newTarget) _link = LayerLink();
+    _registry = widget.registry ?? HintTargetRegistry.defaultInstance;
+    _registration = _buildRegistration();
+    _registry.register(_registration);
   }
 
   HintTargetRegistration _buildRegistration() => HintTargetRegistration(
