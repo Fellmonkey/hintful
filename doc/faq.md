@@ -185,7 +185,7 @@ await showHintTourOffer(
 ```
 
 It skips the dialog when the tour already ran for `tour.minShowVersion`
-(`alreadyShown`), remembers a decline per page (or globally with the
+(`versionGated`), remembers a decline per page (or globally with the
 "Apply to all pages" checkbox), and counts a barrier dismissal as a decline.
 Accepting starts the tour and records the shown-state **on any exit**
 (`HintMarkPolicy.onAnyExit`, the default — finish/skip/timeout all count).

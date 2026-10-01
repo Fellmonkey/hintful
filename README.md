@@ -44,7 +44,7 @@ silently gives up because the target isn't built yet.
 
 | Old way (`GlobalKey` + overlay) | `hintful` |
 |---|---|
-| Manual position / scroll / re-layout | **CompositedTransform** — tooltip and scrim follow the target every frame, zero scroll math, overflow impossible |
+| Manual position / scroll / re-layout | **Compositor tracking** — the target's transform is read live from `CompositedTransform`, and a scroll listener shifts it synchronously; the hole, the dim and the tooltip land on the target with zero scroll math, overflow impossible |
 | References to widget contexts | **Registry by id** — `HintTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
 | "Wait until the widget is built" by hand | **Wait-for-target** — a tour waits for a deferred target instead of dying |
 | Per-hint hard-coded styling | **ThemeExtension** — hint inherits your design system, light and dark, from `Theme.of` |
@@ -59,10 +59,14 @@ until a tour starts. What is there meanwhile is your own `HintTarget` wrapper
 ## What you write
 
 ```dart
-// 1. Wrap the thing you want to explain
+// 1. Wrap every widget the tour points at
 HintTarget(
   id: 'exerciseSelector',
   child: ExerciseSelector(),
+)
+HintTarget(
+  id: 'addSet',
+  child: AddSetButton(),
 )
 // ...or the one-liner sugar: ExerciseSelector().withHint('exerciseSelector')
 
@@ -140,8 +144,10 @@ await controller.tryShowTour(
 );
 ```
 
-`tryShowTour` takes `mark:` only when you want the versioned gate — omit it
-(the first call above) and the store stays out of the picture.
+`tryShowTour` consults the store when you pass `mark:` **or** when the tour
+declares `minShowVersion` - a version floor always gates (and records with
+`onAnyExit` unless you pick another policy). Omit both - the first call above -
+and the store stays out of the picture.
 
 No store configured? A session `InMemoryHintStore` keeps show-once working
 for this run only — the controller prints a one-time warning (debug and
@@ -188,7 +194,10 @@ wiring your own handler for analytics:
 
 ## Accessibility, on by default
 
-- **Screen readers**: every step is announced as "Step N of M: <title>".
+- **Screen readers**: the default tooltip announces every step as
+  `Step N of M: <title>`; a custom `tooltipBuilder` owns its own semantics,
+  and the spotlighted widget itself is labelled by
+  `HintTarget(semanticsLabel:)` below.
 - **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
   the tour manages focus and returns it to the element you were on before
   it started.
@@ -207,9 +216,10 @@ wiring your own handler for analytics:
 
 ## Works anywhere
 
-The state/data core is framework-agnostic by construction — `controller`,
-`machine`, `registry`, `specs`, `store` and `diagnostics` import only
-`dart:ui`/`flutter/foundation`/`flutter/widgets`, and nothing
+The state/data core is framework-agnostic by construction - `machine`,
+`registry`, `specs`, `store` and `diagnostics` import only
+`dart:ui`/`flutter/foundation`/`flutter/widgets`; `controller` reaches the
+render side for exactly one symbol (the default overlay host), and nothing
 state-management related. (Render mechanics and `HintTheme` are built on
 `material` — that is where `ColorScheme` and the dialog come from.) Vanilla
 Flutter works out of the box via `ValueListenableBuilder` — zero
@@ -218,9 +228,11 @@ dependencies. Bloc/Riverpod/Provider/GetX wiring is a ~15-line
 [best practices](doc/best_practices.md) for the pattern.
 
 And it is testable headless: `HintController.test()` (a
-`@visibleForTesting` factory) runs the whole machine — wait-for-target,
-timeouts, typo validation, diagnostics — with no overlay at all, which is
-how the tour flow tests drive it (`test/helpers/tour_harness.dart`).
+`@visibleForTesting` factory) runs the whole machine - wait-for-target,
+timeouts, typo validation, diagnostics - with no overlay at all; that is
+what the engine tests drive (`test/engine/controller_test.dart`), while
+widget tests keep full fidelity with a real controller and the real overlay
+through `test/helpers/tour_harness.dart`.
 Headless vs full-fidelity, and the two-frame rule:
 [best practices §19](doc/best_practices.md#19-testing--headless-first).
 
@@ -242,7 +254,9 @@ Headless vs full-fidelity, and the two-frame rule:
 
 **Rendering**
 
-- CompositedTransform tooltip + scrim — follows scroll/layout/animation for free
+- Live target tracking (`CompositedTransform` link) over a global
+  full-screen scrim — the dim, the hole and the tooltip move with
+  scroll/layout/animation in the same frame, no bottom gap on scroll
 - Smart positioning: auto-flip to the side with room, keep-in-safe-area,
   and a tail (arrow) tying the tooltip to its target — a hint never lands
   half off-screen or on top of the control it points at
@@ -276,11 +290,12 @@ Headless vs full-fidelity, and the two-frame rule:
 - "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
   copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
   declines persist per page or globally; gates return
-  `HintTourOfferResult.alreadyShown`, accept while busy returns `busy`;
+  `versionGated` (already ran) or `previouslyDeclined` (said no before),
+  accept while busy returns `busy`, an unshowable tour `nothingToShow`;
   an accepted tour is recorded per `mark:` (`onAnyExit` by default), the
   tour stays reachable from other entry points
 - `withHint` sugar (`child.withHint('id')`) and target-level
-  `focusShape`/`focusPadding` — the shape lives on the widget, a step
+  `focusShape`/`focusPadding` - the shape lives on the widget, a step
   overrides only the exception
 - Per-step lifecycle hooks: `onStepEnter`/`onStepExit` (async) bracket a
   step visit — serialized, exit of the old step runs before enter of the

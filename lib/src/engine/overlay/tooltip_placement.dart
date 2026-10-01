@@ -295,11 +295,11 @@ class TooltipPlacementDelegate extends MultiChildLayoutDelegate {
   /// tooltip stays inside the safe rect. Zero — the whole screen is usable.
   final EdgeInsets safeArea;
 
-  /// Additional spotlighted targets of the step (multi-target steps): no
-  /// slot may cover them, only the primary [holeLocal] may be overlapped (it
-  /// is the primary tooltip's anchor). Side selection still counts free space
-  /// against the primary hole; extras only veto a placement that would sit on
-  /// top of another spotlighted element.
+  /// Additional spotlighted targets of the step (multi-target steps): off
+  /// limits for every slot, exactly like the primary [holeLocal] (the
+  /// delegate seeds `avoid` with both). Side selection still counts free
+  /// space only against the primary hole; the extras veto a placement that
+  /// would sit on top of another spotlighted element.
   final List<Rect> extraHoles;
 
   /// The box is the screen (see class doc).

@@ -86,7 +86,7 @@ class HintHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tourActive = !controller.currentState.isIdle;
+    final tourActive = !controller.state.value.isIdle;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hintful'),
@@ -185,8 +185,9 @@ class HintHomeScreen extends StatelessWidget {
               focusShape: i == 5 ? FocusShape.circle : null,
               focusPadding: i == 5 ? 6 : null,
               child: ListTile(
-                // entry-8 demonstrates withHint as alternative syntax:
-                // `CircleAvatar(...).withHint('entry-8')` would also work.
+                // The whole ListTile is the target here; `withHint` would
+                // wrap exactly the widget you call it on, so
+                // `ListTile(...).withHint('entry-8')` is the equivalent.
                 leading: const CircleAvatar(child: Icon(Icons.fitness_center)),
                 title: Text(entries[i].$1),
                 subtitle: Text(entries[i].$2),

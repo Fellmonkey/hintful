@@ -10,7 +10,7 @@ import 'package:hintful/src/engine/overlay/scrim_painter.dart';
 
 /// Regression: the first shown step rendered "tooltip without dim".
 ///
-/// The scrim painter is built with `_resolverList()` evaluated at build time
+/// The scrim is built from a hole-rect snapshot at build time
 /// (empty — no follower is composed yet), while the live resolvers appear
 /// only in the post-frame position poll. The poll mounted the tooltip via
 /// `_holeNotifier` but never rebuilt the scrim widget, so it kept the empty
@@ -139,7 +139,7 @@ void main() {
     expect(find.byType(DefaultTooltip), findsNothing);
   });
 
-  testWidgets('first shown step: scrim painter holds resolvers', (
+  testWidgets('first shown step: the scrim has fresh hole rects', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: _SyncScreen()));
@@ -171,7 +171,7 @@ void main() {
     expect(find.byType(DefaultTooltip), findsNothing);
   });
 
-  testWidgets('late target (Waiting -> Active): scrim painter holds resolvers',
+  testWidgets('late target (Waiting -> Active): the scrim has fresh hole rects',
       (tester) async {
     final controller = HintController();
     addTearDown(controller.dispose);

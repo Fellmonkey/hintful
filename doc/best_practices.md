@@ -241,7 +241,7 @@ Future<void> startIntro() async {
 
 // on exit: the controller is idle again
 controller.state.addListener(() {
-  if (_introRunning && controller.currentState.isIdle) {
+  if (_introRunning && controller.state.value.isIdle) {
     _introRunning = false;
     store.markShown('intro', appVersion);
   }
@@ -597,7 +597,7 @@ final controller = HintController.test(
 await controller.showTour(tour);                       // typo → assertion in debug
 expect(await controller.tryShowTour(tour), isFalse);   // busy: atomic guard
 controller.next();
-expect(controller.currentState, isA<HintWaiting>());
+expect(controller.state.value, isA<HintWaiting>());
 controller.dispose();
 ```
 
@@ -636,7 +636,7 @@ final result = await showHintTourOffer(
 ```
 
 What it handles for you: no dialog when the tour already ran for
-`tour.minShowVersion` (returns `alreadyShown`), a decline remembered per
+`tour.minShowVersion` (returns `versionGated`), a decline remembered per
 page (and globally when the checkbox is on) under namespaced keys, and a
 barrier dismissal counted as a decline — "not now" must not nag. Accepting
 runs `tryShowTour` for you: the shown-state is recorded per `mark:`
