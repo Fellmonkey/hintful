@@ -189,19 +189,14 @@ Widget _tooltipBody({
         if (title != null)
           Text(
             title,
-            style: theme.tooltipTitleStyle ??
-                TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: onSurface,
-                ),
+            style: theme.tooltipTitleStyle ?? hintDefaultTitleStyle(onSurface),
           ),
         if (description != null) ...[
           if (title != null) const SizedBox(height: 4),
           Text(
             description,
             style: theme.tooltipDescriptionStyle ??
-                TextStyle(fontSize: 13, color: onSurface),
+                hintDefaultDescriptionStyle(onSurface),
           ),
         ],
         // The button row. Skip is meaningless when the tour is about to

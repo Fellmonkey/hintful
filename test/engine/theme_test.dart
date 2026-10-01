@@ -40,6 +40,18 @@ void main() {
       final theme = HintTheme.minimal(scheme);
       expect(theme.showPulse, isFalse);
     });
+
+    test('styles come from the shared defaults (one source of truth)', () {
+      final theme = HintTheme.minimal(scheme);
+      expect(
+        theme.tooltipTitleStyle,
+        hintDefaultTitleStyle(scheme.onInverseSurface),
+      );
+      expect(
+        theme.tooltipDescriptionStyle,
+        hintDefaultDescriptionStyle(scheme.onInverseSurface),
+      );
+    });
   });
 
   group('HintThemeX.hintTheme', () {
@@ -115,6 +127,29 @@ void main() {
         });
       }
     }
+
+    test('null-style fallback uses the same 75% description, not full', () {
+      final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+      // A theme built by hand with no explicit text styles: DefaultTooltip
+      // resolves the fallback — it must match the zero-config minimal theme.
+      final raw = HintTheme(
+        tooltipBackground: scheme.inverseSurface,
+        tooltipForeground: scheme.onInverseSurface,
+        scrimColor: const Color(0x80000000),
+        tooltipRadius: BorderRadius.circular(12),
+        tooltipPadding: const EdgeInsets.all(16),
+      );
+      expect(raw.tooltipDescriptionStyle, isNull);
+      final fallback = hintDefaultDescriptionStyle(raw.tooltipForeground);
+      // The fallback and the zero-config theme agree (same foreground color).
+      expect(fallback, HintTheme.minimal(scheme).tooltipDescriptionStyle);
+      expect(fallback.color, isNot(raw.tooltipForeground)); // 75%, not full
+      final blended = Color.alphaBlend(fallback.color!, raw.tooltipBackground);
+      expect(
+        contrast(blended, raw.tooltipBackground),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
   });
 
   group('copyWith / lerp', () {

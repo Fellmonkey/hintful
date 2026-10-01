@@ -1,5 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show internal;
 import 'package:flutter/material.dart';
 
 import '../labels.dart';
@@ -106,17 +107,8 @@ class HintTheme extends ThemeExtension<HintTheme> {
       scrimColor: const Color(0x80000000), // black 50%
       tooltipRadius: BorderRadius.circular(12),
       tooltipPadding: const EdgeInsets.all(16),
-      tooltipTitleStyle: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: onSurface,
-      ),
-      tooltipDescriptionStyle: TextStyle(
-        fontSize: 13,
-        // withAlpha (not deprecated across the supported 3.16+ range;
-        // withOpacity was deprecated in 3.27 in favor of withValues — 3.27+).
-        color: onSurface.withAlpha(191), // 75% opacity
-      ),
+      tooltipTitleStyle: hintDefaultTitleStyle(onSurface),
+      tooltipDescriptionStyle: hintDefaultDescriptionStyle(onSurface),
     );
   }
 
@@ -289,3 +281,21 @@ const Object _keep = Object();
 /// explicit `null` clears a nullable field).
 T _or<T>(Object? value, T current) =>
     identical(value, _keep) ? current : value as T;
+
+/// Default title style of the zero-config tooltip, derived from the
+/// [foreground]. Shared by [HintTheme.minimal] and `DefaultTooltip` so the
+/// "no explicit style" path and the zero-config theme cannot drift.
+/// @internal — not part of the barrel contract.
+@internal
+TextStyle hintDefaultTitleStyle(Color foreground) =>
+    TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: foreground);
+
+/// Default description style — the foreground at 75 % opacity, the value the
+/// WCAG AA contrast tests assert. Shared by [HintTheme.minimal] and
+/// `DefaultTooltip` (same contract as [hintDefaultTitleStyle]);
+/// `withAlpha` is not deprecated across the supported 3.16+ range (unlike
+/// `withOpacity`, deprecated in 3.27 in favor of `withValues`).
+/// @internal — not part of the barrel contract.
+@internal
+TextStyle hintDefaultDescriptionStyle(Color foreground) =>
+    TextStyle(fontSize: 13, color: foreground.withAlpha(191)); // 75% opacity
