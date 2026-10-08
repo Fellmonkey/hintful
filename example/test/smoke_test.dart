@@ -26,6 +26,36 @@ void main() {
     await tester.pump();
   }
 
+  /// A demo button lives below the app content: the default finders only see
+  /// painted children, so `skipOffstage: false` lets `ensureVisible` scroll it
+  /// in from either direction (the wide cache band keeps it mounted).
+  Future<void> tapDemoButton(WidgetTester tester, String label) async {
+    final button = find.text(label, skipOffstage: false);
+    await tester.ensureVisible(button);
+    await tester.pump();
+    await tester.tap(button);
+  }
+
+  /// Start a tour from a demo button: the tour's targets sit above the demo
+  /// card, so the engine's 350 ms auto-scroll (started on the frame after the
+  /// step activates) gets two real beats before the assertions.
+  Future<void> startTour(WidgetTester tester, String label) async {
+    await tapDemoButton(tester, label);
+    await tester.pump(); // frame 1: scrim (position snapshot post-frame)
+    await tester.pump(const Duration(milliseconds: 400)); // autoScroll starts
+    await tester.pump(const Duration(milliseconds: 400)); // autoScroll lands
+    await tester.pump(); // step tooltip at the right place
+  }
+
+  /// Advance one step with the same allowance for auto-scroll.
+  Future<void> nextStep(WidgetTester tester) async {
+    await tester.tap(find.text('Next'));
+    await tester.pump(); // frame 1: scrim (position snapshot post-frame)
+    await tester.pump(const Duration(milliseconds: 400)); // autoScroll starts
+    await tester.pump(const Duration(milliseconds: 400)); // autoScroll lands
+    await tester.pump(); // step tooltip at the right place
+  }
+
   testWidgets('full tour flow: start → 4 steps → overlay removed',
       (tester) async {
     await pumpApp(tester);
@@ -171,25 +201,15 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.ensureVisible(find.text('Multi-target'));
-    await tester.pump();
-    await tester.tap(find.text('Multi-target'));
-    await tester.pump(); // frame 1: scrim (position snapshot post-frame)
-    await tester.pump(); // step 1 tooltip
-    // The filters may sit below the painted area on small screens: the
-    // app scrolls them into view (the engine never moves content).
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
-    await tester.pump();
-    await tester.pump();
+    // The targets sit above the demo card: the engine auto-scrolls them in.
+    await startTour(tester, 'Spotlight two targets');
 
     // Both filters are spotlighted — and both remain visible.
     expect(find.text('Both filters at once'), findsOneWidget);
     expect(find.text('All sets'), findsOneWidget);
     expect(find.text('By day'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
-    await tester.pump();
-    await tester.pump();
+    await nextStep(tester);
     expect(find.text('Back to one target'), findsOneWidget);
 
     await tester.tap(find.text('Done'));
@@ -202,9 +222,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Multi-content'));
-    await tester.pump(); // frame 1: scrim
-    await tester.pump(); // primary + extra slots
+    await startTour(tester, 'Tooltips around one target');
 
     expect(find.text('Primary tooltip'), findsOneWidget);
     expect(find.text('Left slot'), findsOneWidget);
@@ -222,9 +240,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Tap regions'));
-    await tester.pump(); // frame 1: scrim
-    await tester.pump(); // step 1 tooltip
+    await startTour(tester, 'Tap target vs scrim');
     expect(find.text('Tap target vs overlay'), findsOneWidget);
 
     // Target tap → its own callback (with the position), no advance.
@@ -240,18 +256,13 @@ void main() {
     expect(find.text('Tap target vs overlay'), findsOneWidget);
 
     // Step 2: overlay taps are turned off — the scrim ignores them.
-    await tester.tap(find.text('Next'));
-    await tester.pump();
-    await tester.pump(); // wait-for-target + scroll-into-view
-    // The notice inserted above Motion & logic increased the list height,
-    // so entry-0 may still be offscreen in the 800×900 test viewport —
-    // bring its tile into view so the tooltip can anchor.
-    await tester.scrollUntilVisible(find.text('Bench press'), 500);
-    await tester.pump();
-    await tester.pump();
+    await nextStep(tester);
     expect(find.text('Overlay taps off'), findsOneWidget);
 
-    await tester.tapAt(const Offset(30, 100));
+    // Free scrim area: auto-scroll parks entry-0 at the top (its hole spans
+    // the full width up to y=128) and the tooltip sits above the middle —
+    // this point is outside both, so only the overlay region answers.
+    await tester.tapAt(const Offset(40, 500));
     await tester.pump();
     expect(find.text('Overlay taps off'), findsOneWidget); // still here
     expect(find.text('Done'), findsOneWidget); // the step did not advance
@@ -265,7 +276,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Offer tour'));
+    await tapDemoButton(tester, 'Want a tour? dialog');
     await tester.pump(); // route push
     await tester.pump(const Duration(milliseconds: 300)); // dialog in
     expect(find.text('Want a tour?'), findsOneWidget);
@@ -276,9 +287,7 @@ void main() {
 
     // The tour runs like any other.
     expect(find.text('Quick log'), findsOneWidget);
-    await tester.tap(find.text('Next'));
-    await tester.pump();
-    await tester.pump();
+    await nextStep(tester); // autoScroll brings the filters in
     expect(find.text('All sets filter'), findsOneWidget);
 
     await tester.tap(find.text('Done'));
@@ -286,7 +295,7 @@ void main() {
     expect(find.text('All sets filter'), findsNothing);
 
     // Accepted tours are marked shown on exit — no re-offer in this version.
-    await tester.tap(find.text('Offer tour'));
+    await tapDemoButton(tester, 'Want a tour? dialog');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Want a tour?'), findsNothing);
@@ -296,7 +305,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Offer tour'));
+    await tapDemoButton(tester, 'Want a tour? dialog');
     await tester.pump(); // route push
     await tester.pump(const Duration(milliseconds: 300)); // dialog in
     expect(find.text('Want a tour?'), findsOneWidget);
@@ -309,7 +318,7 @@ void main() {
     expect(find.text('Want a tour?'), findsNothing);
 
     // The decline (globally, via the checkbox) suppresses the offer.
-    await tester.tap(find.text('Offer tour'));
+    await tapDemoButton(tester, 'Want a tour? dialog');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Want a tour?'), findsNothing);
@@ -319,23 +328,14 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Pulse'));
+    await tapDemoButton(tester, 'Pulse');
     await tester.pump();
 
-    await tester.ensureVisible(find.text('Multi-target'));
-    await tester.pump();
-    await tester.tap(find.text('Multi-target'));
-    await tester.pump(); // frame 1: scrim + pulse
-    await tester.pump(); // step 1 tooltip
-    // Filters may sit below the painted area: scroll them into view.
-    await tester.scrollUntilVisible(find.text('All sets'), 500);
-    await tester.pump();
-    await tester.pump();
+    // The pulse animates forever — bounded pumps instead of pumpAndSettle.
+    await startTour(tester, 'Spotlight two targets');
     expect(find.text('Both filters at once'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
-    await tester.pump();
-    await tester.pump();
+    await nextStep(tester);
     await tester.tap(find.text('Done'));
     await tester.pump();
     expect(find.text('Both filters at once'), findsNothing);
@@ -345,9 +345,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    await tester.ensureVisible(find.text('Custom'));
-    await tester.pump();
-    await tester.tap(find.text('Custom'));
+    await tapDemoButton(tester, 'Custom tooltip');
     await tester.pump(); // frame 1: scrim
     await tester.pump(); // tooltip
     expect(find.text('Fade and rise'), findsOneWidget);
@@ -360,16 +358,10 @@ void main() {
   testWidgets('json tour: parsed steps run like declared ones', (tester) async {
     await pumpApp(tester);
 
-    await tester.ensureVisible(find.text('JSON'));
-    await tester.pump();
-    await tester.tap(find.text('JSON'));
-    await tester.pump(); // frame 1: scrim
-    await tester.pump(); // step 1 tooltip
+    await startTour(tester, 'Tour from JSON');
     expect(find.text('From JSON'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
-    await tester.pump();
-    await tester.pump();
+    await nextStep(tester);
     expect(find.text('Second from JSON'), findsOneWidget);
 
     await tester.tap(find.text('Done'));

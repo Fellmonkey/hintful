@@ -131,7 +131,12 @@ class _ExampleAppState extends State<ExampleApp> {
   void _showTour() {
     if (!_controller.state.value.isIdle) return; // one tour at a time
     final store = _store;
-    if (store == null) return; // prefs not loaded yet
+    if (store == null) {
+      _messengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('Loading the hint store…')),
+      );
+      return; // prefs not loaded yet
+    }
     if (!store.shouldShow('intro', minVersion: _appVersion)) {
       _messengerKey.currentState?.showSnackBar(
         SnackBar(

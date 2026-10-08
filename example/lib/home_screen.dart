@@ -126,23 +126,39 @@ class HintHomeScreen extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
+        // Demo tours are launched from the card below, while their targets
+        // live above it: a wide cache band keeps those targets mounted at
+        // any scroll offset, so wait-for-target resolves immediately and the
+        // engine can auto-scroll them in. A real app with a long list should
+        // rely on its targets being mounted instead (best practices §1).
+        // TODO: switch to `scrollCacheExtent` when the example's Flutter
+        // floor reaches 3.41 (the replacement does not exist before that).
+        // ignore: deprecated_member_use
+        cacheExtent: 1000,
         children: [
-          _VisualDemosCard(
-            hintStyle: hintStyle,
-            tourActive: tourActive,
-            onStyleChanged: onStyleChanged,
-            onMultiTargetTour: onMultiTargetTour,
-            onMultiContentTour: onMultiContentTour,
-            onTapRegionsTour: onTapRegionsTour,
-            onOfferTour: onOfferTour,
-            onCircleHoleTour: onCircleHoleTour,
-            onRoundedHoleTour: onRoundedHoleTour,
-            onNegativePaddingTour: onNegativePaddingTour,
-            onHooksTour: onHooksTour,
-            onFadeSlideTour: onFadeSlideTour,
-            onJsonTour: onJsonTour,
-            onL10nTour: onL10nTour,
-            onAutoScrollStepTour: onAutoScrollStepTour,
+          Text(
+            'Hints & onboarding tours for Flutter',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Wrap a widget in HintTarget, declare a HintTour as data and '
+            'call showTour — the engine owns positioning, scrolling and '
+            'remembering. No OverlayEntry, no scroll math.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: tourActive ? null : onShowTour,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Run the intro tour'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '4 steps: spotlight → deferred target → auto-scroll.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
@@ -193,9 +209,33 @@ class HintHomeScreen extends StatelessWidget {
                 subtitle: Text(entries[i].$2),
               ),
             ),
+          const SizedBox(height: 24),
+          _VisualDemosCard(
+            hintStyle: hintStyle,
+            tourActive: tourActive,
+            onStyleChanged: onStyleChanged,
+            onMultiTargetTour: onMultiTargetTour,
+            onMultiContentTour: onMultiContentTour,
+            onTapRegionsTour: onTapRegionsTour,
+            onOfferTour: onOfferTour,
+            onCircleHoleTour: onCircleHoleTour,
+            onRoundedHoleTour: onRoundedHoleTour,
+            onNegativePaddingTour: onNegativePaddingTour,
+            onHooksTour: onHooksTour,
+            onFadeSlideTour: onFadeSlideTour,
+            onJsonTour: onJsonTour,
+            onL10nTour: onL10nTour,
+            onAutoScrollStepTour: onAutoScrollStepTour,
+          ),
           // Version tooling lives at the bottom: it re-triggers the intro
           // for version-flow testing, but it is not the demo's focus.
           const SizedBox(height: 24),
+          Text('Dev tooling', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          const Text(
+            'Re-triggers the once-per-version gate while testing.',
+          ),
+          const SizedBox(height: 8),
           _VersionedIntroCard(
             appVersion: appVersion,
             storeReady: storeReady,
@@ -264,8 +304,9 @@ class _VersionedIntroCard extends StatelessWidget {
   }
 }
 
-/// One button per engine feature worth seeing with your own eyes. The scrim
-/// style chips map to [HintTheme] options and apply to every tour.
+/// One button per engine feature worth seeing with your own eyes; the intro
+/// tour that leads into them sits above this card. The scrim style chips map
+/// to [HintTheme] options and apply to every tour.
 class _VisualDemosCard extends StatelessWidget {
   const _VisualDemosCard({
     required this.hintStyle,
@@ -330,9 +371,10 @@ class _VisualDemosCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Pick a scrim style first — it applies to every tour, '
-              'including the intro. Then run a tour to see the feature.',
+              'including the intro. Every button below starts a tour.',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            _sectionLabel(context, 'Scrim style'),
             Wrap(
               spacing: 8,
               children: [
@@ -348,29 +390,33 @@ class _VisualDemosCard extends StatelessWidget {
             _sectionLabel(context, 'Tours & content'),
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
-              child: Text('New here? Start with these — then shapes below.'),
+              child: Text('Targets, tooltips, taps, dialog, JSON, l10n.'),
             ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _tourButton('Multi-target', onMultiTargetTour),
-                _tourButton('Multi-content', onMultiContentTour),
-                _tourButton('Tap regions', onTapRegionsTour),
-                _tourButton('Offer tour', () => onOfferTour(context)),
-                _tourButton('JSON', onJsonTour),
-                _tourButton('L10n', () => onL10nTour(context)),
+                _tourButton('Spotlight two targets', onMultiTargetTour),
+                _tourButton('Tooltips around one target', onMultiContentTour),
+                _tourButton('Tap target vs scrim', onTapRegionsTour),
+                _tourButton('Want a tour? dialog', () => onOfferTour(context)),
+                _tourButton('Tour from JSON', onJsonTour),
+                _tourButton('Localized copy', () => onL10nTour(context)),
               ],
             ),
             const SizedBox(height: 16),
             _sectionLabel(context, 'Spotlight shapes'),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('focusShape and focusPadding.'),
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _tourButton('Circle', onCircleHoleTour),
-                _tourButton('Rounded', onRoundedHoleTour),
-                _tourButton('Neg pad', onNegativePaddingTour),
+                _tourButton('Circle hole', onCircleHoleTour),
+                _tourButton('Rounded hole', onRoundedHoleTour),
+                _tourButton('Shrink spotlight', onNegativePaddingTour),
               ],
             ),
             const SizedBox(height: 16),
@@ -381,9 +427,9 @@ class _VisualDemosCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _tourButton('Custom', onFadeSlideTour),
-                _tourButton('Hooks', onHooksTour),
-                _tourButton('Step scroll', onAutoScrollStepTour),
+                _tourButton('Custom tooltip', onFadeSlideTour),
+                _tourButton('Step hooks', onHooksTour),
+                _tourButton('Scroll to offscreen step', onAutoScrollStepTour),
               ],
             ),
           ],
@@ -434,13 +480,12 @@ class _MotionNotice extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'The Custom demo honors the system setting inline via '
-                  'MediaQuery.disableAnimations '
-                  '(Android: Remove animations, iOS/macOS: Reduce motion, '
-                  'Web: prefers-reduced-motion). It is included '
-                  'intentionally to showcase the engine — enable animations '
-                  'in OS / browser to see it fully. '
-                  'Chrome: DevTools > Rendering > Emulate prefers-reduced-motion: no-preference.',
+                  reduceMotion
+                      ? 'The Custom tooltip therefore skips its entry '
+                          'animation — turn animations back on to see it.'
+                      : 'The Custom tooltip checks '
+                          'MediaQuery.disableAnimations inline and renders '
+                          'instantly when the OS setting is on.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     height: 1.3,

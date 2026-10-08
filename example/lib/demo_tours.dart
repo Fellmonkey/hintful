@@ -22,21 +22,23 @@ HintTour introTour({String? minShowVersion}) => HintTour(
           targetId: 'fab',
           content: HintStepContent(
               title: 'Quick log',
-              description: 'Add sets with one tap. '
-                  'Next we show the day filter.'),
+              description: 'Add sets with one tap — the main action '
+                  'of this screen.'),
         ),
         HintStep(
           targetId: 'filter-daily',
           content: HintStepContent(
               title: 'Daily filter',
-              description: 'The day summary — the next tour step.'),
+              description: 'Narrow the list to one day — the summary '
+                  'below follows.'),
         ),
         HintStep(
           targetId: 'stats',
           content: HintStepContent(
               title: 'Summary card',
-              description: 'It appeared automatically — that is '
-                  'wait-for-target for deferred sections.'),
+              description: 'It appeared on its own while this step '
+                  'waited for it — that is wait-for-target for '
+                  'deferred sections.'),
         ),
         HintStep(
           targetId: 'entry-0',
@@ -52,6 +54,7 @@ HintTour introTour({String? minShowVersion}) => HintTour(
 /// a single-target step for contrast.
 HintTour multiTargetTour() => HintTour(
       id: 'multi-target',
+      autoScroll: true,
       steps: [
         HintStep(
           targetId: 'filter-all',
@@ -107,6 +110,7 @@ HintTour multiContentTour() => HintTour(
 /// a region off entirely.
 HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
       id: 'tap-regions',
+      autoScroll: true,
       steps: [
         HintStep(
           targetId: 'fab',
@@ -128,9 +132,9 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
           targetId: 'entry-0',
           content: HintStepContent(
               title: 'Overlay taps off',
-              description: 'This step ignores overlay taps '
-                  '(overlayTap: HintTapBehavior.ignore()) — only a target tap '
-                  'or the button advances.'),
+              description: 'Taps on the dimmed area do nothing here — '
+                  'only a tap on the target or the Next button advances '
+                  '(overlayTap: HintTapBehavior.ignore()).'),
           overlayTap: const HintTapBehavior.ignore(),
         ),
       ],
@@ -142,6 +146,7 @@ HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
 /// count as "the user has seen it".
 HintTour offerTour({String? minShowVersion}) => HintTour(
       id: 'offer',
+      autoScroll: true,
       minShowVersion: minShowVersion,
       steps: [
         HintStep(
@@ -176,7 +181,7 @@ HintTour roundedHoleTour() => HintTour(
       id: 'feat-rounded',
       steps: [
         HintStep(
-            targetId: 'filter-all',
+            targetId: 'fab',
             content: HintStepContent(title: 'Rounded hole'),
             focusShape: FocusShape.roundedRect)
       ],
@@ -188,7 +193,9 @@ HintTour negativePaddingTour() => HintTour(
         HintStep(
             targetId: 'fab',
             content: HintStepContent(
-                title: 'Shrink', description: 'focusPadding -8'),
+                title: 'Shrink the hole',
+                description: 'A negative focusPadding (-8) pulls the '
+                    'spotlight tight to the widget.'),
             focusPadding: -8)
       ],
     );
@@ -199,8 +206,9 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
         HintStep(
           targetId: 'fab',
           content: HintStepContent(
-              title: 'Hooks',
-              description: 'onStepEnter/onStepExit - prepare scene'),
+              title: 'Step hooks',
+              description: 'Analytics hooks: onStepEnter / onStepExit '
+                  'fire around every step visit.'),
           onStepEnter: () async => notify('before hook'),
           onStepExit: () async => notify('after hook'),
         ),
@@ -329,7 +337,7 @@ HintTour jsonTour() => HintTour.fromJson(
     );
 
 const _jsonTourDocument = '''
-{"id":"feat-json","stepTimeoutMs":3000,"steps":[
+{"id":"feat-json","autoScroll":true,"stepTimeoutMs":3000,"steps":[
 {"targetId":"fab","title":"From JSON","description":"This step rode in as JSON, not Dart.","position":"auto"},
 {"targetId":"filter-all","title":"Second from JSON","description":"Multi-step tours serialize too.","position":"auto"}
 ]}''';
@@ -342,8 +350,8 @@ HintTour l10nTour(BuildContext context) => HintTour(
           targetId: 'entry-5',
           content: HintStepContent(
               titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
-              description:
-                  'Localized via titleBuilder (no context in AppTours).'),
+              description: 'The copy comes from the localizations via '
+                  'titleBuilder — no BuildContext in your tours file.'),
           autoScroll: true,
         ),
         HintStep(

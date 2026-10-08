@@ -5,26 +5,28 @@ with your own eyes, plus the versioned-intro pattern.
 
 ## What the demo shows
 
-The AppBar has **Show tour** (the versioned intro), **Show hint** and
-**Toggle theme**; everything else lives in the two demo cards.
+The screen opens with the pitch and one primary action: **Run the intro tour**,
+right under it, before any demo. The AppBar keeps **Show tour** (the same
+versioned intro), **Show hint** and **Toggle theme**; everything else lives in
+the demo cards below, labelled by what you will see rather than by API name.
 
 | Feature | How to see it |
 |---|---|
-| Tour flow, wait-for-target, deferred target, auto-scroll | **Show tour** (AppBar) — the versioned intro: 4 steps, the "Summary" card appears 600 ms after step 3 activates (deferred target), and the tour is `autoScroll: true` |
+| Tour flow, wait-for-target, deferred target, auto-scroll | **Run the intro tour** — the versioned intro: 4 steps, the "Summary" card appears 600 ms after step 3 activates (deferred target), and the tour is `autoScroll: true` |
 | Zero-config single tip | **Show hint** (AppBar) — one `HintStep`, no `HintTour` ceremony |
 | Light/dark theming | **Toggle theme** (AppBar) — tooltips inherit the `ColorScheme` through `HintTheme` |
-| Versioned hints (`shouldShow` + `minVersion`) | **Versioned intro** card — "Bump version" re-shows the intro, "Reset store" clears it; the store is `shared_preferences`-backed |
-| Blur / pulse scrim options | **Visual demos** card — pick a style chip (Plain / Blur / Pulse / Blur + Pulse); it applies to every tour |
-| Multi-target steps (several holes at once) | **Multi-target** |
-| Multi-content (several tooltips around one target) | **Multi-content** |
-| Tap regions (target vs overlay, tap position) | **Tap regions** — tap the button / the dark area, watch the snackbar |
-| "Want a tour?" pre-dialog | **Offer tour** — a plain `HintTour` offered once per version; declines persist ("Apply to all pages") |
-| Server-driven shape (`HintTour.fromJson`) | **JSON** — steps parsed from a map run like declared ones |
-| l10n, target-level shape, `withHint` | **L10n** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target; its first step sets `autoScroll: true` to bring that row in |
-| Spotlight shapes | **Circle / Rounded / Neg pad** — `focusShape` (including target-level) and negative `focusPadding` |
-| Custom animation | **Custom** — a `tooltipBuilder` with its own `TweenAnimationBuilder` entry (reduce-motion honored inline) |
-| Step lifecycle hooks | **Hooks** — `onStepEnter`/`onStepExit` fire around the step |
-| Per-step scroll | **Step scroll** — the offscreen `entry-5` step sets `autoScroll: true`, the first step of that tour does not |
+| Versioned hints (`shouldShow` + `minVersion`) | **Versioned intro** card (under *Dev tooling*) — "Bump version" re-shows the intro, "Reset store" clears it; the store is `shared_preferences`-backed |
+| Blur / pulse scrim options | **Scrim style** chips — Plain / Blur / Pulse / Blur + Pulse; it applies to every tour |
+| Multi-target steps (several holes at once) | **Spotlight two targets** |
+| Multi-content (several tooltips around one target) | **Tooltips around one target** |
+| Tap regions (target vs overlay, tap position) | **Tap target vs scrim** — tap the button / the dark area, watch the snackbar |
+| "Want a tour?" pre-dialog | **Want a tour? dialog** — a plain `HintTour` offered once per version; declines persist ("Apply to all pages") |
+| Server-driven shape (`HintTour.fromJson`) | **Tour from JSON** — steps parsed from a map run like declared ones |
+| l10n, target-level shape, `withHint` | **Localized copy** — copy through `titleBuilder`, `withHint('filter-all')`, a circular target; its first step sets `autoScroll: true` to bring that row in |
+| Spotlight shapes | **Circle hole / Rounded hole / Shrink spotlight** — `focusShape` (including target-level) and negative `focusPadding` |
+| Custom animation | **Custom tooltip** — a `tooltipBuilder` with its own `TweenAnimationBuilder` entry (reduce-motion honored inline) |
+| Step lifecycle hooks | **Step hooks** — `onStepEnter`/`onStepExit` fire around the step |
+| Per-step scroll | **Scroll to offscreen step** — the offscreen `entry-5` step sets `autoScroll: true`, the first step of that tour does not |
 
 ## Layout
 
