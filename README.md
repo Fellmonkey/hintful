@@ -5,56 +5,48 @@
 [![license](https://img.shields.io/github/license/Fellmonkey/hintful.svg)](https://github.com/Fellmonkey/hintful/blob/main/LICENSE)
 [![CI](https://github.com/Fellmonkey/hintful/actions/workflows/ci.yml/badge.svg)](https://github.com/Fellmonkey/hintful/actions/workflows/ci.yml)
 
-**Hints & onboarding tours for Flutter.** Spotlight targets, tooltips, coach marks,
-guided walkthroughs — a single source of truth for teaching users your product.
+**Onboarding tours, coach marks and tooltips for Flutter.** Declare tours as
+data, wrap targets in `HintTarget(id: ...)` — the engine renders, follows the
+targets through scrolling, waits for late ones, remembers what was shown and
+tells you why something didn't show.
 
-You wrap one widget in `HintTarget`, describe what to show in a `HintTour`,
-and the engine renders, repositions and remembers it — without a single
-hand-written overlay, scroll math or duplicated per-screen styling.
+A code-first library: no SaaS, no no-code builder, no analytics — a
+dependency-free engine (Flutter SDK only) you own in your repo.
 
 ## See it in action
 
-[A hintful tour running over the example app](https://github.com/user-attachments/assets/3a92f95d-2265-4577-954a-63b32b208769)
+![A hintful tour running over the example app](doc/demo.gif)
 
 _Recorded on the `example/` app. Try it live:
 [fellmonkey.github.io/hintful](https://fellmonkey.github.io/hintful/)._
 
-## Index
-
-**Start here** — [See it in action](#see-it-in-action) · [Why hintful](#why-hintful) · [What you write](#what-you-write) · [Fast](#fast--measured-not-promised)
-
-**What it does** — [Zero-config, then total control](#zero-config-then-total-control) · [Diagnosis over mystery](#diagnosis-over-mystery) · [Accessibility](#accessibility-on-by-default) · [Works anywhere](#works-anywhere) · [Features](#features) · [Server-driven tours](#server-driven-tours)
-
-**Install & docs** — [Getting started](#getting-started) · [Documentation](#documentation) · [best practices](doc/best_practices.md#index) · [FAQ](doc/faq.md) · [Performance](#performance)
-
----
-
 ## Why hintful
 
-Every Flutter hint/tour library you've seen is built on the same two ideas:
-`GlobalKey` + a full-screen `OverlayEntry` that the library manually positions,
-scrolls and lays out. That is exactly where tours break: the tooltip drifts a
-pixel off or covers the control it points at, the overlay goes off-screen
-mid-scroll and dies with `This widget has been unmounted`, and on a first run it
-silently gives up because the target isn't built yet.
+- **Tours follow your UI.** The spotlight, dim and tooltip track the target
+  through scroll, layout and animation in the same frame — no drift, no
+  one-frame lag.
+- **Late targets don't break tours.** A target that isn't built yet (lazy
+  list, deferred tab) puts the step into a waiting state with a timeout and a
+  policy; a target that vanishes mid-step and comes back resumes the tour.
+- **Show once per app version, built in.** Versioned `HintStore`, an atomic
+  `tryShowTour` guard, and an optional "want a tour?" pre-dialog whose
+  declines persist.
+- **Diagnosis over mystery.** Every non-show is a machine-readable event
+  (timeout / unknown target / skipped); a typo'd `targetId` gets closest-id
+  suggestions in debug.
+- **Tours are data.** `HintTour`/`HintStep` are immutable specs with a JSON
+  wire format — server- or CDN-driven tours need no extra dependency.
+- **Your design system.** Theming through `ThemeExtension`; the default
+  palette is WCAG AA contrast-tested in CI.
+- **Accessible by default.** Keyboard navigation, focus capture and
+  restoration, screen-reader step announcements, text-scale fitting.
+- **Cheap and testable.** Zero runtime dependencies, zero engine cost while
+  idle, and a headless testing seam (`HintController.test()`).
 
-`hintful` throws that model away.
-
-### What's different
-
-| Old way (`GlobalKey` + overlay) | `hintful` |
-|---|---|
-| Manual position / scroll / re-layout | **Compositor tracking** — the target's transform is read live from `CompositedTransform`, and a scroll listener shifts it synchronously; the hole, the dim and the tooltip land on the target with zero scroll math, overflow impossible |
-| References to widget contexts | **Registry by id** — `HintTarget(id: 'filters')` registers/unregisters itself; nothing to unmount |
-| "Wait until the widget is built" by hand | **Wait-for-target** — a tour waits for a deferred target instead of dying |
-| Per-hint hard-coded styling | **ThemeExtension** — hint inherits your design system, light and dark, from `Theme.of` |
-| Tied to Bloc/Riverpod/… | **Framework-agnostic core** — vanilla `ValueListenable<HintState>`, no state-management imports |
-| Overlay mounted even when idle | **Zero-idle cost** — zero engine widgets in the tree until a tour actually starts |
-
-_Zero-idle is about the engine: no overlay entry, scrim or tooltip exists
-until a tour starts. What is there meanwhile is your own `HintTarget` wrapper
-(the `4` nodes in the S1 row of the benchmark table below) and the
-`HintController` you constructed — it keeps no tour state between tours._
+How hintful compares to tutorial_coach_mark, showcaseview and the wider
+landscape — including what those libraries do well and hintful's own
+trade-offs — is written down in
+[`doc/competitive_analysis.md`](doc/competitive_analysis.md).
 
 ## What you write
 
@@ -63,10 +55,6 @@ until a tour starts. What is there meanwhile is your own `HintTarget` wrapper
 HintTarget(
   id: 'exerciseSelector',
   child: ExerciseSelector(),
-)
-HintTarget(
-  id: 'addSet',
-  child: AddSetButton(),
 )
 // ...or the one-liner sugar: ExerciseSelector().withHint('exerciseSelector')
 
@@ -97,265 +85,98 @@ controller.showTour(introTour);
 ```
 
 No `GlobalKey`, no `OverlayEntry`, no `ScrollController`, no manual position.
-That's the whole tour — and it already handles light/dark, scrolling and
-deferred targets.
 
-Localizing? Swap the strings for `titleBuilder`/`descriptionBuilder` inside
-`HintStepContent` (`(c) => AppLocalizations.of(c)!.introTitle`): the copy
-stays in your `AppTours` file and the `BuildContext` arrives from the
-overlay.
+**Just one tip? No tour needed:**
 
 ```dart
-// Just one tip? No tour needed:
 controller.showHint(
   HintStep(
     targetId: 'addSet',
     content: HintStepContent(title: 'Swipe left to delete a set'),
   ),
 );
-// Two tips on the SAME widget? Give each its own id — otherwise the default
-// key `hint:<targetId>` is shared and the first shown suppresses the second:
-controller.showHint(step, id: 'addSet-tip2');
 ```
 
-**Production wiring** — store once, then three ways in:
+**Production wiring** — a store once, then guards:
 
 ```dart
-// once, at wiring (SharedPreferences / your storage)
-final store = CallbackHintStore(
-  read: (key) => prefs.getString(key),
-  write: (key, value) => prefs.setString(key, value),
-);
-Hintful.configure(store: store); // every controller reads it
+Hintful.configure(store: CallbackHintStore(read: ..., write: ...));
 
-// 1. the atomic guard — the store is not consulted, `false` when busy
-await controller.tryShowTour(introTour);
+await controller.tryShowTour(introTour); // atomic: store-checked, `false` when busy
 
-// 2. optional ask-first dialog — decline is remembered too
-await showHintTourOffer(
-  context: context,
-  controller: controller,
-  tour: introTour,
-  pageId: 'Home', // defaults to tour.id
-  // mark: HintMarkPolicy.onAnyExit, // default: finish/skip/timeout all count
-);
-
-// 3. once per app version — `minShowVersion` gates, `mark:` records
+// show once per app version — a version bump re-shows it
 await controller.tryShowTour(
   HintTour(id: 'intro', minShowVersion: appVersion, steps: introTour.steps),
-  mark: HintMarkPolicy.onAnyExit, // finish/skip/timeout all count
+  mark: HintMarkPolicy.onAnyExit,
 );
+
+// or ask first — the decline is remembered too
+await showHintTourOffer(context: context, controller: controller, tour: introTour);
 ```
 
-`tryShowTour` consults the store when you pass `mark:` **or** when the tour
-declares `minShowVersion` - a version floor always gates (and records with
-`onAnyExit` unless you pick another policy). Omit both - the first call above -
-and the store stays out of the picture.
+No store configured? A session `InMemoryHintStore` keeps show-once working for
+this run only (with a one-time warning). A ready-made shared_preferences store
+ships in [`hintful_prefs`](https://github.com/Fellmonkey/hintful_prefs).
 
-No store configured? A session `InMemoryHintStore` keeps show-once working
-for this run only — the controller prints a one-time warning (debug and
-release alike). Configure a persistent store for real once-per-version
-semantics. The ready-made shared_preferences store ships in the
-[`hintful_prefs`](https://github.com/Fellmonkey/hintful_prefs) companion
-package.
-Wire format ↔ Dart params: `stepTimeout` ↔ `stepTimeoutMs` (both per step and
-the tour default; the older `waitTimeoutMs` still parses as a step key),
-tap-bools `tapOnTarget`/`tapOnOverlay` ↔
-`HintTapBehavior.advance()`/`ignore()`.
-
-## Fast — measured, not promised
-
-One scene, three libraries, profile Android emulator — recorded by CI into
-`benchmark/benchmarks.json`, rendered straight from that file into the table
-below — one source of truth for every number. Table, charts, methodology:
-[Performance](#performance).
-
-## Zero-config, then total control
-
-Out of the box, `title`/`description` steps render in a default tooltip under
-a default theme — the tour above is already complete. When you need more, the
-API grows rung by rung, each optional: `HintTheme` styles → `HintTooltipLabels`
-(button texts, waiting placeholder, screen-reader announcements) →
-`titleBuilder`/`descriptionBuilder` for
-l10n → a fully
-custom tooltip through `tooltipBuilder`. Your design system, your call.
-
-## Diagnosis over mystery
-
-When a hint doesn't show, you'll know why in one log line:
-
-```
-[hintful] statsIntro step 2 not shown: timeout (target 'statsPeriodSelector') — target 'statsPeriodSelector' did not appear within 0:00:03.000000
-```
-
-Not "it just didn't appear." If you typo a `targetId`, `hintful` tells you loudly in
-debug — with the closest candidates.
-
-The reasons and their fixes: [FAQ §1](doc/faq.md#1-my-hint-didnt-show--why);
-wiring your own handler for analytics:
-[best practices §12](doc/best_practices.md#12-diagnostics--trust-the-log).
-
-## Accessibility, on by default
-
-- **Screen readers**: the default tooltip announces every step as
-  `Step N of M: <title>`; a custom `tooltipBuilder` owns its own semantics,
-  and the spotlighted widget itself is labelled by
-  `HintTarget(semanticsLabel:)` below.
-- **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
-  the tour manages focus and returns it to the element you were on before
-  it started.
-- **Reduce motion**: with the system setting on, custom tooltip entries
-  check `MediaQuery.disableAnimations` and render instantly (the default
-  tooltip has no animation of its own).
-- **Text scale**: the tooltip fits on screen at 2× text scale (content
-  scrolls instead of overflowing) — writing copy that never needs it:
-  [FAQ §5](doc/faq.md#5-text-overflows-at-20-scale).
-- **Contrast**: the default theme meets WCAG AA (4.5:1) for text and
-  buttons, in light and dark — asserted across brightness and colour seeds
-  in the theme tests.
-- **Targets**: `HintTarget(semanticsLabel: ...)` labels the spotlighted
-  widget itself for the screen reader — so an icon-only button is not
-  announced as a blank.
-
-## Works anywhere
-
-The state/data core is framework-agnostic by construction - `machine`,
-`registry`, `specs`, `store` and `diagnostics` import only
-`dart:ui`/`flutter/foundation`/`flutter/widgets`; `controller` reaches the
-render side for exactly one symbol (the default overlay host), and nothing
-state-management related. (Render mechanics and `HintTheme` are built on
-`material` — that is where `ColorScheme` and the dialog come from.) Vanilla
-Flutter works out of the box via `ValueListenableBuilder` — zero
-dependencies. Bloc/Riverpod/Provider/GetX wiring is a ~15-line
-`ValueListenable` wrapper in your app (bring your own package) — see
-[best practices](doc/best_practices.md) for the pattern.
-
-And it is testable headless: `HintController.test()` (a
-`@visibleForTesting` factory) runs the whole machine - wait-for-target,
-timeouts, typo validation, diagnostics - with no overlay at all; that is
-what the engine tests drive (`test/engine/controller_test.dart`), while
-widget tests keep full fidelity with a real controller and the real overlay
-through `test/helpers/tour_harness.dart`.
-Headless vs full-fidelity, and the two-frame rule:
-[best practices §19](doc/best_practices.md#19-testing--headless-first).
+Just one tip, no tour? `controller.showHint(step)`. Localizing? Swap strings
+for `titleBuilder`/`descriptionBuilder` in `HintStepContent`.
 
 ## Features
 
-**Tour control**
+**Tour control** — `showTour/next/previous/goTo/skip/finish`, atomic
+`tryShowTour` + `isIdle`; wait-for-target with timeout policy and diagnosis;
+scoped controllers (`scopePrefix`) for tabs/split-view; `disableBackButton`;
+per-step `onStepEnter`/`onStepExit` hooks.
 
-- `showTour/next/previous/goTo/skip/finish`; the atomic guard `tryShowTour`
-  (+ `isIdle` for UI state) — no manual guards before starting
-- Wait-for-target for deferred and lazy-loaded widgets, with timeout + diagnosis
-- Missing targets: `HintMissingTargetPolicy.skipStep` (the tour default)
-  skips an absent target with a `timeout` diagnosis and continues the tour;
-  short/`Duration.zero` per-step `stepTimeout` for conditionally-absent targets
-- Scoped controllers: `scopePrefix` isolates tabs/split-view sharing one
-  registry (foreign ids neither activate steps nor false-fire typo candidates)
-- `disableBackButton` owns the Android back button while a tour is active;
-  Skip auto-hides on the last step of a multi-step tour (Done does the
-  same); a single-step hint keeps no action row at all
+**Rendering** — live target tracking over a global scrim; auto-flip
+positioning with safe-area clamp and a tail to the target; multi-target steps
+and multi-content tooltips with overlap avoidance; focus shapes
+(rect/circle/rounded) with padding, including negative "shrink spotlight";
+optional blur scrim and pulse; auto-scroll to offscreen targets; tap regions
+(target vs overlay, per-step behavior) with the page still scrollable under
+the tour; full tooltip control via `tooltipBuilder`.
 
-**Rendering**
+**Content & reuse** — versioned hints (`minShowVersion` + `HintStore` +
+`HintMarkPolicy`); "want a tour?" pre-dialog with per-page or global decline
+memory; `withHint` sugar and target-level `focusShape`/`focusPadding`;
+overridable copy labels.
 
-- Live target tracking (`CompositedTransform` link) over a global
-  full-screen scrim — the dim, the hole and the tooltip move with
-  scroll/layout/animation in the same frame, no bottom gap on scroll
-- Smart positioning: auto-flip to the side with room, keep-in-safe-area,
-  and a tail (arrow) tying the tooltip to its target — a hint never lands
-  half off-screen or on top of the control it points at
-- Multi-target steps: several elements spotlighted at once, the tooltip
-  avoiding the other spotlighted targets
-- Multi-content: several tooltips around one target, guaranteed not to
-  overlap each other or the targets
-- Optional blur scrim and pulsing ring (theme options; the default stays a
-  plain dim — the lightest thing to render)
-- Focus shapes (rectangle/circle/rounded) + padding (including negative
-  shrink), and scroll-into-view: an offscreen target is brought on screen
-  with its step
-- Animation is the tooltip's job: no built-in entry animation — a custom
-  `tooltipBuilder` animates its own entry (the engine still places it);
-  honor `MediaQuery.disableAnimations` inline for reduce-motion
-- Tap regions: tap-on-target vs tap-on-overlay with per-step callbacks and
-  tap position; scroll-through — the page scrolls under an active tour
+**Engine** — pure state-machine core with a framework-agnostic state API
+(`ValueListenable<HintState>`); headless testing (`HintController.test()`,
+`Hintful.reset()`); diagnostics handler; zero runtime dependencies.
 
-**Content & reuse**
+## Accessibility
 
-- Versioned hints (`HintStore`): show once per app version —
-  configure the store once (`Hintful.configure(store: ...)`) and call
-  `tryShowTour(tour, mark:)` (the policy is the `HintMarkPolicy`; the version
-  gate lives on `HintTour.minShowVersion`) or `shouldShow`/`markShown` by
-  hand; with no store configured, a session `InMemoryHintStore` keeps
-  show-once working for this run only. `CallbackHintStore(read:, write:)`
-  is the three-line path over your storage; `hintful_prefs` ships a
-  ready-made shared_preferences store — your own store answers with
-  `HintStore.shouldShowVersion(lastShown:, minVersion:)`, the same gate the
-  shipped stores call
-- "Want a tour?" pre-dialog (`showHintTourOffer`, own `HintTourOfferLabels`):
-  copy themed via `HintTheme.tourOfferLabels` (or per-call `labels:`),
-  declines persist per page or globally; gates return
-  `versionGated` (already ran) or `previouslyDeclined` (said no before),
-  accept while busy returns `busy`, an unshowable tour `nothingToShow`;
-  an accepted tour is recorded per `mark:` (`onAnyExit` by default), the
-  tour stays reachable from other entry points
-- `withHint` sugar (`child.withHint('id')`) and target-level
-  `focusShape`/`focusPadding` - the shape lives on the widget, a step
-  overrides only the exception
-- Per-step lifecycle hooks: `onStepEnter`/`onStepExit` (async) bracket a
-  step visit — serialized, exit of the old step runs before enter of the
-  new one; analytics and app reactions
-- One content slot type (`HintStepContent`) for strings + l10n
-  builders; one tap behavior per region (`targetTap`/`overlayTap`:
-  advance / ignore / custom)
-
-## Public contract
-
-The only supported import is `package:hintful/hintful.dart`. Deep imports
-(`package:hintful/engine/...`, `package:hintful/widgets/...`) are not part of
-the API — implementation lives under `lib/src/` and is reachable only through
-this barrel (explicit `show` lists). The exported surface: tour data
-(`HintStep`/`HintTour`/`HintAdditionalTooltip`/`HintStepContent`/`HintTapBehavior` +
-`TooltipPosition`/`FocusShape`/`HintMissingTargetPolicy`),
-registry (`HintTargetRegistry`), machine states
-(`HintState`/`HintIdle`/`HintWaiting`/`HintActive`), controller
-(`HintController`, `HintActions`, `HintTooltipContext`), diagnostics
-(`HintDiagnosticsHandler`/`HintSkipEvent`/`HintSkipReason`), theme/labels
-(`HintTheme`/`HintTooltipLabels`), widgets (`HintTarget`/`withHint`,
-`DefaultTooltip`, `showHintTourOffer` + offer labels/result),
-config (`Hintful`), store (`HintStore`/`InMemoryHintStore`/
-`CallbackHintStore`/`HintMarkPolicy`/`compareHintVersions`).
-
-Two testing seams ride on that surface: `HintController.test()` (the
-headless `@visibleForTesting` factory) and `Hintful.reset()` (drops the
-app-wide configuration and the session store between tests). Everything
-marked `@internal` (`HintController.store`, `Hintful.sessionStore`) is
-engine plumbing — the analyzer reports its use outside this package.
-
-Every rule behind the bullets above — what to do, what not to, and why — lives
-in [best practices](doc/best_practices.md#index), one decision per section:
-targets and shape (§1), `isIdle` vs `tryShowTour` (§5), versions (§6), multi-target
-and multi-content (§13–14), taps (§15), motion (§16), navigation (§17),
-server-driven tours (§18), testing (§19), the offer dialog (§20).
+- **Screen readers**: the default tooltip announces `Step N of M: <title>`;
+  `HintTarget(semanticsLabel:)` labels the spotlighted widget itself
+- **Keyboard**: Tab/Shift+Tab move forward/back, Enter = next, Esc = skip;
+  focus is captured while active and restored on exit
+- **Text scale**: the tooltip scrolls its content at 2× scale instead of
+  overflowing
+- **Contrast**: the default theme meets WCAG AA (4.5:1) in light and dark,
+  asserted in tests
+- **Reduce motion**: the default tooltip has no animation of its own; custom
+  `tooltipBuilder` entries should check `MediaQuery.disableAnimations`
 
 ## Server-driven tours
 
-No extra dependency — `HintTour.fromJson`/`toJson` with your own HTTP client:
+`HintTour.fromJson`/`toJson` with your own HTTP client — no extra dependency:
+
 ```dart
 final body = await http.get(
   Uri.parse('https://cdn.example.com/tours/onboarding'),
 ); // your client — http, dio, HttpClient, …
+
 final tour = HintTour.fromJson(jsonDecode(body.body) as Map<String, dynamic>);
 await controller.showTour(tour);
 ```
-Keep a bundled fallback tour for the offline / failed-fetch case.
 
-The wire format carries copy, order, timing and layout of **known** targets —
-builders and callbacks stay in code, so a server cannot introduce a target that
-isn't in the shipped build. Payload rules, validation and the offline fallback:
+Keep a bundled fallback tour for the offline case. The wire format carries
+copy, order, timing and layout of **known** targets — a server cannot
+introduce a target that isn't in the shipped build. Details:
 [best practices §18](doc/best_practices.md#18-server-driven-tours--what-json-can-and-cannot-carry).
 
 ## Getting started
-
-Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -366,30 +187,31 @@ dependencies:
 import 'package:hintful/hintful.dart';
 ```
 
-Requires Dart ≥ 3.2 / Flutter ≥ 3.16 — the floor is
-`MediaQuery.textScalerOf`, which hintful uses to follow the system text scale;
-the rest of what it leans on (sealed machine states, `CompositedTransform` +
-`LayerLink.leaderSize`, `ThemeExtension`) is older.
+Requires Dart ≥ 3.2 / Flutter ≥ 3.16. See `example/` for working demos:
+shaped holes, blur/pulse styles, custom animated tooltips, JSON tours, tap
+regions, multi-target and multi-content steps, the offer dialog, lifecycle
+hooks and the versioned intro.
 
-See `example/` for working demos of every feature above — shaped holes,
-blur/pulse styles, custom animated tooltips, JSON tours, tap regions, the  offer dialog, and the versioned intro.
+The only supported import is `package:hintful/hintful.dart`; deep imports
+(`package:hintful/src/...`) are not part of the API.
 
 ## Documentation
 
-- [`doc/best_practices.md`](doc/best_practices.md#index) — the decisions that keep
-  tours findable and hard to break, one per section, with the code to copy;
-- [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `GlobalKey`, `tryShowTour`,
-  text scale, taps, multi-target vs multi-content, testing,
-  server-driven tours, the offer dialog, RTL sides and id typos;
+- [`doc/best_practices.md`](doc/best_practices.md#index) — one decision per
+  section, with the code to copy
+- [`doc/faq.md`](doc/faq.md) — "my hint didn't show", `tryShowTour`, text
+  scale, RTL, id typos, testing
 - [`doc/migration_guide.md`](doc/migration_guide.md) — coming from
-  `showcaseview` or `tutorial_coach_mark`, API-to-API;
-- [`CHANGELOG.md`](CHANGELOG.md) — what changed across 0.x → 1.0.0;
-- [`benchmark/README.md`](benchmark/README.md) — how the numbers under
-  [Performance](#performance) are recorded.
+  `showcaseview` or `tutorial_coach_mark`, API-to-API
+- [`doc/competitive_analysis.md`](doc/competitive_analysis.md) — how hintful
+  compares to other tour/hint/onboarding solutions
+- [`CHANGELOG.md`](CHANGELOG.md)
+- [`benchmark/README.md`](benchmark/README.md) — how the performance numbers
+  are recorded
 
 ## Verifying
 
-For contributors and agents — the same commands CI runs:
+The same commands CI runs:
 
 ```bash
 # package root
@@ -405,8 +227,6 @@ flutter pub get && flutter analyze && flutter test bench/
 ```
 
 MIT licensed.
-
----
 
 <!-- bench:start -->
 ## Performance
