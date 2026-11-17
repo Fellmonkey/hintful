@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:hintful/hintful.dart';
 
@@ -116,9 +116,9 @@ class HintHomeScreen extends StatelessWidget {
         id: 'fab',
         child: FloatingActionButton.extended(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Set added (demo)')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Set added (demo)')));
           },
           icon: const Icon(Icons.add),
           label: const Text('Log a set'),
@@ -146,7 +146,8 @@ class HintHomeScreen extends StatelessWidget {
             'call showTour — the engine owns positioning, scrolling and '
             'remembering. No OverlayEntry, no scroll math.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -158,7 +159,8 @@ class HintHomeScreen extends StatelessWidget {
           Text(
             '4 steps: spotlight → deferred target → auto-scroll.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           Text('Filters', style: Theme.of(context).textTheme.titleMedium),
@@ -185,10 +187,7 @@ class HintHomeScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text('Summary', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            HintTarget(
-              id: 'stats',
-              child: const _StatsCard(),
-            ),
+            HintTarget(id: 'stats', child: const _StatsCard()),
           ],
           const SizedBox(height: 24),
           Text('Workouts', style: Theme.of(context).textTheme.titleMedium),
@@ -232,9 +231,7 @@ class HintHomeScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Text('Dev tooling', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 4),
-          const Text(
-            'Re-triggers the once-per-version gate while testing.',
-          ),
+          const Text('Re-triggers the once-per-version gate while testing.'),
           const SizedBox(height: 8),
           _VersionedIntroCard(
             appVersion: appVersion,
@@ -274,13 +271,15 @@ class _VersionedIntroCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Versioned intro',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Versioned intro',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               storeReady
                   ? 'App version $appVersion — the intro '
-                      '${introWillShow ? 'will show again' : 'already showed in this version'}'
+                        '${introWillShow ? 'will show again' : 'already showed in this version'}'
                   : 'Loading the store…',
             ),
             const SizedBox(height: 8),
@@ -366,8 +365,10 @@ class _VisualDemosCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Visual demos',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Visual demos',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               'Pick a scrim style first — it applies to every tour, '
@@ -482,10 +483,10 @@ class _MotionNotice extends StatelessWidget {
                 Text(
                   reduceMotion
                       ? 'The Custom tooltip therefore skips its entry '
-                          'animation — turn animations back on to see it.'
+                            'animation — turn animations back on to see it.'
                       : 'The Custom tooltip checks '
-                          'MediaQuery.disableAnimations inline and renders '
-                          'instantly when the OS setting is on.',
+                            'MediaQuery.disableAnimations inline and renders '
+                            'instantly when the OS setting is on.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     height: 1.3,

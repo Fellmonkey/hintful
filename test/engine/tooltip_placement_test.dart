@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/overlay/tooltip_placement.dart';
 import 'package:hintful/src/engine/specs.dart';
@@ -18,7 +18,9 @@ void main() {
       );
       // x: 100 + (200-160)/2 = 120; y: 180 + 12 = 192
       expect(
-          d.getPositionForChild(screen.size, tooltip), const Offset(120, 192));
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(120, 192),
+      );
     });
 
     test('top: above the hole', () {
@@ -29,7 +31,9 @@ void main() {
       );
       // y: 100 - 12 - 60 = 28
       expect(
-          d.getPositionForChild(screen.size, tooltip), const Offset(120, 28));
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(120, 28),
+      );
     });
 
     test('right: to the right, vertically centered', () {
@@ -40,7 +44,9 @@ void main() {
       );
       // x: 300 + 12 = 312; y: 100 + (80-60)/2 = 110
       expect(
-          d.getPositionForChild(screen.size, tooltip), const Offset(312, 110));
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(312, 110),
+      );
     });
 
     test('left: to the left', () {
@@ -52,7 +58,9 @@ void main() {
       );
       // x: 300 - 12 - 160 = 128; y: 110
       expect(
-          d.getPositionForChild(screen.size, tooltip), const Offset(128, 110));
+        d.getPositionForChild(screen.size, tooltip),
+        const Offset(128, 110),
+      );
     });
   });
 
@@ -155,8 +163,7 @@ void main() {
       expect(offset.dx, 400);
     });
 
-    test(
-        'gap: the offset from the hole is exactly gap, the hole is not '
+    test('gap: the offset from the hole is exactly gap, the hole is not '
         'covered', () {
       const h = Rect.fromLTWH(100, 100, 200, 80);
       final d = TooltipPlacementDelegate(
@@ -194,10 +201,10 @@ void main() {
     const tooltip = Size(320, 150);
 
     Offset place(Rect hole) => TooltipPlacementDelegate(
-          screenLocal: screen,
-          holeLocal: hole,
-          position: TooltipPosition.auto,
-        ).getPositionForChild(screen.size, tooltip);
+      screenLocal: screen,
+      holeLocal: hole,
+      position: TooltipPosition.auto,
+    ).getPositionForChild(screen.size, tooltip);
 
     test('full-width hole below the fold: pinned to the bottom edge', () {
       const hole = Rect.fromLTWH(0, 700, 800, 60);
@@ -209,19 +216,22 @@ void main() {
 
     test('full-width hole above the top: pinned to the top edge', () {
       expect(
-          place(const Rect.fromLTWH(0, -300, 800, 60)), const Offset(240, 0));
+        place(const Rect.fromLTWH(0, -300, 800, 60)),
+        const Offset(240, 0),
+      );
     });
 
     test('narrow hole below the fold: the real side placement still wins', () {
       // Room beside it, so the ideal side is used: x = hole.right + gap = 212
       // (the clamped preferred side would center the tooltip at x = 240),
       // y = centerY clamped to 600 - 150.
-      expect(place(const Rect.fromLTWH(100, 620, 100, 60)),
-          const Offset(212, 450));
+      expect(
+        place(const Rect.fromLTWH(100, 620, 100, 60)),
+        const Offset(212, 450),
+      );
     });
 
-    test(
-        'continuous across the join: the clamped edge is the side placement '
+    test('continuous across the join: the clamped edge is the side placement '
         'that takes over', () {
       // 17 px above the fold: the mirrored side fits (595-162 = 433).
       expect(place(const Rect.fromLTWH(0, 595, 800, 60)).dy, 433);
@@ -310,8 +320,7 @@ void main() {
     });
   });
 
-  group('extraHoles (multi-target: not covering other spotlighted targets)',
-      () {
+  group('extraHoles (multi-target: not covering other spotlighted targets)', () {
     const hole = Rect.fromLTWH(100, 100, 200, 80); // right=300, bottom=180
     const tooltip = Size(160, 60);
 
@@ -386,12 +395,14 @@ void main() {
       );
       final extraRect = extra & size;
       expect(extraRect.overlaps(primaryRect), isFalse);
-      expect(extraRect.bottom, lessThan(hole.top),
-          reason: 'mirrored above the hole');
+      expect(
+        extraRect.bottom,
+        lessThan(hole.top),
+        reason: 'mirrored above the hole',
+      );
     });
 
-    test(
-        'the corner fallback prefers a free corner over the blocked '
+    test('the corner fallback prefers a free corner over the blocked '
         'top-left', () {
       // A placed tooltip occupies the top-left quadrant; no side of the
       // hole fits the extra (600x250) — the bottom-left corner is free and
@@ -411,8 +422,9 @@ void main() {
   });
 
   group('multi-slot placement (two slots on the same side, one delegate)', () {
-    testWidgets('the extra is mirrored away — the slots do not overlap',
-        (tester) async {
+    testWidgets('the extra is mirrored away — the slots do not overlap', (
+      tester,
+    ) async {
       const hole = Rect.fromLTWH(350, 250, 100, 100);
       await tester.pumpWidget(
         MaterialApp(
@@ -429,19 +441,11 @@ void main() {
               children: [
                 LayoutId(
                   id: TooltipPlacementDelegate.primaryId,
-                  child: Container(
-                    width: 160,
-                    height: 60,
-                    color: Colors.red,
-                  ),
+                  child: Container(width: 160, height: 60, color: Colors.red),
                 ),
                 LayoutId(
                   id: TooltipPlacementDelegate.extraId(0),
-                  child: Container(
-                    width: 160,
-                    height: 60,
-                    color: Colors.blue,
-                  ),
+                  child: Container(width: 160, height: 60, color: Colors.blue),
                 ),
               ],
             ),
@@ -449,21 +453,27 @@ void main() {
         ),
       );
 
-      final red = find
-          .byWidgetPredicate((w) => w is Container && w.color == Colors.red);
-      final blue = find
-          .byWidgetPredicate((w) => w is Container && w.color == Colors.blue);
+      final red = find.byWidgetPredicate(
+        (w) => w is Container && w.color == Colors.red,
+      );
+      final blue = find.byWidgetPredicate(
+        (w) => w is Container && w.color == Colors.blue,
+      );
       final primaryRect = tester.getRect(red);
       final extraRect = tester.getRect(blue);
 
       expect(primaryRect.top, hole.bottom + 12);
       expect(extraRect.overlaps(primaryRect), isFalse);
-      expect(extraRect.bottom, lessThan(hole.top),
-          reason: 'same preferred side → the extra mirrored above');
+      expect(
+        extraRect.bottom,
+        lessThan(hole.top),
+        reason: 'same preferred side → the extra mirrored above',
+      );
     });
 
-    testWidgets('a single slot (primary only) — the single-tooltip path',
-        (tester) async {
+    testWidgets('a single slot (primary only) — the single-tooltip path', (
+      tester,
+    ) async {
       const hole = Rect.fromLTWH(350, 250, 100, 100);
       await tester.pumpWidget(
         MaterialApp(
@@ -487,8 +497,9 @@ void main() {
         ),
       );
 
-      final red = find
-          .byWidgetPredicate((w) => w is Container && w.color == Colors.red);
+      final red = find.byWidgetPredicate(
+        (w) => w is Container && w.color == Colors.red,
+      );
       final rect = tester.getRect(red);
       expect(rect.top, hole.bottom + 12);
       expect(rect.left, hole.left + (hole.width - 160) / 2);

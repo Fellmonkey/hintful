@@ -191,9 +191,9 @@ class HintStepContent {
 
   /// Serializes the string copy (builders are code-side only).
   Map<String, dynamic> toJson() => {
-        if (title != null) 'title': title,
-        if (description != null) 'description': description,
-      };
+    if (title != null) 'title': title,
+    if (description != null) 'description': description,
+  };
 
   /// Parses the string copy from JSON (builders are code-side only).
   factory HintStepContent.fromJson(Map<String, dynamic> json) =>
@@ -340,7 +340,8 @@ class HintStep {
     BuildContext context,
     HintStep step,
     HintTooltipContext ctx,
-  )? tooltipBuilder;
+  )?
+  tooltipBuilder;
 
   /// Hole shape for this step; null — inherits from [HintTarget] or
   /// defaults to [FocusShape.rectangle]. Set on the target for round
@@ -386,24 +387,22 @@ class HintStep {
   /// handler must be re-applied in code after a round-trip. The always /
   /// only-when-non-default split mirrors [HintTour.toJson]'s.
   Map<String, dynamic> toJson() => {
-        'targetId': targetId,
-        if (additionalTargets.isNotEmpty)
-          'additionalTargets': additionalTargets,
-        if (additionalTooltips.isNotEmpty)
-          'additionalTooltips':
-              additionalTooltips.map((t) => t.toJson()).toList(),
-        ...content.toJson(),
-        'position': position.name,
-        if (stepTimeout != null) 'stepTimeoutMs': stepTimeout!.inMilliseconds,
-        'showSkip': showSkip,
-        // Wire keeps the historical bool: false ⇔ ignore, true ⇔ advance.
-        // custom() is code-side only (same as every callback).
-        'tapOnTarget': targetTap is! HintTapIgnore,
-        'tapOnOverlay': overlayTap is! HintTapIgnore,
-        if (focusShape != null) 'focusShape': focusShape!.name,
-        if (focusPadding != null) 'focusPadding': focusPadding,
-        if (autoScroll != null) 'autoScroll': autoScroll,
-      };
+    'targetId': targetId,
+    if (additionalTargets.isNotEmpty) 'additionalTargets': additionalTargets,
+    if (additionalTooltips.isNotEmpty)
+      'additionalTooltips': additionalTooltips.map((t) => t.toJson()).toList(),
+    ...content.toJson(),
+    'position': position.name,
+    if (stepTimeout != null) 'stepTimeoutMs': stepTimeout!.inMilliseconds,
+    'showSkip': showSkip,
+    // Wire keeps the historical bool: false ⇔ ignore, true ⇔ advance.
+    // custom() is code-side only (same as every callback).
+    'tapOnTarget': targetTap is! HintTapIgnore,
+    'tapOnOverlay': overlayTap is! HintTapIgnore,
+    if (focusShape != null) 'focusShape': focusShape!.name,
+    if (focusPadding != null) 'focusPadding': focusPadding,
+    if (autoScroll != null) 'autoScroll': autoScroll,
+  };
 
   /// Parses a step payload.
   ///
@@ -434,18 +433,24 @@ class HintStep {
       content: HintStepContent.fromJson(json),
       additionalTargets:
           _stringListOrNull(json['additionalTargets'], 'additionalTargets') ??
-              const [],
+          const [],
       additionalTooltips:
           _listOrNull(json['additionalTooltips'], 'additionalTooltips')
-                  ?.map((e) => HintAdditionalTooltip.fromJson(
-                        _mapField(e, 'additionalTooltips'),
-                        onWarning: onWarning,
-                      ))
-                  .toList() ??
-              const [],
+              ?.map(
+                (e) => HintAdditionalTooltip.fromJson(
+                  _mapField(e, 'additionalTooltips'),
+                  onWarning: onWarning,
+                ),
+              )
+              .toList() ??
+          const [],
       position: _enumOrDefault(
-          TooltipPosition.values, json['position'], TooltipPosition.auto,
-          field: 'position', onWarning: onWarning),
+        TooltipPosition.values,
+        json['position'],
+        TooltipPosition.auto,
+        field: 'position',
+        onWarning: onWarning,
+      ),
       stepTimeout: _stepTimeoutFromJson(json),
       showSkip: _boolOrNull(json['showSkip'], 'showSkip') ?? true,
       targetTap: (_boolOrNull(json['tapOnTarget'], 'tapOnTarget') ?? true)
@@ -454,8 +459,12 @@ class HintStep {
       overlayTap: (_boolOrNull(json['tapOnOverlay'], 'tapOnOverlay') ?? true)
           ? const HintTapBehavior.advance()
           : const HintTapBehavior.ignore(),
-      focusShape: _enumOrNull(FocusShape.values, json['focusShape'],
-          field: 'focusShape', onWarning: onWarning),
+      focusShape: _enumOrNull(
+        FocusShape.values,
+        json['focusShape'],
+        field: 'focusShape',
+        onWarning: onWarning,
+      ),
       focusPadding: _doubleOrNull(json['focusPadding'], 'focusPadding'),
       autoScroll: _boolOrNull(json['autoScroll'], 'autoScroll'),
     );
@@ -496,27 +505,31 @@ class HintAdditionalTooltip {
     BuildContext context,
     HintStep step,
     HintTooltipContext ctx,
-  )? tooltipBuilder;
+  )?
+  tooltipBuilder;
 
   /// Serializes the slot to the frozen JSON wire format (position + string
   /// copy; builders are code-side only).
   Map<String, dynamic> toJson() => {
-        'position': position.name,
-        ...content.toJson(),
-      };
+    'position': position.name,
+    ...content.toJson(),
+  };
 
   /// Parses a slot payload; an unknown `position` falls back to
   /// [TooltipPosition.auto] (reported through [onWarning]).
   factory HintAdditionalTooltip.fromJson(
     Map<String, dynamic> json, {
     void Function(String warning)? onWarning,
-  }) =>
-      HintAdditionalTooltip(
-        position: _enumOrDefault(
-            TooltipPosition.values, json['position'], TooltipPosition.auto,
-            field: 'position', onWarning: onWarning),
-        content: HintStepContent.fromJson(json),
-      );
+  }) => HintAdditionalTooltip(
+    position: _enumOrDefault(
+      TooltipPosition.values,
+      json['position'],
+      TooltipPosition.auto,
+      field: 'position',
+      onWarning: onWarning,
+    ),
+    content: HintStepContent.fromJson(json),
+  );
 }
 
 /// Default wait-for-target timeout for a step when neither the step nor the
@@ -562,8 +575,8 @@ class HintTour {
     this.autoScroll = false,
     this.minShowVersion,
     this.onExited,
-  })  : assert(id != '', 'HintTour.id must not be empty'),
-        assert(steps.length > 0, 'HintTour.steps must not be empty');
+  }) : assert(id != '', 'HintTour.id must not be empty'),
+       assert(steps.length > 0, 'HintTour.steps must not be empty');
 
   /// Stable tour id — non-empty; diagnostics, stores and offers key on it.
   final String id;
@@ -644,14 +657,14 @@ class HintTour {
   /// only. `fromJson` applies the same defaults on read, so an
   /// under-specified payload round-trips to the same tour.
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'steps': steps.map((s) => s.toJson()).toList(),
-        'stepTimeoutMs': stepTimeout.inMilliseconds,
-        'disableBackButton': disableBackButton,
-        'missingTargetPolicy': missingTargetPolicy.name,
-        if (autoScroll) 'autoScroll': true,
-        if (minShowVersion != null) 'minShowVersion': minShowVersion,
-      };
+    'id': id,
+    'steps': steps.map((s) => s.toJson()).toList(),
+    'stepTimeoutMs': stepTimeout.inMilliseconds,
+    'disableBackButton': disableBackButton,
+    'missingTargetPolicy': missingTargetPolicy.name,
+    if (autoScroll) 'autoScroll': true,
+    if (minShowVersion != null) 'minShowVersion': minShowVersion,
+  };
 
   /// Parses a tour payload.
   ///
@@ -666,7 +679,8 @@ class HintTour {
     final id = json['id'];
     if (id is! String || id.isEmpty) {
       throw const FormatException(
-          "hintful: tour JSON is missing a non-empty 'id'");
+        "hintful: tour JSON is missing a non-empty 'id'",
+      );
     }
     final rawSteps = json['steps'];
     if (rawSteps is! List || rawSteps.isEmpty) {
@@ -677,22 +691,28 @@ class HintTour {
     return HintTour(
       id: id,
       steps: rawSteps
-          .map((step) => HintStep.fromJson(
-                _mapField(step, 'steps'),
-                onWarning: onWarning,
-              ))
+          .map(
+            (step) => HintStep.fromJson(
+              _mapField(step, 'steps'),
+              onWarning: onWarning,
+            ),
+          )
           .toList(),
       stepTimeout: json['stepTimeoutMs'] == null
           ? _kDefaultStepTimeout
           : Duration(
-              milliseconds:
-                  _intOrNull(json['stepTimeoutMs'], 'stepTimeoutMs')!),
+              milliseconds: _intOrNull(json['stepTimeoutMs'], 'stepTimeoutMs')!,
+            ),
       disableBackButton:
           _boolOrNull(json['disableBackButton'], 'disableBackButton') ?? false,
       autoScroll: _boolOrNull(json['autoScroll'], 'autoScroll') ?? false,
-      missingTargetPolicy: _enumOrDefault(HintMissingTargetPolicy.values,
-          json['missingTargetPolicy'], HintMissingTargetPolicy.skipStep,
-          field: 'missingTargetPolicy', onWarning: onWarning),
+      missingTargetPolicy: _enumOrDefault(
+        HintMissingTargetPolicy.values,
+        json['missingTargetPolicy'],
+        HintMissingTargetPolicy.skipStep,
+        field: 'missingTargetPolicy',
+        onWarning: onWarning,
+      ),
       minShowVersion: _stringOrNull(json['minShowVersion'], 'minShowVersion'),
     );
   }
@@ -716,15 +736,15 @@ extension HintStepInternal on HintStep {
 /// Internal helper for the controller's release-path typo filter; not part
 /// of the public barrel contract.
 HintTour hintTourWithSteps(HintTour tour, List<HintStep> steps) => HintTour(
-      id: tour.id,
-      steps: steps,
-      stepTimeout: tour.stepTimeout,
-      disableBackButton: tour.disableBackButton,
-      missingTargetPolicy: tour.missingTargetPolicy,
-      autoScroll: tour.autoScroll,
-      minShowVersion: tour.minShowVersion,
-      onExited: tour.onExited,
-    );
+  id: tour.id,
+  steps: steps,
+  stepTimeout: tour.stepTimeout,
+  disableBackButton: tour.disableBackButton,
+  missingTargetPolicy: tour.missingTargetPolicy,
+  autoScroll: tour.autoScroll,
+  minShowVersion: tour.minShowVersion,
+  onExited: tour.onExited,
+);
 
 /// Reports a non-fatal wire problem: `debugPrint` in debug builds, plus the
 /// optional `onWarning` the `fromJson` entry points thread down.
@@ -777,9 +797,9 @@ T _enumOrDefault<T extends Enum>(
 // one; keep the rule stated here, not in each helper.
 
 Never _badType(String field, Object? value) => throw FormatException(
-      "hintful: field '$field' has an unexpected type"
-      ' (${value.runtimeType})',
-    );
+  "hintful: field '$field' has an unexpected type"
+  ' (${value.runtimeType})',
+);
 
 /// JSON string or null (absent field).
 String? _stringOrNull(Object? value, String field) =>

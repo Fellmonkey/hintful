@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show internal;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../engine/labels.dart';
 import '../engine/specs.dart';
@@ -57,13 +57,13 @@ class DefaultTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _tooltipBody(
-        context: context,
-        step: step,
-        ctx: ctx,
-        content: step.content,
-        showActions: true,
-        labels: labels,
-      );
+    context: context,
+    step: step,
+    ctx: ctx,
+    content: step.content,
+    showActions: true,
+    labels: labels,
+  );
 }
 
 /// Informational multi-content slot ([HintStep.additionalTooltips]): the same
@@ -100,13 +100,13 @@ class HintSlotTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _tooltipBody(
-        context: context,
-        step: step,
-        ctx: ctx,
-        content: content,
-        showActions: false,
-        labels: labels,
-      );
+    context: context,
+    step: step,
+    ctx: ctx,
+    content: content,
+    showActions: false,
+    labels: labels,
+  );
 }
 
 /// Shared body of [DefaultTooltip] and [HintSlotTooltip] — one rendering
@@ -156,29 +156,31 @@ Widget _tooltipBody({
   // and the look are the
   // same - Skip at the far edge, small and quiet, Back/Next/Done grouped
   // at the end (the primary action is always at the very corner).
-  Widget plainButton(String label, VoidCallback onPressed,
-          {bool compact = false}) =>
-      Semantics(
-        button: true,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 8 : 12,
-              vertical: compact ? 6 : 10,
-            ),
-            child: Text(
-              label,
-              style: (buttonText ?? const TextStyle(fontSize: 14)).copyWith(
-                fontSize: compact ? 12 : 14,
-                fontWeight: FontWeight.w500,
-                color: onSurface,
-              ),
-            ),
+  Widget plainButton(
+    String label,
+    VoidCallback onPressed, {
+    bool compact = false,
+  }) => Semantics(
+    button: true,
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 12,
+          vertical: compact ? 6 : 10,
+        ),
+        child: Text(
+          label,
+          style: (buttonText ?? const TextStyle(fontSize: 14)).copyWith(
+            fontSize: compact ? 12 : 14,
+            fontWeight: FontWeight.w500,
+            color: onSurface,
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   final body = Padding(
     padding: theme.tooltipPadding,
@@ -195,7 +197,8 @@ Widget _tooltipBody({
           if (title != null) const SizedBox(height: 4),
           Text(
             description,
-            style: theme.tooltipDescriptionStyle ??
+            style:
+                theme.tooltipDescriptionStyle ??
                 hintDefaultDescriptionStyle(onSurface),
           ),
         ],
@@ -228,15 +231,17 @@ Widget _tooltipBody({
                     borderRadius: BorderRadius.circular(20),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       child: Text(
                         isLast ? l.done : l.next,
                         style: (buttonText ?? const TextStyle(fontSize: 14))
                             .copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: theme.tooltipBackground,
-                        ),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: theme.tooltipBackground,
+                            ),
                       ),
                     ),
                   ),
@@ -262,8 +267,10 @@ Widget _tooltipBody({
       elevation: 6,
       child: textScale > 1.0
           ? ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
+              constraints: BoxConstraints(
+                maxWidth: maxWidth,
+                maxHeight: maxHeight,
+              ),
               child: SingleChildScrollView(child: body),
             )
           : ConstrainedBox(

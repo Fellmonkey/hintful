@@ -93,7 +93,8 @@ Flutter; UserGuiding is explicitly web-only ("relies on JavaScript");
 Chameleon/WalkMe Flutter support *(not verified)*. These are platforms: no-code
 builders, analytics, targeting/segmentation, checklists, NPS, session replay —
 tours are one feature behind a vendor account and a remote config. They
-compete on a different axis than an in-repo, dependency-free engine.
+compete on a different axis than an in-repo engine you own (2.x depends only
+on Flutter and its official `material_ui`).
 
 ## 4. What is *not* different (shared state of the art)
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/labels.dart';
@@ -28,11 +28,7 @@ class _FakeActions implements HintActions {
   void finish() => finishCalls++;
 }
 
-HintTooltipContext _ctx(
-  _FakeActions actions,
-  int stepIndex,
-  int totalSteps,
-) =>
+HintTooltipContext _ctx(_FakeActions actions, int stepIndex, int totalSteps) =>
     HintTooltipContext(
       actions: actions,
       stepIndex: stepIndex,
@@ -70,12 +66,12 @@ void main() {
     content: HintStepContent(title: 'Title', description: 'Description'),
   );
 
-  testWidgets('title/description + Next/Skip (not the last step)',
-      (tester) async {
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(_FakeActions(), 0, 2),
-    )));
+  testWidgets('title/description + Next/Skip (not the last step)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 2))),
+    );
 
     expect(find.text('Title'), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
@@ -84,13 +80,13 @@ void main() {
     expect(find.text('Done'), findsNothing);
   });
 
-  testWidgets('last step: Done instead of Next, no Skip; Done → finish',
-      (tester) async {
+  testWidgets('last step: Done instead of Next, no Skip; Done → finish', (
+    tester,
+  ) async {
     final actions = _FakeActions();
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(actions, 1, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(actions, 1, 2))),
+    );
 
     expect(find.text('Done'), findsOneWidget);
     expect(find.text('Next'), findsNothing);
@@ -104,10 +100,9 @@ void main() {
 
   testWidgets('Next → next, Skip → skip', (tester) async {
     final actions = _FakeActions();
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(actions, 0, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(actions, 0, 2))),
+    );
 
     await tester.tap(find.text('Next'));
     expect(actions.nextCalls, 1);
@@ -116,34 +111,36 @@ void main() {
     expect(actions.skipCalls, 1);
   });
 
-  testWidgets(
-      'Back: hidden on the first step, shown from step 2; '
+  testWidgets('Back: hidden on the first step, shown from step 2; '
       'Back → previous', (tester) async {
     final actions = _FakeActions();
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(actions, 0, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(actions, 0, 2))),
+    );
     expect(find.text('Back'), findsNothing);
 
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(actions, 1, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(actions, 1, 2))),
+    );
     expect(find.text('Back'), findsOneWidget);
 
     await tester.tap(find.text('Back'));
     expect(actions.previousCalls, 1);
   });
 
-  testWidgets('Skip: at the far left edge, smaller than the primary action',
-      (tester) async {
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      // Step 2 of 3: an intermediate step — Back, Skip and Next are all on
-      // stage (on the last step Skip is hidden: Done does the same).
-      ctx: _ctx(_FakeActions(), 1, 3),
-    )));
+  testWidgets('Skip: at the far left edge, smaller than the primary action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(
+          step: step,
+          // Step 2 of 3: an intermediate step — Back, Skip and Next are all on
+          // stage (on the last step Skip is hidden: Done does the same).
+          ctx: _ctx(_FakeActions(), 1, 3),
+        ),
+      ),
+    );
 
     final skip = tester.getRect(find.text('Skip'));
     final back = tester.getRect(find.text('Back'));
@@ -158,16 +155,21 @@ void main() {
     expect(skip.height, lessThan(next.height));
   });
 
-  testWidgets('single-step hint: no action row at all (no Done)',
-      (tester) async {
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      // totalSteps == 1: a lone hint, not a tour — informational only.
-      // Dismissal is via tap-on-overlay/target and keyboard; a Done button
-      // would be meaningless, and its absence keeps a hint visually
-      // distinct from a tour step.
-      ctx: _ctx(_FakeActions(), 0, 1),
-    )));
+  testWidgets('single-step hint: no action row at all (no Done)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(
+          step: step,
+          // totalSteps == 1: a lone hint, not a tour — informational only.
+          // Dismissal is via tap-on-overlay/target and keyboard; a Done button
+          // would be meaningless, and its absence keeps a hint visually
+          // distinct from a tour step.
+          ctx: _ctx(_FakeActions(), 0, 1),
+        ),
+      ),
+    );
 
     expect(find.text('Title'), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
@@ -179,26 +181,29 @@ void main() {
 
   testWidgets('showSkip: false — no Skip button', (tester) async {
     final noSkip = HintStep(
-        targetId: 'stats',
-        content: HintStepContent(title: 't'),
-        showSkip: false);
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: noSkip,
-      // First step of two: the action row exists (Next), Skip is opted out.
-      ctx: _ctx(_FakeActions(), 0, 2),
-    )));
+      targetId: 'stats',
+      content: HintStepContent(title: 't'),
+      showSkip: false,
+    );
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(
+          step: noSkip,
+          // First step of two: the action row exists (Next), Skip is opted out.
+          ctx: _ctx(_FakeActions(), 0, 2),
+        ),
+      ),
+    );
 
     expect(find.text('Skip'), findsNothing);
     expect(find.text('Next'), findsOneWidget);
   });
 
-  testWidgets(
-      'text scale 1.0: no scrollable is built (content grows '
+  testWidgets('text scale 1.0: no scrollable is built (content grows '
       'freely, width still capped)', (tester) async {
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(_FakeActions(), 0, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 2))),
+    );
 
     // The scroll machinery is ~18 KB of heap while mounted — at scale 1.0
     // the content is width-capped (wrapping) and grows freely instead.
@@ -208,15 +213,15 @@ void main() {
     expect(find.text('Next'), findsOneWidget);
   });
 
-  testWidgets('text scale 2.0: height-capped and scrollable — the contract',
-      (tester) async {
-    await tester.pumpWidget(_wrap(
-      DefaultTooltip(
-        step: step,
-        ctx: _ctx(_FakeActions(), 0, 2),
+  testWidgets('text scale 2.0: height-capped and scrollable — the contract', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 2)),
+        textScale: 2.0,
       ),
-      textScale: 2.0,
-    ));
+    );
 
     // At the 2.0 text scale the content must still fit on screen: capped
     // height + scroll instead of overflow.
@@ -226,10 +231,9 @@ void main() {
 
   testWidgets('buttons expose the button role + tap action', (tester) async {
     final handle = tester.ensureSemantics();
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(_FakeActions(), 0, 2),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 2))),
+    );
 
     final skip = tester.getSemantics(find.text('Skip')).getSemanticsData();
     expect(skip.flagsCollection.isButton, isTrue);
@@ -242,10 +246,9 @@ void main() {
 
   testWidgets('semantics "Step N of M: …"', (tester) async {
     final handle = tester.ensureSemantics();
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(_FakeActions(), 0, 3),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 3))),
+    );
 
     // The container announces "Step N of M: <title>"; the inner text keeps
     // its own node (exposed separately once the content is scrollable), so
@@ -265,13 +268,12 @@ void main() {
       tooltipRadius: BorderRadius.all(Radius.circular(4)),
       tooltipPadding: EdgeInsets.all(8),
     );
-    await tester.pumpWidget(_wrap(
-      DefaultTooltip(
-        step: step,
-        ctx: _ctx(_FakeActions(), 0, 1),
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 1)),
+        extensions: [custom],
       ),
-      extensions: [custom],
-    ));
+    );
 
     final material = tester.widget<Material>(
       find
@@ -287,14 +289,12 @@ void main() {
     expect(title.style?.color, const Color(0xFFEEEEEE));
   });
 
-  testWidgets(
-      'without a registered theme — defaults from ColorScheme '
+  testWidgets('without a registered theme — defaults from ColorScheme '
       '(zero-config)', (tester) async {
     const seed = Colors.teal;
-    await tester.pumpWidget(_wrap(DefaultTooltip(
-      step: step,
-      ctx: _ctx(_FakeActions(), 0, 1),
-    )));
+    await tester.pumpWidget(
+      _wrap(DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 1))),
+    );
 
     final scheme = ColorScheme.fromSeed(seedColor: seed);
     final material = tester.widget<Material>(
@@ -307,8 +307,9 @@ void main() {
     expect(material.color, isNot(Colors.white));
   });
 
-  testWidgets('theme labels localize buttons (no custom tooltip needed)',
-      (tester) async {
+  testWidgets('theme labels localize buttons (no custom tooltip needed)', (
+    tester,
+  ) async {
     const ru = HintTooltipLabels(
       skip: 'Пропустить',
       back: 'Назад',
@@ -316,13 +317,12 @@ void main() {
       done: 'Готово',
     );
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
-    await tester.pumpWidget(_wrap(
-      DefaultTooltip(
-        step: step,
-        ctx: _ctx(_FakeActions(), 0, 2),
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 2)),
+        extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: ru)],
       ),
-      extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: ru)],
-    ));
+    );
 
     expect(find.text('Далее'), findsOneWidget);
     expect(find.text('Пропустить'), findsOneWidget);
@@ -334,16 +334,18 @@ void main() {
     const themeLabels = HintTooltipLabels(next: 'ThemeNext');
     const ownLabels = HintTooltipLabels(next: 'OwnNext');
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
-    await tester.pumpWidget(_wrap(
-      DefaultTooltip(
-        step: step,
-        ctx: _ctx(_FakeActions(), 0, 2),
-        labels: ownLabels,
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(
+          step: step,
+          ctx: _ctx(_FakeActions(), 0, 2),
+          labels: ownLabels,
+        ),
+        extensions: [
+          HintTheme.minimal(scheme).copyWith(tooltipLabels: themeLabels),
+        ],
       ),
-      extensions: [
-        HintTheme.minimal(scheme).copyWith(tooltipLabels: themeLabels)
-      ],
-    ));
+    );
 
     expect(find.text('OwnNext'), findsOneWidget);
     expect(find.text('ThemeNext'), findsNothing);
@@ -351,22 +353,16 @@ void main() {
 
   testWidgets('custom announcement for screen readers', (tester) async {
     final handle = tester.ensureSemantics();
-    const labels = HintTooltipLabels(
-      announceStep: _announceRu,
-    );
+    const labels = HintTooltipLabels(announceStep: _announceRu);
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
-    await tester.pumpWidget(_wrap(
-      DefaultTooltip(
-        step: step,
-        ctx: _ctx(_FakeActions(), 0, 3),
+    await tester.pumpWidget(
+      _wrap(
+        DefaultTooltip(step: step, ctx: _ctx(_FakeActions(), 0, 3)),
+        extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: labels)],
       ),
-      extensions: [HintTheme.minimal(scheme).copyWith(tooltipLabels: labels)],
-    ));
-
-    expect(
-      find.bySemanticsLabel(RegExp(r'Шаг 1 из 3: Title')),
-      findsOneWidget,
     );
+
+    expect(find.bySemanticsLabel(RegExp(r'Шаг 1 из 3: Title')), findsOneWidget);
     handle.dispose();
   });
 }

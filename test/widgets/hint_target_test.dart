@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/registry.dart';
 import 'package:hintful/src/engine/specs.dart';
@@ -11,9 +11,11 @@ void main() {
     testWidgets('mount registers, dispose unregisters', (tester) async {
       final registry = HintTargetRegistry();
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
-      ));
+      await tester.pumpWidget(
+        _app(
+          HintTarget(id: 'stats', registry: registry, child: const Text('c')),
+        ),
+      );
 
       final registration = registry.lookup('stats');
       expect(registration, isNotNull);
@@ -30,139 +32,160 @@ void main() {
     });
 
     testWidgets(
-        'a changed id re-registers: the old one is removed, the new one is '
-        'in place', (tester) async {
+      'a changed id re-registers: the old one is removed, the new one is '
+      'in place',
+      (tester) async {
+        final registry = HintTargetRegistry();
+
+        await tester.pumpWidget(
+          _app(
+            HintTarget(id: 'stats', registry: registry, child: const Text('c')),
+          ),
+        );
+        final first = registry.lookup('stats');
+        expect(first, isNotNull);
+
+        await tester.pumpWidget(
+          _app(
+            HintTarget(
+              id: 'filters',
+              registry: registry,
+              child: const Text('c'),
+            ),
+          ),
+        );
+
+        expect(registry.lookup('stats'), isNull); // the old id is removed
+        final second = registry.lookup('filters');
+        expect(second, isNotNull);
+        // A new target entity = a new link (not a reused one).
+        expect(second!.link, isNot(same(first!.link)));
+      },
+    );
+
+    testWidgets('only a changed child/label — the same registration', (
+      tester,
+    ) async {
       final registry = HintTargetRegistry();
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
-      ));
-      final first = registry.lookup('stats');
-      expect(first, isNotNull);
-
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'filters', registry: registry, child: const Text('c')),
-      ));
-
-      expect(registry.lookup('stats'), isNull); // the old id is removed
-      final second = registry.lookup('filters');
-      expect(second, isNotNull);
-      // A new target entity = a new link (not a reused one).
-      expect(second!.link, isNot(same(first!.link)));
-    });
-
-    testWidgets('only a changed child/label — the same registration',
-        (tester) async {
-      final registry = HintTargetRegistry();
-
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registry, child: const Text('a')),
-      ));
-      final first = registry.lookup('stats');
-
-      await tester.pumpWidget(_app(
-        HintTarget(
-          id: 'stats',
-          registry: registry,
-          semanticsLabel: 'Label',
-          child: const Text('b'),
+      await tester.pumpWidget(
+        _app(
+          HintTarget(id: 'stats', registry: registry, child: const Text('a')),
         ),
-      ));
+      );
+      final first = registry.lookup('stats');
+
+      await tester.pumpWidget(
+        _app(
+          HintTarget(
+            id: 'stats',
+            registry: registry,
+            semanticsLabel: 'Label',
+            child: const Text('b'),
+          ),
+        ),
+      );
 
       expect(registry.lookup('stats'), same(first));
     });
 
     testWidgets(
-        'a changed focusShape/focusPadding re-registers with the same link '
-        '(and no duplicate-id warning)', (tester) async {
-      final registry = HintTargetRegistry();
-      final warnings = <String>[];
-      registry.onWarning = warnings.add;
+      'a changed focusShape/focusPadding re-registers with the same link '
+      '(and no duplicate-id warning)',
+      (tester) async {
+        final registry = HintTargetRegistry();
+        final warnings = <String>[];
+        registry.onWarning = warnings.add;
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registry, child: const Text('c')),
-      ));
-      final first = registry.lookup('stats');
-      expect(first, isNotNull);
-      expect(first!.focusShape, isNull);
+        await tester.pumpWidget(
+          _app(
+            HintTarget(id: 'stats', registry: registry, child: const Text('c')),
+          ),
+        );
+        final first = registry.lookup('stats');
+        expect(first, isNotNull);
+        expect(first!.focusShape, isNull);
 
-      await tester.pumpWidget(_app(
-        HintTarget(
-          id: 'stats',
-          registry: registry,
-          focusShape: FocusShape.circle,
-          focusPadding: 8,
-          child: const Text('c'),
-        ),
-      ));
+        await tester.pumpWidget(
+          _app(
+            HintTarget(
+              id: 'stats',
+              registry: registry,
+              focusShape: FocusShape.circle,
+              focusPadding: 8,
+              child: const Text('c'),
+            ),
+          ),
+        );
 
-      final second = registry.lookup('stats');
-      expect(second, isNotNull);
-      expect(second, isNot(same(first)));
-      expect(second!.focusShape, FocusShape.circle);
-      expect(second.focusPadding, 8);
-      // Same target entity: the leader keeps its link, and a target
-      // updating itself is not a duplicate-id collision.
-      expect(second.link, same(first.link));
-      expect(warnings, isEmpty);
-    });
+        final second = registry.lookup('stats');
+        expect(second, isNotNull);
+        expect(second, isNot(same(first)));
+        expect(second!.focusShape, FocusShape.circle);
+        expect(second.focusPadding, 8);
+        // Same target entity: the leader keeps its link, and a target
+        // updating itself is not a duplicate-id collision.
+        expect(second.link, same(first.link));
+        expect(warnings, isEmpty);
+      },
+    );
 
-    testWidgets(
-        'a changed registry: removed from the old one, registered '
+    testWidgets('a changed registry: removed from the old one, registered '
         'into the new one', (tester) async {
       final registryA = HintTargetRegistry();
       final registryB = HintTargetRegistry();
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registryA, child: const Text('c')),
-      ));
+      await tester.pumpWidget(
+        _app(
+          HintTarget(id: 'stats', registry: registryA, child: const Text('c')),
+        ),
+      );
       expect(registryA.lookup('stats'), isNotNull);
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', registry: registryB, child: const Text('c')),
-      ));
+      await tester.pumpWidget(
+        _app(
+          HintTarget(id: 'stats', registry: registryB, child: const Text('c')),
+        ),
+      );
 
       expect(registryA.lookup('stats'), isNull); // no leak in the old one
       expect(registryB.lookup('stats'), isNotNull);
     });
 
     testWidgets(
-        'recreation with the same id (ListView rebuild): the last one owns '
-        'the id, the dispose of the old one does not remove it',
-        (tester) async {
-      final registry = HintTargetRegistry();
-      final child = const Text('c');
+      'recreation with the same id (ListView rebuild): the last one owns '
+      'the id, the dispose of the old one does not remove it',
+      (tester) async {
+        final registry = HintTargetRegistry();
+        final child = const Text('c');
 
-      Widget app(Key key) => _app(
-            HintTarget(
-              key: key,
-              id: 'stats',
-              registry: registry,
-              child: child,
-            ),
-          );
+        Widget app(Key key) => _app(
+          HintTarget(key: key, id: 'stats', registry: registry, child: child),
+        );
 
-      await tester.pumpWidget(app(const ValueKey('first')));
-      final first = registry.lookup('stats');
-      expect(first, isNotNull);
+        await tester.pumpWidget(app(const ValueKey('first')));
+        final first = registry.lookup('stats');
+        expect(first, isNotNull);
 
-      await tester.pumpWidget(app(const ValueKey('second')));
+        await tester.pumpWidget(app(const ValueKey('second')));
 
-      final second = registry.lookup('stats');
-      expect(second, isNotNull);
-      expect(identical(second, first), isFalse);
-      // The dispose of the old State already ran (it would have unregistered
-      // by identity — it did not): the fresh registration stays the owner.
-      expect(registry.lookup('stats'), same(second));
-    });
+        final second = registry.lookup('stats');
+        expect(second, isNotNull);
+        expect(identical(second, first), isFalse);
+        // The dispose of the old State already ran (it would have unregistered
+        // by identity — it did not): the fresh registration stays the owner.
+        expect(registry.lookup('stats'), same(second));
+      },
+    );
   });
 
   group('rendering', () {
-    testWidgets('the child renders 1:1 through the leader; idle — no overlay',
-        (tester) async {
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', child: const Text('content')),
-      ));
+    testWidgets('the child renders 1:1 through the leader; idle — no overlay', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(HintTarget(id: 'stats', child: const Text('content'))),
+      );
 
       expect(find.text('content'), findsOneWidget);
       expect(find.byType(CompositedTransformTarget), findsOneWidget);
@@ -171,11 +194,12 @@ void main() {
       expect(find.byType(CompositedTransformFollower), findsNothing);
     });
 
-    testWidgets('semanticsLabel: a Semantics wrapper only with a label set',
-        (tester) async {
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'stats', child: const Text('x')),
-      ));
+    testWidgets('semanticsLabel: a Semantics wrapper only with a label set', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(HintTarget(id: 'stats', child: const Text('x'))),
+      );
       expect(
         find.descendant(
           of: find.byType(HintTarget),
@@ -184,13 +208,15 @@ void main() {
         findsNothing,
       );
 
-      await tester.pumpWidget(_app(
-        HintTarget(
-          id: 'stats',
-          semanticsLabel: 'Save button',
-          child: const Text('x'),
+      await tester.pumpWidget(
+        _app(
+          HintTarget(
+            id: 'stats',
+            semanticsLabel: 'Save button',
+            child: const Text('x'),
+          ),
         ),
-      ));
+      );
       expect(
         find.descendant(
           of: find.byType(HintTarget),
@@ -200,13 +226,14 @@ void main() {
       );
     });
 
-    testWidgets('without registry: — the default singleton (zero-config)',
-        (tester) async {
+    testWidgets('without registry: — the default singleton (zero-config)', (
+      tester,
+    ) async {
       final singleton = HintTargetRegistry.defaultInstance;
 
-      await tester.pumpWidget(_app(
-        HintTarget(id: 'zero-config', child: const Text('x')),
-      ));
+      await tester.pumpWidget(
+        _app(HintTarget(id: 'zero-config', child: const Text('x'))),
+      );
       expect(singleton.lookup('zero-config'), isNotNull);
 
       await tester.pumpWidget(_app(const SizedBox()));

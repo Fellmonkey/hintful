@@ -5,10 +5,7 @@ import 'package:hintful/src/engine/diagnostics.dart';
 void main() {
   group('editDistance', () {
     test('exact match — 0', () {
-      expect(
-        editDistance('statsPeriodSelector', 'statsPeriodSelector'),
-        0,
-      );
+      expect(editDistance('statsPeriodSelector', 'statsPeriodSelector'), 0);
     });
 
     test('substitution — 1', () {
@@ -43,8 +40,10 @@ void main() {
 
     test('typo within 2 — a candidate is found', () {
       expect(closestTargetIds('addSetX', known).first, 'addSet');
-      expect(closestTargetIds('statsPeriodSelectr', known).first,
-          'statsPeriodSelector'); // final 'o' lost → distance 1
+      expect(
+        closestTargetIds('statsPeriodSelectr', known).first,
+        'statsPeriodSelector',
+      ); // final 'o' lost → distance 1
     });
 
     test('nothing similar — no candidates', () {
@@ -63,13 +62,15 @@ void main() {
 
   group('formatHintSkipped', () {
     test('a single line, reason as a kebab-case name', () {
-      final message = formatHintSkipped(const HintSkipEvent(
-        tourId: 'statsIntro',
-        stepIndex: 1,
-        targetId: 'statsPeriodSelector',
-        reason: HintSkipReason.overlayUnavailable,
-        detail: 'target not mounted',
-      ));
+      final message = formatHintSkipped(
+        const HintSkipEvent(
+          tourId: 'statsIntro',
+          stepIndex: 1,
+          targetId: 'statsPeriodSelector',
+          reason: HintSkipReason.overlayUnavailable,
+          detail: 'target not mounted',
+        ),
+      );
       expect(
         message,
         '[hintful] statsIntro step 2 not shown: overlay-unavailable'
@@ -89,16 +90,18 @@ void main() {
     test('prints the formatted line through debugPrint', () async {
       final logs = <String>[];
       final original = debugPrint;
-      debugPrint =
-          (String? message, {int? wrapWidth}) => logs.add(message ?? '');
+      debugPrint = (String? message, {int? wrapWidth}) =>
+          logs.add(message ?? '');
       try {
-        debugPrintHintSkip(const HintSkipEvent(
-          tourId: 't',
-          stepIndex: 0,
-          targetId: 'x',
-          reason: HintSkipReason.timeout,
-          detail: 'did not appear',
-        ));
+        debugPrintHintSkip(
+          const HintSkipEvent(
+            tourId: 't',
+            stepIndex: 0,
+            targetId: 'x',
+            reason: HintSkipReason.timeout,
+            detail: 'did not appear',
+          ),
+        );
       } finally {
         debugPrint = original;
       }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
 
@@ -15,8 +15,7 @@ import 'package:hintful/hintful.dart';
 /// `CompositorHintResolver`) is covered through
 /// its source path in the engine tests.
 void main() {
-  test('barrel: the whole public contract is reachable from one import point',
-      () async {
+  test('barrel: the whole public contract is reachable from one import point', () async {
     // Tour data (specs).
     const step = HintStep(
       targetId: 'stats',
@@ -29,20 +28,24 @@ void main() {
 
     // Specs, part two: extra content, the shape/curve enums, JSON round-trip.
     const extra = HintAdditionalTooltip(
-        position: TooltipPosition.left,
-        content: HintStepContent(title: 'Extra'));
+      position: TooltipPosition.left,
+      content: HintStepContent(title: 'Extra'),
+    );
     final richTour = HintTour(
       id: 'rich',
       steps: [
         HintStep(
-            targetId: 'stats',
-            content: HintStepContent(title: 'Stats'),
-            additionalTooltips: [extra]),
+          targetId: 'stats',
+          content: HintStepContent(title: 'Stats'),
+          additionalTooltips: [extra],
+        ),
       ],
     );
     final restored = HintTour.fromJson(richTour.toJson());
-    expect(restored.steps.single.additionalTooltips.single.position,
-        TooltipPosition.left);
+    expect(
+      restored.steps.single.additionalTooltips.single.position,
+      TooltipPosition.left,
+    );
     expect(FocusShape.values, contains(FocusShape.circle));
 
     // Content slot type + tap behaviors (1.0 merge of overlapping knobs).
@@ -116,7 +119,9 @@ void main() {
     expect(HintTarget, same(HintTarget));
     expect(DefaultTooltip, same(DefaultTooltip));
     expect(
-        const SizedBox().withHint('sugar'), isA<HintTarget>()); // HintTargetX
+      const SizedBox().withHint('sugar'),
+      isA<HintTarget>(),
+    ); // HintTargetX
 
     // Versioned hints — the store service + tryShowTour (method contract).
     final store = InMemoryHintStore();

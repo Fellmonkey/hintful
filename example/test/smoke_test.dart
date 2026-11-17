@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,8 +56,9 @@ void main() {
     await tester.pump(); // step tooltip at the right place
   }
 
-  testWidgets('full tour flow: start → 4 steps → overlay removed',
-      (tester) async {
+  testWidgets('full tour flow: start → 4 steps → overlay removed', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     // Idle: no engine text in the tree.
@@ -110,8 +111,9 @@ void main() {
     expect(find.text('Workout list'), findsNothing);
   });
 
-  testWidgets('versioned intro: once per version, re-shows after a bump',
-      (tester) async {
+  testWidgets('versioned intro: once per version, re-shows after a bump', (
+    tester,
+  ) async {
     await pumpApp(tester);
     // The version card lives at the bottom of the demo list.
     await tester.scrollUntilVisible(find.text('Versioned intro'), 500);
@@ -136,13 +138,17 @@ void main() {
     await tester.scrollUntilVisible(find.text('Versioned intro'), 500);
     await tester.pump();
     expect(
-        find.textContaining('already showed in this version'), findsOneWidget);
+      find.textContaining('already showed in this version'),
+      findsOneWidget,
+    );
 
     // Same version: gated — a snackbar explains, no tour starts.
     await tester.tap(find.byTooltip('Show tour'));
     await tester.pump();
-    expect(find.textContaining('bump the version to see it again'),
-        findsOneWidget);
+    expect(
+      find.textContaining('bump the version to see it again'),
+      findsOneWidget,
+    );
     expect(find.text('Next'), findsNothing);
 
     // Version bump → the intro is available again.
@@ -184,8 +190,9 @@ void main() {
     expect(find.text('This is the quick-log button'), findsNothing);
   });
 
-  testWidgets('light/dark: toggling the theme does not break the app',
-      (tester) async {
+  testWidgets('light/dark: toggling the theme does not break the app', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.byTooltip('Toggle theme'));
@@ -197,8 +204,9 @@ void main() {
     expect(find.text('Hintful'), findsOneWidget);
   });
 
-  testWidgets('multi-target tour: several holes at once, then a single one',
-      (tester) async {
+  testWidgets('multi-target tour: several holes at once, then a single one', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     // The targets sit above the demo card: the engine auto-scrolls them in.
@@ -218,26 +226,28 @@ void main() {
   });
 
   testWidgets(
-      'multi-content: extra tooltips around one target, one control set',
-      (tester) async {
-    await pumpApp(tester);
+    'multi-content: extra tooltips around one target, one control set',
+    (tester) async {
+      await pumpApp(tester);
 
-    await startTour(tester, 'Tooltips around one target');
+      await startTour(tester, 'Tooltips around one target');
 
-    expect(find.text('Primary tooltip'), findsOneWidget);
-    expect(find.text('Left slot'), findsOneWidget);
-    expect(find.text('Top slot'), findsOneWidget);
-    // A single-step tour keeps no action row — not even on the primary.
-    expect(find.text('Done'), findsNothing);
-    expect(find.text('Next'), findsNothing);
+      expect(find.text('Primary tooltip'), findsOneWidget);
+      expect(find.text('Left slot'), findsOneWidget);
+      expect(find.text('Top slot'), findsOneWidget);
+      // A single-step tour keeps no action row — not even on the primary.
+      expect(find.text('Done'), findsNothing);
+      expect(find.text('Next'), findsNothing);
 
-    await tester.tapAt(const Offset(30, 100));
-    await tester.pump();
-    expect(find.text('Primary tooltip'), findsNothing);
-  });
+      await tester.tapAt(const Offset(30, 100));
+      await tester.pump();
+      expect(find.text('Primary tooltip'), findsNothing);
+    },
+  );
 
-  testWidgets('tap regions: target vs overlay callbacks, overlay can be off',
-      (tester) async {
+  testWidgets('tap regions: target vs overlay callbacks, overlay can be off', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await startTour(tester, 'Tap target vs scrim');
@@ -272,8 +282,9 @@ void main() {
     expect(find.text('Overlay taps off'), findsNothing);
   });
 
-  testWidgets('offer dialog: accept starts the tour, then gated',
-      (tester) async {
+  testWidgets('offer dialog: accept starts the tour, then gated', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tapDemoButton(tester, 'Want a tour? dialog');
@@ -301,8 +312,9 @@ void main() {
     expect(find.text('Want a tour?'), findsNothing);
   });
 
-  testWidgets('offer dialog: decline with "apply to all pages" is remembered',
-      (tester) async {
+  testWidgets('offer dialog: decline with "apply to all pages" is remembered', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tapDemoButton(tester, 'Want a tour? dialog');
@@ -324,8 +336,9 @@ void main() {
     expect(find.text('Want a tour?'), findsNothing);
   });
 
-  testWidgets('scrim style: pulse option does not break a tour',
-      (tester) async {
+  testWidgets('scrim style: pulse option does not break a tour', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tapDemoButton(tester, 'Pulse');
@@ -341,8 +354,9 @@ void main() {
     expect(find.text('Both filters at once'), findsNothing);
   });
 
-  testWidgets('custom animation: tooltipBuilder entry with its own button',
-      (tester) async {
+  testWidgets('custom animation: tooltipBuilder entry with its own button', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tapDemoButton(tester, 'Custom tooltip');

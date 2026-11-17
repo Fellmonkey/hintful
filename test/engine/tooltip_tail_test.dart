@@ -27,13 +27,15 @@ void main() {
       expect(tailSideFor(tip, hole), TailSide.left);
     });
 
-    test('taller-than-the-hole side tooltip: the parallel axis is the tiebreak',
-        () {
-      // To the right AND extending below the hole: the separated axis (x)
-      // decides — left side, not top/bottom.
-      const tip = Rect.fromLTWH(320, 240, 80, 200);
-      expect(tailSideFor(tip, hole), TailSide.left);
-    });
+    test(
+      'taller-than-the-hole side tooltip: the parallel axis is the tiebreak',
+      () {
+        // To the right AND extending below the hole: the separated axis (x)
+        // decides — left side, not top/bottom.
+        const tip = Rect.fromLTWH(320, 240, 80, 200);
+        expect(tailSideFor(tip, hole), TailSide.left);
+      },
+    );
 
     test('sub-pixel float noise does not lose the side', () {
       // The compositor transform carries float noise; a 0.25 px overlap must
@@ -54,24 +56,26 @@ void main() {
     const length = 10.0;
     const width = 14.0;
 
-    test('bottom: base on the bottom edge, apex below, centered on the hole',
-        () {
-      final path = tailPath(
-        side: TailSide.bottom,
-        tooltipSize: const Size(200, 100),
-        hole: hole,
-        tooltip: tooltip,
-        length: length,
-        width: width,
-      );
-      final bounds = path.getBounds();
-      // tooltip-local hole center x = 200 - 100 = 100 → the isosceles
-      // triangle's bounding box is centered on it.
-      expect(bounds.center.dx, closeTo(100, 0.01));
-      expect(bounds.top, closeTo(100 - 0.5, 0.01)); // base on the bottom edge
-      expect(bounds.bottom, closeTo(100 + length, 0.01)); // apex beyond it
-      expect(bounds.width, closeTo(width, 0.01));
-    });
+    test(
+      'bottom: base on the bottom edge, apex below, centered on the hole',
+      () {
+        final path = tailPath(
+          side: TailSide.bottom,
+          tooltipSize: const Size(200, 100),
+          hole: hole,
+          tooltip: tooltip,
+          length: length,
+          width: width,
+        );
+        final bounds = path.getBounds();
+        // tooltip-local hole center x = 200 - 100 = 100 → the isosceles
+        // triangle's bounding box is centered on it.
+        expect(bounds.center.dx, closeTo(100, 0.01));
+        expect(bounds.top, closeTo(100 - 0.5, 0.01)); // base on the bottom edge
+        expect(bounds.bottom, closeTo(100 + length, 0.01)); // apex beyond it
+        expect(bounds.width, closeTo(width, 0.01));
+      },
+    );
 
     test('top: apex above the tooltip', () {
       final path = tailPath(
@@ -157,34 +161,36 @@ void main() {
   });
 
   group('TooltipTailPainter', () {
-    test('shouldRepaint: closure/color changes repaint, same values do not',
-        () {
-      final key = GlobalKey();
-      Rect hole() => const Rect.fromLTWH(0, 0, 10, 10);
-      Rect movedHole() => const Rect.fromLTWH(5, 0, 10, 10);
-      final a = TooltipTailPainter(
-        positionKey: key,
-        holeOf: hole,
-        color: const Color(0xFF000000),
-      );
-      final same = TooltipTailPainter(
-        positionKey: key,
-        holeOf: hole,
-        color: const Color(0xFF000000),
-      );
-      final moved = TooltipTailPainter(
-        positionKey: key,
-        holeOf: movedHole,
-        color: const Color(0xFF000000),
-      );
-      final recolored = TooltipTailPainter(
-        positionKey: key,
-        holeOf: hole,
-        color: const Color(0xFF111111),
-      );
-      expect(a.shouldRepaint(same), isFalse);
-      expect(a.shouldRepaint(moved), isTrue);
-      expect(a.shouldRepaint(recolored), isTrue);
-    });
+    test(
+      'shouldRepaint: closure/color changes repaint, same values do not',
+      () {
+        final key = GlobalKey();
+        Rect hole() => const Rect.fromLTWH(0, 0, 10, 10);
+        Rect movedHole() => const Rect.fromLTWH(5, 0, 10, 10);
+        final a = TooltipTailPainter(
+          positionKey: key,
+          holeOf: hole,
+          color: const Color(0xFF000000),
+        );
+        final same = TooltipTailPainter(
+          positionKey: key,
+          holeOf: hole,
+          color: const Color(0xFF000000),
+        );
+        final moved = TooltipTailPainter(
+          positionKey: key,
+          holeOf: movedHole,
+          color: const Color(0xFF000000),
+        );
+        final recolored = TooltipTailPainter(
+          positionKey: key,
+          holeOf: hole,
+          color: const Color(0xFF111111),
+        );
+        expect(a.shouldRepaint(same), isFalse);
+        expect(a.shouldRepaint(moved), isTrue);
+        expect(a.shouldRepaint(recolored), isTrue);
+      },
+    );
   });
 }

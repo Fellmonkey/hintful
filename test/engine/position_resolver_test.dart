@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/position_resolver.dart';
@@ -28,28 +28,31 @@ Widget _harness({required LayerLink link, required Widget followerChild}) {
 Future<CompositorHintResolver> _resolverInside(WidgetTester tester) async {
   late CompositorHintResolver resolver;
   final link = LayerLink();
-  await tester.pumpWidget(_harness(
-    link: link,
-    followerChild: CompositedTransformFollower(
+  await tester.pumpWidget(
+    _harness(
       link: link,
-      showWhenUnlinked: false,
-      child: Builder(
-        builder: (context) {
-          final follower =
-              context.findAncestorRenderObjectOfType<RenderFollowerLayer>()!;
-          resolver = CompositorHintResolver(follower);
-          return const SizedBox.expand();
-        },
+      followerChild: CompositedTransformFollower(
+        link: link,
+        showWhenUnlinked: false,
+        child: Builder(
+          builder: (context) {
+            final follower = context
+                .findAncestorRenderObjectOfType<RenderFollowerLayer>()!;
+            resolver = CompositorHintResolver(follower);
+            return const SizedBox.expand();
+          },
+        ),
       ),
     ),
-  ));
+  );
   return resolver;
 }
 
 void main() {
   group('CompositorHintResolver', () {
-    testWidgets('translation = target global position, size = its size',
-        (tester) async {
+    testWidgets('translation = target global position, size = its size', (
+      tester,
+    ) async {
       final resolver = await _resolverInside(tester);
       await tester.pump(); // the scene is built — _lastTransform is filled
 
@@ -63,46 +66,51 @@ void main() {
       expect(p.translation.dy, closeTo(actual.dy, 0.1));
     });
 
-    testWidgets('uniform ancestor scale scales size, keeps translation',
-        (tester) async {
+    testWidgets('uniform ancestor scale scales size, keeps translation', (
+      tester,
+    ) async {
       final link = LayerLink();
       late CompositorHintResolver resolver;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Stack(
-            children: [
-              Positioned(
-                left: 40,
-                top: 60,
-                // topLeft alignment: the scaled origin stays at (40, 60), so
-                // the expected translation is exact.
-                child: Transform.scale(
-                  scale: 2,
-                  alignment: Alignment.topLeft,
-                  child: CompositedTransformTarget(
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  left: 40,
+                  top: 60,
+                  // topLeft alignment: the scaled origin stays at (40, 60), so
+                  // the expected translation is exact.
+                  child: Transform.scale(
+                    scale: 2,
+                    alignment: Alignment.topLeft,
+                    child: CompositedTransformTarget(
+                      link: link,
+                      child: const SizedBox(width: 100, height: 50),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: CompositedTransformFollower(
                     link: link,
-                    child: const SizedBox(width: 100, height: 50),
+                    showWhenUnlinked: false,
+                    child: Builder(
+                      builder: (context) {
+                        final follower = context
+                            .findAncestorRenderObjectOfType<
+                              RenderFollowerLayer
+                            >()!;
+                        resolver = CompositorHintResolver(follower);
+                        return const SizedBox.expand();
+                      },
+                    ),
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: CompositedTransformFollower(
-                  link: link,
-                  showWhenUnlinked: false,
-                  child: Builder(
-                    builder: (context) {
-                      final follower = context.findAncestorRenderObjectOfType<
-                          RenderFollowerLayer>()!;
-                      resolver = CompositorHintResolver(follower);
-                      return const SizedBox.expand();
-                    },
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       final p = resolver.resolve()!;
@@ -110,90 +118,100 @@ void main() {
       expect(p.size, const Size(200, 100)); // leaderSize (100x50) × 2
     });
 
-    testWidgets('rotation trips the debug assert (no axis-aligned rect)',
-        (tester) async {
+    testWidgets('rotation trips the debug assert (no axis-aligned rect)', (
+      tester,
+    ) async {
       final link = LayerLink();
       late CompositorHintResolver resolver;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Stack(
-            children: [
-              Positioned(
-                left: 40,
-                top: 60,
-                child: Transform.rotate(
-                  angle: 0.3,
-                  child: CompositedTransformTarget(
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  left: 40,
+                  top: 60,
+                  child: Transform.rotate(
+                    angle: 0.3,
+                    child: CompositedTransformTarget(
+                      link: link,
+                      child: const SizedBox(width: 100, height: 50),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: CompositedTransformFollower(
                     link: link,
-                    child: const SizedBox(width: 100, height: 50),
+                    showWhenUnlinked: false,
+                    child: Builder(
+                      builder: (context) {
+                        final follower = context
+                            .findAncestorRenderObjectOfType<
+                              RenderFollowerLayer
+                            >()!;
+                        resolver = CompositorHintResolver(follower);
+                        return const SizedBox.expand();
+                      },
+                    ),
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: CompositedTransformFollower(
-                  link: link,
-                  showWhenUnlinked: false,
-                  child: Builder(
-                    builder: (context) {
-                      final follower = context.findAncestorRenderObjectOfType<
-                          RenderFollowerLayer>()!;
-                      resolver = CompositorHintResolver(follower);
-                      return const SizedBox.expand();
-                    },
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       expect(() => resolver.resolve(), throwsAssertionError);
     });
 
-    testWidgets('scroll: translation follows the target from the compositor',
-        (tester) async {
+    testWidgets('scroll: translation follows the target from the compositor', (
+      tester,
+    ) async {
       final link = LayerLink();
       late CompositorHintResolver resolver;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Stack(
-            children: [
-              Positioned.fill(
-                child: ListView(
-                  children: [
-                    const SizedBox(height: 400),
-                    CompositedTransformTarget(
-                      link: link,
-                      child: const SizedBox(
-                        width: 200,
-                        height: 80,
-                        child: ColoredBox(color: Colors.blue),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: ListView(
+                    children: [
+                      const SizedBox(height: 400),
+                      CompositedTransformTarget(
+                        link: link,
+                        child: const SizedBox(
+                          width: 200,
+                          height: 80,
+                          child: ColoredBox(color: Colors.blue),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 800),
-                  ],
-                ),
-              ),
-              Positioned.fill(
-                child: CompositedTransformFollower(
-                  link: link,
-                  showWhenUnlinked: false,
-                  child: Builder(
-                    builder: (context) {
-                      final follower = context.findAncestorRenderObjectOfType<
-                          RenderFollowerLayer>()!;
-                      resolver = CompositorHintResolver(follower);
-                      return const SizedBox.expand();
-                    },
+                      const SizedBox(height: 800),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                Positioned.fill(
+                  child: CompositedTransformFollower(
+                    link: link,
+                    showWhenUnlinked: false,
+                    child: Builder(
+                      builder: (context) {
+                        final follower = context
+                            .findAncestorRenderObjectOfType<
+                              RenderFollowerLayer
+                            >()!;
+                        resolver = CompositorHintResolver(follower);
+                        return const SizedBox.expand();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       final before = resolver.resolve()!;
@@ -207,10 +225,7 @@ void main() {
       await tester.pump();
 
       final after = resolver.resolve()!;
-      expect(
-        after.translation.dy,
-        closeTo(before.translation.dy - 60, 0.2),
-      );
+      expect(after.translation.dy, closeTo(before.translation.dy - 60, 0.2));
       expect(after.translation.dx, closeTo(before.translation.dx, 0.2));
       expect(after.size, before.size);
     });

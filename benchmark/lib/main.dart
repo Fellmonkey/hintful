@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:hintful/hintful.dart';
 
@@ -12,9 +12,7 @@ import 'package:hintful/hintful.dart';
 /// Native-size target too (size.native): the analyze-size build uses the
 /// default target (this file) and reads the `package:hintful` subtree.
 void main() {
-  runApp(
-    _EngineApp(controller: HintController()),
-  );
+  runApp(_EngineApp(controller: HintController()));
 }
 
 class _EngineApp extends StatefulWidget {
@@ -69,8 +67,9 @@ class _EngineAppState extends State<_EngineApp> {
               HintTarget(
                 id: 'entry-$i',
                 child: ListTile(
-                  leading:
-                      const CircleAvatar(child: Icon(Icons.fitness_center)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.fitness_center),
+                  ),
                   title: Text('Entry $i'),
                 ),
               ),
@@ -85,16 +84,16 @@ class _EngineAppState extends State<_EngineApp> {
   /// description (hintful's default tooltip shape), so the bundle pulls the
   /// same feature set the baseline counterpart would render.
   HintTour _tour() => HintTour(
-        id: 'bench',
-        steps: [
-          HintStep(
-            targetId: 'fab',
-            content: HintStepContent(title: 'Step one', description: 'FAB'),
-          ),
-          HintStep(
-            targetId: 'entry-0',
-            content: HintStepContent(title: 'Step two', description: 'Row'),
-          ),
-        ],
-      );
+    id: 'bench',
+    steps: [
+      HintStep(
+        targetId: 'fab',
+        content: HintStepContent(title: 'Step one', description: 'FAB'),
+      ),
+      HintStep(
+        targetId: 'entry-0',
+        content: HintStepContent(title: 'Step two', description: 'Row'),
+      ),
+    ],
+  );
 }

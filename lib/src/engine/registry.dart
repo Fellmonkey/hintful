@@ -113,7 +113,8 @@ extension HintTargetRegistryInternal on HintTargetRegistry {
   void register(HintTargetRegistration registration) {
     final existing = _byId[registration.id];
     if (existing != null && !identical(existing, registration)) {
-      final warning = "hintful: duplicate target id '${registration.id}'"
+      final warning =
+          "hintful: duplicate target id '${registration.id}'"
           ' — newest registration wins';
       if (kDebugMode) debugPrint(warning);
       onWarning?.call(warning);

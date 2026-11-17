@@ -136,10 +136,16 @@ void main() {
           lastShown: '1.0.0',
           minVersion: min,
         );
-        expect(cb.shouldShow('intro', minVersion: min), expected,
-            reason: 'CallbackHintStore, min=$min');
-        expect(mem.shouldShow('intro', minVersion: min), expected,
-            reason: 'InMemoryHintStore, min=$min');
+        expect(
+          cb.shouldShow('intro', minVersion: min),
+          expected,
+          reason: 'CallbackHintStore, min=$min',
+        );
+        expect(
+          mem.shouldShow('intro', minVersion: min),
+          expected,
+          reason: 'InMemoryHintStore, min=$min',
+        );
       }
     });
   });

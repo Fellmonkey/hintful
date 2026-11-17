@@ -266,8 +266,9 @@ implementation of the rules above. For persistent storage the short path is
 your own key-value layer — and the `hintful_prefs` companion package ships a
 ready-made `SharedPreferencesHintStore` (namespaced keys, a `clear()` dev
 tool, a public `compareHintVersions`). The app owns the storage; the core package
-stays dependency-free. A full class (`implements HintStore`) is only needed
-when you want richer behavior — the two-member contract is frozen for 1.x.
+adds no storage dependency (in 2.x it depends only on Flutter and the official
+`material_ui`). A full class (`implements HintStore`) is only needed
+when you want richer behavior — the two-member contract is frozen across 1.x/2.x.
 
 Whatever the storage, do not restate the gate: `shouldShow` should return
 `HintStore.shouldShowVersion(lastShown: <your stored value>, minVersion:

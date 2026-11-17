@@ -1,7 +1,7 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show internal;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../labels.dart';
 import '../specs.dart' show kHintHoleRadius;
@@ -132,22 +132,21 @@ class HintTheme extends ThemeExtension<HintTheme> {
     bool? showPulse,
     HintTooltipLabels? tooltipLabels,
     HintTourOfferLabels? tourOfferLabels,
-  }) =>
-      _raw(
-        tooltipBackground: tooltipBackground ?? this.tooltipBackground,
-        tooltipForeground: tooltipForeground ?? this.tooltipForeground,
-        scrimColor: scrimColor ?? this.scrimColor,
-        tooltipRadius: tooltipRadius ?? this.tooltipRadius,
-        tooltipPadding: tooltipPadding ?? this.tooltipPadding,
-        holeRadius: holeRadius ?? this.holeRadius,
-        tooltipTitleStyle: tooltipTitleStyle ?? _keep,
-        tooltipDescriptionStyle: tooltipDescriptionStyle ?? _keep,
-        showTail: showTail ?? this.showTail,
-        imageFilter: imageFilter ?? _keep,
-        showPulse: showPulse ?? this.showPulse,
-        tooltipLabels: tooltipLabels ?? this.tooltipLabels,
-        tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,
-      );
+  }) => _raw(
+    tooltipBackground: tooltipBackground ?? this.tooltipBackground,
+    tooltipForeground: tooltipForeground ?? this.tooltipForeground,
+    scrimColor: scrimColor ?? this.scrimColor,
+    tooltipRadius: tooltipRadius ?? this.tooltipRadius,
+    tooltipPadding: tooltipPadding ?? this.tooltipPadding,
+    holeRadius: holeRadius ?? this.holeRadius,
+    tooltipTitleStyle: tooltipTitleStyle ?? _keep,
+    tooltipDescriptionStyle: tooltipDescriptionStyle ?? _keep,
+    showTail: showTail ?? this.showTail,
+    imageFilter: imageFilter ?? _keep,
+    showPulse: showPulse ?? this.showPulse,
+    tooltipLabels: tooltipLabels ?? this.tooltipLabels,
+    tourOfferLabels: tourOfferLabels ?? this.tourOfferLabels,
+  );
 
   /// The same theme without the background blur: the plain dim scrim comes
   /// back. [copyWith] cannot say it (a `null` argument keeps, like everywhere
@@ -180,23 +179,24 @@ class HintTheme extends ThemeExtension<HintTheme> {
     Object? showPulse = _keep,
     Object? tooltipLabels = _keep,
     Object? tourOfferLabels = _keep,
-  }) =>
-      HintTheme(
-        tooltipBackground: _or(tooltipBackground, this.tooltipBackground),
-        tooltipForeground: _or(tooltipForeground, this.tooltipForeground),
-        scrimColor: _or(scrimColor, this.scrimColor),
-        tooltipRadius: _or(tooltipRadius, this.tooltipRadius),
-        tooltipPadding: _or(tooltipPadding, this.tooltipPadding),
-        holeRadius: _or(holeRadius, this.holeRadius),
-        tooltipTitleStyle: _or(tooltipTitleStyle, this.tooltipTitleStyle),
-        tooltipDescriptionStyle:
-            _or(tooltipDescriptionStyle, this.tooltipDescriptionStyle),
-        showTail: _or(showTail, this.showTail),
-        imageFilter: _or(imageFilter, this.imageFilter),
-        showPulse: _or(showPulse, this.showPulse),
-        tooltipLabels: _or(tooltipLabels, this.tooltipLabels),
-        tourOfferLabels: _or(tourOfferLabels, this.tourOfferLabels),
-      );
+  }) => HintTheme(
+    tooltipBackground: _or(tooltipBackground, this.tooltipBackground),
+    tooltipForeground: _or(tooltipForeground, this.tooltipForeground),
+    scrimColor: _or(scrimColor, this.scrimColor),
+    tooltipRadius: _or(tooltipRadius, this.tooltipRadius),
+    tooltipPadding: _or(tooltipPadding, this.tooltipPadding),
+    holeRadius: _or(holeRadius, this.holeRadius),
+    tooltipTitleStyle: _or(tooltipTitleStyle, this.tooltipTitleStyle),
+    tooltipDescriptionStyle: _or(
+      tooltipDescriptionStyle,
+      this.tooltipDescriptionStyle,
+    ),
+    showTail: _or(showTail, this.showTail),
+    imageFilter: _or(imageFilter, this.imageFilter),
+    showPulse: _or(showPulse, this.showPulse),
+    tooltipLabels: _or(tooltipLabels, this.tooltipLabels),
+    tourOfferLabels: _or(tourOfferLabels, this.tourOfferLabels),
+  );
 
   @override
   HintTheme lerp(HintTheme? other, double t) {
@@ -204,16 +204,25 @@ class HintTheme extends ThemeExtension<HintTheme> {
     // return this rather than a "black screen".
     if (other == null) return this;
     return HintTheme(
-      tooltipBackground:
-          Color.lerp(tooltipBackground, other.tooltipBackground, t)!,
-      tooltipForeground:
-          Color.lerp(tooltipForeground, other.tooltipForeground, t)!,
+      tooltipBackground: Color.lerp(
+        tooltipBackground,
+        other.tooltipBackground,
+        t,
+      )!,
+      tooltipForeground: Color.lerp(
+        tooltipForeground,
+        other.tooltipForeground,
+        t,
+      )!,
       scrimColor: Color.lerp(scrimColor, other.scrimColor, t)!,
       tooltipRadius: BorderRadius.lerp(tooltipRadius, other.tooltipRadius, t)!,
       tooltipPadding: EdgeInsets.lerp(tooltipPadding, other.tooltipPadding, t)!,
       holeRadius: holeRadius + (other.holeRadius - holeRadius) * t,
-      tooltipTitleStyle:
-          TextStyle.lerp(tooltipTitleStyle, other.tooltipTitleStyle, t),
+      tooltipTitleStyle: TextStyle.lerp(
+        tooltipTitleStyle,
+        other.tooltipTitleStyle,
+        t,
+      ),
       tooltipDescriptionStyle: TextStyle.lerp(
         tooltipDescriptionStyle,
         other.tooltipDescriptionStyle,
@@ -248,20 +257,20 @@ class HintTheme extends ThemeExtension<HintTheme> {
 
   @override
   int get hashCode => Object.hash(
-        tooltipBackground,
-        tooltipForeground,
-        scrimColor,
-        tooltipRadius,
-        tooltipPadding,
-        holeRadius,
-        tooltipTitleStyle,
-        tooltipDescriptionStyle,
-        showTail,
-        imageFilter,
-        showPulse,
-        tooltipLabels,
-        tourOfferLabels,
-      );
+    tooltipBackground,
+    tooltipForeground,
+    scrimColor,
+    tooltipRadius,
+    tooltipPadding,
+    holeRadius,
+    tooltipTitleStyle,
+    tooltipDescriptionStyle,
+    showTail,
+    imageFilter,
+    showPulse,
+    tooltipLabels,
+    tourOfferLabels,
+  );
 }
 
 /// Access to the hint theme from [ThemeData]: `Theme.of(context).hintTheme`.

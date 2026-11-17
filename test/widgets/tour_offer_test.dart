@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/controller.dart';
 import 'package:hintful/src/engine/labels.dart';
@@ -8,28 +8,28 @@ import 'package:hintful/src/engine/theme/hint_theme.dart';
 import 'package:hintful/src/widgets/tour_offer.dart';
 
 HintTour _tour(String id, {String? minShowVersion}) => HintTour(
-      id: id,
-      steps: [
-        HintStep(
-          targetId: 'x',
-          content: HintStepContent(title: 'X'),
-        ),
-      ],
-      minShowVersion: minShowVersion,
-    );
+  id: id,
+  steps: [
+    HintStep(
+      targetId: 'x',
+      content: HintStepContent(title: 'X'),
+    ),
+  ],
+  minShowVersion: minShowVersion,
+);
 
 /// A one-step tour. The headless controller has no registry targets, so the
 /// machine waits for 'x' — the offer/store flow under test does not depend on
 /// a rendered step.
 HintTour _oneStepTour(String id) => HintTour(
-      id: id,
-      steps: [
-        HintStep(
-          targetId: 'x',
-          content: HintStepContent(title: 'X'),
-        ),
-      ],
-    );
+  id: id,
+  steps: [
+    HintStep(
+      targetId: 'x',
+      content: HintStepContent(title: 'X'),
+    ),
+  ],
+);
 
 /// Headless controller wired to [store] — the offer always reads the
 /// controller's resolved store (no per-call store).
@@ -38,9 +38,7 @@ HintController _controllerWith(HintStore store) =>
 
 /// A MaterialApp + a context under it (the dialog needs a Navigator).
 Future<BuildContext> _pumpApp(WidgetTester tester) async {
-  await tester.pumpWidget(
-    const MaterialApp(home: Scaffold(body: SizedBox())),
-  );
+  await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SizedBox())));
   return tester.element(find.byType(Scaffold));
 }
 
@@ -142,15 +140,17 @@ void main() {
     await tester.pump();
 
     expect(await result, HintTourOfferResult.shown);
-    expect(controller.state.value.isIdle, isFalse,
-        reason: 'the tour started (headless machine)');
+    expect(
+      controller.state.value.isIdle,
+      isFalse,
+      reason: 'the tour started (headless machine)',
+    );
     // The started tour armed a wait-for-target timer — dispose in the body
     // (a tearDown would run after the pending-timer check).
     controller.dispose();
   });
 
-  testWidgets(
-      'the dialog is skipped when the tour already ran for the '
+  testWidgets('the dialog is skipped when the tour already ran for the '
       'version', (tester) async {
     final store = InMemoryHintStore();
     final controller = _controllerWith(store);
@@ -172,8 +172,9 @@ void main() {
     expect(controller.state.value.isIdle, isTrue);
   });
 
-  testWidgets('decline: remembered per page, other pages still offer',
-      (tester) async {
+  testWidgets('decline: remembered per page, other pages still offer', (
+    tester,
+  ) async {
     final store = InMemoryHintStore();
     final controller = _controllerWith(store);
     addTearDown(controller.dispose);
@@ -193,10 +194,16 @@ void main() {
     await tester.pump();
 
     expect(await result, HintTourOfferResult.declined);
-    expect(store.shouldShow('offer:t@Home'), isFalse,
-        reason: 'the per-page decline is recorded');
-    expect(store.shouldShow('offer:t'), isTrue,
-        reason: 'no global decline without the checkbox');
+    expect(
+      store.shouldShow('offer:t@Home'),
+      isFalse,
+      reason: 'the per-page decline is recorded',
+    );
+    expect(
+      store.shouldShow('offer:t'),
+      isTrue,
+      reason: 'no global decline without the checkbox',
+    );
 
     // The same page no longer offers — previouslyDeclined:
     result = showHintTourOffer(
@@ -220,8 +227,9 @@ void main() {
     expect(find.text('Want a tour?'), findsOneWidget);
   });
 
-  testWidgets('decline with "apply to all pages": remembered globally',
-      (tester) async {
+  testWidgets('decline with "apply to all pages": remembered globally', (
+    tester,
+  ) async {
     final store = InMemoryHintStore();
     final controller = _controllerWith(store);
     addTearDown(controller.dispose);
@@ -242,8 +250,11 @@ void main() {
 
     expect(await result, HintTourOfferResult.declined);
     expect(store.shouldShow('offer:t@Home'), isFalse);
-    expect(store.shouldShow('offer:t'), isFalse,
-        reason: 'the checkbox records a global decline');
+    expect(
+      store.shouldShow('offer:t'),
+      isFalse,
+      reason: 'the checkbox records a global decline',
+    );
 
     // Any other page is suppressed too.
     final result2 = showHintTourOffer(
@@ -257,8 +268,9 @@ void main() {
     expect(await result2, HintTourOfferResult.previouslyDeclined);
   });
 
-  testWidgets('a decline does not suppress the tour from other entry points',
-      (tester) async {
+  testWidgets('a decline does not suppress the tour from other entry points', (
+    tester,
+  ) async {
     final store = InMemoryHintStore();
     final controller = _controllerWith(store);
     addTearDown(controller.dispose);
@@ -281,8 +293,9 @@ void main() {
     expect(store.shouldShow('t'), isTrue);
   });
 
-  testWidgets('pageId omitted — decline key defaults to tour.id',
-      (tester) async {
+  testWidgets('pageId omitted — decline key defaults to tour.id', (
+    tester,
+  ) async {
     final store = InMemoryHintStore();
     final controller = _controllerWith(store);
     addTearDown(controller.dispose);
@@ -301,8 +314,11 @@ void main() {
     await tester.tap(find.text('Later'));
     await tester.pump();
     expect(await result, HintTourOfferResult.declined);
-    expect(store.shouldShow('offer:t@t'), isFalse,
-        reason: 'per-page key uses tour.id as the default page');
+    expect(
+      store.shouldShow('offer:t@t'),
+      isFalse,
+      reason: 'per-page key uses tour.id as the default page',
+    );
     expect(store.shouldShow('offer:t'), isTrue);
 
     // Same default page no longer offers.
@@ -339,8 +355,11 @@ void main() {
 
       controller.finish(); // the one step's target never mounts → finish
       expect(controller.state.value.isIdle, isTrue);
-      expect(store.shouldShow('t'), isFalse,
-          reason: 'finish marks the tour shown');
+      expect(
+        store.shouldShow('t'),
+        isFalse,
+        reason: 'finish marks the tour shown',
+      );
     });
 
     testWidgets('onFinish: accept + skip → not marked', (tester) async {
@@ -363,12 +382,16 @@ void main() {
       expect(await result, HintTourOfferResult.shown);
       controller.skip();
       expect(controller.state.value.isIdle, isTrue);
-      expect(store.shouldShow('t'), isTrue,
-          reason: 'skip must not record — the tour may show again');
+      expect(
+        store.shouldShow('t'),
+        isTrue,
+        reason: 'skip must not record — the tour may show again',
+      );
     });
 
-    testWidgets('manual: finish → not marked (app owns the shown-state)',
-        (tester) async {
+    testWidgets('manual: finish → not marked (app owns the shown-state)', (
+      tester,
+    ) async {
       final store = InMemoryHintStore();
       final controller = _controllerWith(store);
       addTearDown(controller.dispose);
@@ -388,8 +411,11 @@ void main() {
       expect(await result, HintTourOfferResult.shown);
       controller.finish();
       expect(controller.state.value.isIdle, isTrue);
-      expect(store.shouldShow('t'), isTrue,
-          reason: 'manual: the app records the shown-state itself');
+      expect(
+        store.shouldShow('t'),
+        isTrue,
+        reason: 'manual: the app records the shown-state itself',
+      );
     });
 
     testWidgets('onAnyExit: accept + skip → marked shown', (tester) async {
@@ -412,12 +438,16 @@ void main() {
       expect(await result, HintTourOfferResult.shown);
       controller.skip();
       expect(controller.state.value.isIdle, isTrue);
-      expect(store.shouldShow('t'), isFalse,
-          reason: 'onAnyExit marks even on skip');
+      expect(
+        store.shouldShow('t'),
+        isFalse,
+        reason: 'onAnyExit marks even on skip',
+      );
     });
 
-    testWidgets('busy controller → the offer accept asserts (debug contract)',
-        (tester) async {
+    testWidgets('busy controller → the offer accept asserts (debug contract)', (
+      tester,
+    ) async {
       final store = InMemoryHintStore();
       final controller = _controllerWith(store);
       addTearDown(controller.dispose);
@@ -445,8 +475,11 @@ void main() {
       // The waiting tour holds a timeout timer — release before the check.
       controller.finish();
 
-      expect(store.shouldShow('t'), isTrue,
-          reason: 'the rejected accept must not mark anything');
+      expect(
+        store.shouldShow('t'),
+        isTrue,
+        reason: 'the rejected accept must not mark anything',
+      );
     });
   });
 }

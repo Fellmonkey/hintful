@@ -36,7 +36,7 @@ typedef UnknownHintTarget = ({
   HintStep step,
   int index,
   String typoId,
-  List<String> candidates
+  List<String> candidates,
 });
 
 /// Pure function — tested directly, applied by `showTour` on every tour start.
@@ -55,7 +55,9 @@ typedef UnknownHintTarget = ({
 ///   naming, not typos; otherwise every following step in a sequence would
 ///   look like a typo of the previous one.
 ({List<HintStep> deferred, List<UnknownHintTarget> typos}) classifyStepTargets(
-    HintTour tour, Set<String> knownIds) {
+  HintTour tour,
+  Set<String> knownIds,
+) {
   final deferred = <HintStep>[];
   final typos = <UnknownHintTarget>[];
   for (var i = 0; i < tour.steps.length; i++) {
@@ -121,12 +123,12 @@ class HintController implements HintActions {
     HintDiagnosticsHandler? diagnostics,
     String? scopePrefix,
   }) : this._(
-          registry: registry,
-          diagnostics: diagnostics,
-          scopePrefix: scopePrefix,
-          store: null,
-          overlayHostBuilder: defaultOverlayHost,
-        );
+         registry: registry,
+         diagnostics: diagnostics,
+         scopePrefix: scopePrefix,
+         store: null,
+         overlayHostBuilder: defaultOverlayHost,
+       );
 
   /// Test seam — not part of the public contract. Runs headless: the whole
   /// machine, timers and diagnostics with no render mechanics. [store]
@@ -139,12 +141,12 @@ class HintController implements HintActions {
     String? scopePrefix,
     HintStore? store,
   }) : this._(
-          registry: registry,
-          diagnostics: diagnostics,
-          scopePrefix: scopePrefix,
-          store: store,
-          overlayHostBuilder: null,
-        );
+         registry: registry,
+         diagnostics: diagnostics,
+         scopePrefix: scopePrefix,
+         store: store,
+         overlayHostBuilder: null,
+       );
 
   /// The single initializer behind [HintController] and [HintController.test]:
   /// resolves the registry default, composes
@@ -155,10 +157,13 @@ class HintController implements HintActions {
     this.scopePrefix,
     HintStore? store,
     required HintOverlayHost Function(HintController)? overlayHostBuilder,
-  })  : _registry = registry ?? HintTargetRegistry.defaultInstance,
-        _diagnostics = _composeDiagnostics(diagnostics),
-        _storeOverride = store,
-        _overlayHostBuilder = overlayHostBuilder {
+  }) : _registry = registry ?? HintTargetRegistry.defaultInstance,
+       _diagnostics = _composeDiagnostics(diagnostics),
+       _storeOverride = store,
+       // The parameter name is part of this private constructor's call
+       // sites; an initializing formal would rename it to a private name.
+       // ignore: prefer_initializing_formals
+       _overlayHostBuilder = overlayHostBuilder {
     _init();
   }
 
@@ -256,8 +261,9 @@ class HintController implements HintActions {
   final String? scopePrefix;
 
   final HintMachine _machine = HintMachine();
-  final ValueNotifier<HintState> _stateNotifier =
-      ValueNotifier<HintState>(const HintIdle());
+  final ValueNotifier<HintState> _stateNotifier = ValueNotifier<HintState>(
+    const HintIdle(),
+  );
 
   Timer? _timer;
   Set<String> _lastKnownIds = const {};
@@ -272,12 +278,8 @@ class HintController implements HintActions {
   /// Armed by [tryShowTour]: when and how to mark this tour's shown-state.
   /// Cleared when the pending tour exits (finish or abort — the policy
   /// decides whether that exit writes).
-  ({
-    String tourId,
-    HintStore store,
-    String version,
-    HintMarkPolicy mark,
-  })? _pendingOnce;
+  ({String tourId, HintStore store, String version, HintMarkPolicy mark})?
+  _pendingOnce;
 
   /// Serialized lifecycle-hook runner: one hook at a time, FIFO. A hook may
   /// call `next()`/`finish()` — the nested transition enqueues its own hooks
@@ -340,13 +342,10 @@ class HintController implements HintActions {
     // clobbers the running tour's registry diff.
     if (!isIdle) return false;
 
-    final classification = classifyStepTargets(
-      tour,
-      {
-        for (final id in _registry.ids)
-          if (inScope(id)) id
-      },
-    );
+    final classification = classifyStepTargets(tour, {
+      for (final id in _registry.ids)
+        if (inScope(id)) id,
+    });
     if (classification.typos.isNotEmpty) {
       final message = _describeTypos(tour, classification.typos);
       assert(false, message); // debug: loud failure with candidates
@@ -365,7 +364,7 @@ class HintController implements HintActions {
     }
     _lastKnownIds = {
       for (final id in _registry.ids)
-        if (inScope(id)) id
+        if (inScope(id)) id,
     };
     return true;
   }
@@ -403,10 +402,7 @@ class HintController implements HintActions {
   /// works, but state lives only for this run). Prefer this over hand-rolled
   /// `shouldShow` + listener glue when the "shown" definition is *finished*
   /// (see best practices §6).
-  Future<bool> tryShowTour(
-    HintTour tour, {
-    HintMarkPolicy? mark,
-  }) async {
+  Future<bool> tryShowTour(HintTour tour, {HintMarkPolicy? mark}) async {
     ({HintStore store, HintMarkPolicy mark})? armed;
     if (mark != null || tour.minShowVersion != null) {
       final effective = store;
@@ -455,11 +451,7 @@ class HintController implements HintActions {
   /// Delegates to [tryShowTour], so it is atomic (returns `false` when
   /// busy) and takes [mark] for show-once. For the loud, assert-based
   /// variant use `showTour(HintTour(id: 'hint:…', steps: [step]))`.
-  Future<bool> showHint(
-    HintStep step, {
-    String? id,
-    HintMarkPolicy? mark,
-  }) =>
+  Future<bool> showHint(HintStep step, {String? id, HintMarkPolicy? mark}) =>
       tryShowTour(
         HintTour(id: id ?? 'hint:${step.targetId}', steps: [step]),
         mark: mark,
@@ -528,7 +520,7 @@ class HintController implements HintActions {
     }
     final current = {
       for (final id in _registry.ids)
-        if (inScope(id)) id
+        if (inScope(id)) id,
     };
     final previous = _lastKnownIds;
     final appeared = current.difference(previous);
@@ -623,10 +615,12 @@ class HintController implements HintActions {
   void _syncStepHooks(HintState after) {
     final open = _hookedVisit;
     if (open != null) {
-      final sameStepActive = after is HintActive &&
+      final sameStepActive =
+          after is HintActive &&
           identical(after.tour, open.tour) &&
           after.stepIndex == open.index;
-      final sameStepWaiting = after is HintWaiting &&
+      final sameStepWaiting =
+          after is HintWaiting &&
           identical(after.tour, open.tour) &&
           after.stepIndex == open.index;
       if (!sameStepActive && !sameStepWaiting) {
@@ -635,7 +629,8 @@ class HintController implements HintActions {
       }
     }
     if (after is HintActive) {
-      final already = _hookedVisit != null &&
+      final already =
+          _hookedVisit != null &&
           identical(_hookedVisit!.tour, after.tour) &&
           _hookedVisit!.index == after.stepIndex;
       if (!already) {
@@ -685,20 +680,17 @@ class HintController implements HintActions {
           _reportStepSkipped(before, stepIndex, reason, detail);
           break;
         case AbortEffect(:final reason, :final detail):
-          _reportStepSkipped(
-            before,
-            before.stepIndex ?? 0,
-            reason,
-            detail,
-          );
+          _reportStepSkipped(before, before.stepIndex ?? 0, reason, detail);
           // Mark policy decides whether this exit writes: onAnyExit marks
           // even on abort/skip/timeout; onFinish and manual leave the tour
           // re-showable (the user did not finish).
           final pendingAbort = _pendingOnce;
           if (pendingAbort != null && before.tour?.id == pendingAbort.tourId) {
             if (pendingAbort.mark == HintMarkPolicy.onAnyExit) {
-              pendingAbort.store
-                  .markShown(pendingAbort.tourId, pendingAbort.version);
+              pendingAbort.store.markShown(
+                pendingAbort.tourId,
+                pendingAbort.version,
+              );
             }
             _pendingOnce = null;
           }
@@ -735,35 +727,41 @@ class HintController implements HintActions {
       HintActive(:final targetId) => targetId,
       _ => null,
     };
-    _diagnostics?.call(HintSkipEvent(
-      tourId: tourId,
-      stepIndex: stepIndex,
-      targetId: targetId,
-      reason: reason,
-      detail: detail,
-    ));
+    _diagnostics?.call(
+      HintSkipEvent(
+        tourId: tourId,
+        stepIndex: stepIndex,
+        targetId: targetId,
+        reason: reason,
+        detail: detail,
+      ),
+    );
   }
 
   String _describeTypos(HintTour tour, List<UnknownHintTarget> typos) {
-    final parts = typos.map((t) {
-      final candidates = t.candidates.join(', ');
-      return "step ${t.index + 1} references unknown targetId '${t.typoId}'"
-          '; closest: $candidates';
-    }).join('; ');
+    final parts = typos
+        .map((t) {
+          final candidates = t.candidates.join(', ');
+          return "step ${t.index + 1} references unknown targetId '${t.typoId}'"
+              '; closest: $candidates';
+        })
+        .join('; ');
     return "hintful: tour '${tour.id}' — $parts";
   }
 
   /// Release-path typo handling: typo steps are skipped, the tour continues.
   HintTour _withoutTypoSteps(HintTour tour, List<UnknownHintTarget> typos) {
     for (final t in typos) {
-      _diagnostics?.call(HintSkipEvent(
-        tourId: tour.id,
-        stepIndex: t.index,
-        targetId: t.typoId,
-        reason: HintSkipReason.unknownTarget,
-        detail:
-            'no valid target; closest: ${t.candidates.join(', ')}; step skipped',
-      ));
+      _diagnostics?.call(
+        HintSkipEvent(
+          tourId: tour.id,
+          stepIndex: t.index,
+          targetId: t.typoId,
+          reason: HintSkipReason.unknownTarget,
+          detail:
+              'no valid target; closest: ${t.candidates.join(', ')}; step skipped',
+        ),
+      );
     }
     final removed = typos.map((t) => t.step).toSet();
     final kept = tour.steps.where((step) => !removed.contains(step)).toList();
@@ -798,11 +796,10 @@ HintController hintControllerWithHost({
   HintDiagnosticsHandler? diagnostics,
   String? scopePrefix,
   HintStore? store,
-}) =>
-    HintController._(
-      registry: registry,
-      diagnostics: diagnostics,
-      scopePrefix: scopePrefix,
-      store: store,
-      overlayHostBuilder: host,
-    );
+}) => HintController._(
+  registry: registry,
+  diagnostics: diagnostics,
+  scopePrefix: scopePrefix,
+  store: store,
+  overlayHostBuilder: host,
+);

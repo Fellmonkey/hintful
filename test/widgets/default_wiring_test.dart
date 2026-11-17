@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
 
@@ -6,55 +6,58 @@ import 'package:hintful/hintful.dart';
 /// reads `controller.registry` — the default registry both wait logic and
 /// rendering share.
 void main() {
-  testWidgets('HintController() with no wiring args shows the default tooltip',
-      (tester) async {
-    final controller = HintController();
-    addTearDown(controller.dispose);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: HintTarget(
-              id: 'stats',
-              child: Container(
-                width: 120,
-                height: 60,
-                color: Colors.blue,
-                alignment: Alignment.center,
-                child: const Text(
-                  'stats',
-                  style: TextStyle(color: Colors.white),
+  testWidgets(
+    'HintController() with no wiring args shows the default tooltip',
+    (tester) async {
+      final controller = HintController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: HintTarget(
+                id: 'stats',
+                child: Container(
+                  width: 120,
+                  height: 60,
+                  color: Colors.blue,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'stats',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await controller.showTour(HintTour(
-      id: 'intro',
-      steps: [
-        HintStep(
-          targetId: 'stats',
-          content: HintStepContent(title: 'Stats', description: 'Numbers.'),
+      await controller.showTour(
+        HintTour(
+          id: 'intro',
+          steps: [
+            HintStep(
+              targetId: 'stats',
+              content: HintStepContent(title: 'Stats', description: 'Numbers.'),
+            ),
+          ],
         ),
-      ],
-    ));
-    // Two-frame rule: frame 1 draws the scrim, frame 2 the tooltip.
-    await tester.pump();
-    await tester.pump();
+      );
+      // Two-frame rule: frame 1 draws the scrim, frame 2 the tooltip.
+      await tester.pump();
+      await tester.pump();
 
-    expect(find.text('Stats'), findsOneWidget);
-    expect(controller.state.value, isA<HintActive>());
-    controller.finish();
-    await tester.pump();
-    await tester.pump();
-    expect(controller.isIdle, isTrue);
-  });
+      expect(find.text('Stats'), findsOneWidget);
+      expect(controller.state.value, isA<HintActive>());
+      controller.finish();
+      await tester.pump();
+      await tester.pump();
+      expect(controller.isIdle, isTrue);
+    },
+  );
 
-  testWidgets(
-      'default host follows a custom controller.registry '
+  testWidgets('default host follows a custom controller.registry '
       '(engine and wait logic cannot desync)', (tester) async {
     final registry = HintTargetRegistry();
     final controller = HintController(registry: registry);
@@ -82,15 +85,17 @@ void main() {
       ),
     );
 
-    await controller.showTour(HintTour(
-      id: 'intro',
-      steps: [
-        HintStep(
-          targetId: 'stats',
-          content: HintStepContent(title: 'Scoped'),
-        )
-      ],
-    ));
+    await controller.showTour(
+      HintTour(
+        id: 'intro',
+        steps: [
+          HintStep(
+            targetId: 'stats',
+            content: HintStepContent(title: 'Scoped'),
+          ),
+        ],
+      ),
+    );
     await tester.pump();
     await tester.pump();
 

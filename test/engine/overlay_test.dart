@@ -1,6 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/machine.dart';
@@ -43,14 +43,14 @@ class _FakeInput implements HintActions {
 }
 
 HintTour _tour(String targetId) => HintTour(
-      id: 't',
-      steps: [
-        HintStep(
-          targetId: targetId,
-          content: HintStepContent(title: 'Title', description: 'Description'),
-        ),
-      ],
-    );
+  id: 't',
+  steps: [
+    HintStep(
+      targetId: targetId,
+      content: HintStepContent(title: 'Title', description: 'Description'),
+    ),
+  ],
+);
 
 /// The scene as in an app: the targets (leaders) + the root Overlay into
 /// which the engine inserts its entry. [extra] adds secondary targets
@@ -72,11 +72,7 @@ Widget _harness({
             top: top,
             child: CompositedTransformTarget(
               link: link,
-              child: Container(
-                width: 120,
-                height: 60,
-                color: Colors.blue,
-              ),
+              child: Container(width: 120, height: 60, color: Colors.blue),
             ),
           ),
           for (final (extraLink, extraTop) in extra)
@@ -85,11 +81,7 @@ Widget _harness({
               top: extraTop,
               child: CompositedTransformTarget(
                 link: extraLink,
-                child: Container(
-                  width: 100,
-                  height: 50,
-                  color: Colors.red,
-                ),
+                child: Container(width: 100, height: 50, color: Colors.red),
               ),
             ),
           Positioned.fill(
@@ -108,8 +100,9 @@ Widget _harness({
 
 void main() {
   group('HintOverlayEngine', () {
-    testWidgets('active: global scrim hole + tooltip; tap = next',
-        (tester) async {
+    testWidgets('active: global scrim hole + tooltip; tap = next', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -118,12 +111,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       final tour = _tour('stats');
 
@@ -155,12 +146,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump();
@@ -185,12 +174,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump();
@@ -206,8 +193,7 @@ void main() {
       expect(input.previousCalls, 1);
     });
 
-    testWidgets(
-        'disableBackButton: route pop is consumed while the tour is '
+    testWidgets('disableBackButton: route pop is consumed while the tour is '
         'active', (tester) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
@@ -217,12 +203,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
 
       // Without the flag: the pop is not consumed.
@@ -237,8 +221,10 @@ void main() {
         steps: [
           HintStep(
             targetId: 'stats',
-            content:
-                HintStepContent(title: 'Title', description: 'Description'),
+            content: HintStepContent(
+              title: 'Title',
+              description: 'Description',
+            ),
           ),
         ],
       );
@@ -253,44 +239,44 @@ void main() {
     });
 
     testWidgets(
-        'waiting: full scrim without a hole (no target yet), no follower',
-        (tester) async {
-      final anchorLink = LayerLink();
-      final overlayKey = GlobalKey<OverlayState>();
-      final registry = HintTargetRegistry(); // no 'deferredTarget' — deferred
-      final input = _FakeInput();
+      'waiting: full scrim without a hole (no target yet), no follower',
+      (tester) async {
+        final anchorLink = LayerLink();
+        final overlayKey = GlobalKey<OverlayState>();
+        final registry = HintTargetRegistry(); // no 'deferredTarget' — deferred
+        final input = _FakeInput();
 
-      await tester.pumpWidget(_harness(
-        link: anchorLink,
-        overlayKey: overlayKey,
-      ));
-      // An unrelated mounted target is the overlay-capture anchor; the tour's
-      // own target stays deferred.
-      registry.register(HintTargetRegistration(
-        id: 'anchor',
-        link: anchorLink,
-        context: tester.element(find.byType(CompositedTransformTarget)),
-      ));
+        await tester.pumpWidget(
+          _harness(link: anchorLink, overlayKey: overlayKey),
+        );
+        // An unrelated mounted target is the overlay-capture anchor; the tour's
+        // own target stays deferred.
+        registry.register(
+          HintTargetRegistration(
+            id: 'anchor',
+            link: anchorLink,
+            context: tester.element(find.byType(CompositedTransformTarget)),
+          ),
+        );
 
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
-      );
-      addTearDown(engine.dispose);
-      final tour = _tour('deferredTarget');
+        final engine = HintOverlayEngine(registry: registry, input: input);
+        addTearDown(engine.dispose);
+        final tour = _tour('deferredTarget');
 
-      engine.update(HintWaiting(tour: tour, stepIndex: 0));
-      await tester.pump();
+        engine.update(HintWaiting(tour: tour, stepIndex: 0));
+        await tester.pump();
 
-      expect(_scrimFinder, findsOneWidget);
-      expect(find.text('Preparing…'), findsOneWidget);
-      expect(find.byType(CompositedTransformFollower), findsNothing);
-      // The scrim paints a full CustomPaint layer (without a hole).
-      expect(_scrimFinder, findsOneWidget);
-    });
+        expect(_scrimFinder, findsOneWidget);
+        expect(find.text('Preparing…'), findsOneWidget);
+        expect(find.byType(CompositedTransformFollower), findsNothing);
+        // The scrim paints a full CustomPaint layer (without a hole).
+        expect(_scrimFinder, findsOneWidget);
+      },
+    );
 
-    testWidgets('idle removes the overlay: zero engine widgets in the tree',
-        (tester) async {
+    testWidgets('idle removes the overlay: zero engine widgets in the tree', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -299,12 +285,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       final tour = _tour('stats');
 
       engine.update(HintActive(tour: tour, stepIndex: 0));
@@ -320,8 +304,7 @@ void main() {
       engine.dispose();
     });
 
-    testWidgets(
-        'a state change repaints even with no mounted target (the overlay is '
+    testWidgets('a state change repaints even with no mounted target (the overlay is '
         'captured once)', (tester) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
@@ -357,8 +340,9 @@ void main() {
       expect(find.text('Title'), findsNothing);
     });
 
-    testWidgets('dispose removes the entry while the tour is still active',
-        (tester) async {
+    testWidgets('dispose removes the entry while the tour is still active', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -367,12 +351,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       final tour = _tour('stats');
       engine.update(HintActive(tour: tour, stepIndex: 0));
       await tester.pump();
@@ -388,8 +370,9 @@ void main() {
       expect(_scrimFinder, findsNothing);
     });
 
-    testWidgets('target at the bottom edge: the tooltip auto-flips above',
-        (tester) async {
+    testWidgets('target at the bottom edge: the tooltip auto-flips above', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -402,12 +385,10 @@ void main() {
       );
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump(); // entry mount: follower transform is still empty
@@ -419,14 +400,18 @@ void main() {
       // changes): the flipped tooltip does not cover the target and stays
       // fully on screen.
       final tooltipRect = tester.getRect(find.byType(DefaultTooltip));
-      expect(tooltipRect.overlaps(targetRect), isFalse,
-          reason: 'the auto-flipped tooltip must not cover the target');
+      expect(
+        tooltipRect.overlaps(targetRect),
+        isFalse,
+        reason: 'the auto-flipped tooltip must not cover the target',
+      );
       expect(tooltipRect.top, greaterThanOrEqualTo(0));
       expect(tooltipRect.bottom, lessThanOrEqualTo(600));
     });
 
-    testWidgets('tooltipBuilder receives HintTooltipContext (index/count)',
-        (tester) async {
+    testWidgets('tooltipBuilder receives HintTooltipContext (index/count)', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -435,12 +420,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
 
       final tour = HintTour(
@@ -463,15 +446,11 @@ void main() {
       expect(find.text('step 1 of 1 (last)'), findsOneWidget);
     });
 
-    testWidgets(
-        'without an overlay and without targets — unavailable '
+    testWidgets('without an overlay and without targets — unavailable '
         'diagnostics', (tester) async {
       final registry = HintTargetRegistry();
       final input = _FakeInput();
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
-      );
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       final tour = _tour('deferredTarget');
 
@@ -481,8 +460,7 @@ void main() {
       expect(find.byType(OverlayEntry), findsNothing);
     });
 
-    testWidgets(
-        'multi-target: a follower per target, one tooltip on the primary, '
+    testWidgets('multi-target: a follower per target, one tooltip on the primary, '
         'tap on a secondary target = next', (tester) async {
       final primaryLink = LayerLink();
       final extraLink = LayerLink();
@@ -493,27 +471,30 @@ void main() {
       // The secondary is on the same row, right of the primary: it does not
       // block the tooltip's bottom placement (the veto would otherwise
       // mirror it above — the feature working, but not this test's point).
-      await tester.pumpWidget(_harness(
-        link: primaryLink,
-        overlayKey: overlayKey,
-        extra: [(extraLink, 40)],
-      ));
-      final targetFinder = find.byType(CompositedTransformTarget);
-      registry.register(HintTargetRegistration(
-        id: 'primary',
-        link: primaryLink,
-        context: tester.element(targetFinder.first),
-      ));
-      registry.register(HintTargetRegistration(
-        id: 'extra',
-        link: extraLink,
-        context: tester.element(targetFinder.last),
-      ));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+      await tester.pumpWidget(
+        _harness(
+          link: primaryLink,
+          overlayKey: overlayKey,
+          extra: [(extraLink, 40)],
+        ),
       );
+      final targetFinder = find.byType(CompositedTransformTarget);
+      registry.register(
+        HintTargetRegistration(
+          id: 'primary',
+          link: primaryLink,
+          context: tester.element(targetFinder.first),
+        ),
+      );
+      registry.register(
+        HintTargetRegistration(
+          id: 'extra',
+          link: extraLink,
+          context: tester.element(targetFinder.last),
+        ),
+      );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       final tour = HintTour(
         id: 't',
@@ -551,99 +532,100 @@ void main() {
     });
 
     testWidgets(
-        'tap regions: targetTap/overlayTap custom receive the tap position',
-        (tester) async {
-      final link = LayerLink();
-      final overlayKey = GlobalKey<OverlayState>();
-      final registry = HintTargetRegistry();
-      final input = _FakeInput();
+      'tap regions: targetTap/overlayTap custom receive the tap position',
+      (tester) async {
+        final link = LayerLink();
+        final overlayKey = GlobalKey<OverlayState>();
+        final registry = HintTargetRegistry();
+        final input = _FakeInput();
 
-      await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
-      final ctx = tester.element(find.byType(CompositedTransformTarget));
-      registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
+        await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
+        final ctx = tester.element(find.byType(CompositedTransformTarget));
+        registry.register(
+          HintTargetRegistration(id: 'stats', link: link, context: ctx),
+        );
 
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
-      );
-      addTearDown(engine.dispose);
+        final engine = HintOverlayEngine(registry: registry, input: input);
+        addTearDown(engine.dispose);
 
-      Offset? targetTap;
-      Offset? overlayTap;
-      final tour = HintTour(
-        id: 't',
-        steps: [
-          HintStep(
-            targetId: 'stats',
-            content: HintStepContent(title: 'Title'),
-            targetTap: HintTapBehavior.custom(
-              (ctx, details) => targetTap = details.globalPosition,
+        Offset? targetTap;
+        Offset? overlayTap;
+        final tour = HintTour(
+          id: 't',
+          steps: [
+            HintStep(
+              targetId: 'stats',
+              content: HintStepContent(title: 'Title'),
+              targetTap: HintTapBehavior.custom(
+                (ctx, details) => targetTap = details.globalPosition,
+              ),
+              overlayTap: HintTapBehavior.custom(
+                (ctx, details) => overlayTap = details.globalPosition,
+              ),
             ),
-            overlayTap: HintTapBehavior.custom(
-              (ctx, details) => overlayTap = details.globalPosition,
-            ),
-          ),
-        ],
-      );
-      engine.update(HintActive(tour: tour, stepIndex: 0));
-      await tester.pump();
-      await tester.pump();
+          ],
+        );
+        engine.update(HintActive(tour: tour, stepIndex: 0));
+        await tester.pump();
+        await tester.pump();
 
-      // Tap on the target itself → the target callback with its position.
-      final targetCenter =
-          tester.getCenter(find.byType(CompositedTransformTarget));
-      await tester.tapAt(targetCenter);
-      expect(targetTap, targetCenter);
-      expect(overlayTap, isNull);
+        // Tap on the target itself → the target callback with its position.
+        final targetCenter = tester.getCenter(
+          find.byType(CompositedTransformTarget),
+        );
+        await tester.tapAt(targetCenter);
+        expect(targetTap, targetCenter);
+        expect(overlayTap, isNull);
 
-      // Tap on the scrim far from the target and the tooltip → the overlay
-      // callback. The custom behaviors replaced the default "next" — no advance.
-      const scrimTap = Offset(700, 550);
-      await tester.tapAt(scrimTap);
-      expect(overlayTap, scrimTap);
-      expect(input.nextCalls, 0);
-    });
+        // Tap on the scrim far from the target and the tooltip → the overlay
+        // callback. The custom behaviors replaced the default "next" — no advance.
+        const scrimTap = Offset(700, 550);
+        await tester.tapAt(scrimTap);
+        expect(overlayTap, scrimTap);
+        expect(input.nextCalls, 0);
+      },
+    );
 
     testWidgets(
-        'targetTap: HintTapBehavior.ignore() disables the target region',
-        (tester) async {
-      final link = LayerLink();
-      final overlayKey = GlobalKey<OverlayState>();
-      final registry = HintTargetRegistry();
-      final input = _FakeInput();
+      'targetTap: HintTapBehavior.ignore() disables the target region',
+      (tester) async {
+        final link = LayerLink();
+        final overlayKey = GlobalKey<OverlayState>();
+        final registry = HintTargetRegistry();
+        final input = _FakeInput();
 
-      await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
-      final ctx = tester.element(find.byType(CompositedTransformTarget));
-      registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
+        await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
+        final ctx = tester.element(find.byType(CompositedTransformTarget));
+        registry.register(
+          HintTargetRegistration(id: 'stats', link: link, context: ctx),
+        );
 
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
-      );
-      addTearDown(engine.dispose);
-      final tour = HintTour(
-        id: 't',
-        steps: [
-          HintStep(
-            targetId: 'stats',
-            content: HintStepContent(title: 'Title'),
-            targetTap: const HintTapBehavior.ignore(),
-          ),
-        ],
-      );
-      engine.update(HintActive(tour: tour, stepIndex: 0));
-      await tester.pump();
-      await tester.pump();
+        final engine = HintOverlayEngine(registry: registry, input: input);
+        addTearDown(engine.dispose);
+        final tour = HintTour(
+          id: 't',
+          steps: [
+            HintStep(
+              targetId: 'stats',
+              content: HintStepContent(title: 'Title'),
+              targetTap: const HintTapBehavior.ignore(),
+            ),
+          ],
+        );
+        engine.update(HintActive(tour: tour, stepIndex: 0));
+        await tester.pump();
+        await tester.pump();
 
-      await tester
-          .tapAt(tester.getCenter(find.byType(CompositedTransformTarget)));
-      expect(input.nextCalls, 0, reason: 'the target region is disabled');
-    });
+        await tester.tapAt(
+          tester.getCenter(find.byType(CompositedTransformTarget)),
+        );
+        expect(input.nextCalls, 0, reason: 'the target region is disabled');
+      },
+    );
 
-    testWidgets('blur scrim: a BackdropFilter replaces the plain-dim painter',
-        (tester) async {
+    testWidgets('blur scrim: a BackdropFilter replaces the plain-dim painter', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -660,26 +642,29 @@ void main() {
       );
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump();
       await tester.pump();
 
       expect(find.byType(BackdropFilter), findsOneWidget);
-      expect(_scrimFinder, findsNothing,
-          reason: 'blur mode: no plain-dim painter (the blur layer is the '
-              'scrim)');
+      expect(
+        _scrimFinder,
+        findsNothing,
+        reason:
+            'blur mode: no plain-dim painter (the blur layer is the '
+            'scrim)',
+      );
       expect(find.text('Title'), findsOneWidget);
     });
 
-    testWidgets('multi-content: a custom-builder extra slot renders',
-        (tester) async {
+    testWidgets('multi-content: a custom-builder extra slot renders', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -688,12 +673,10 @@ void main() {
       await tester.pumpWidget(_harness(link: link, overlayKey: overlayKey));
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       final tour = HintTour(
         id: 't',
@@ -715,13 +698,23 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('Primary'), findsOneWidget,
-          reason: 'the primary tooltip is still there');
-      expect(find.text('custom slot'), findsOneWidget,
-          reason: 'the builder extra renders its own content');
-      expect(find.text('Done'), findsNothing,
-          reason: 'a single-step tour keeps no button row — the primary is '
-              'informational like the extra slot');
+      expect(
+        find.text('Primary'),
+        findsOneWidget,
+        reason: 'the primary tooltip is still there',
+      );
+      expect(
+        find.text('custom slot'),
+        findsOneWidget,
+        reason: 'the builder extra renders its own content',
+      );
+      expect(
+        find.text('Done'),
+        findsNothing,
+        reason:
+            'a single-step tour keeps no button row — the primary is '
+            'informational like the extra slot',
+      );
     });
 
     testWidgets('pulse ring renders when showPulse is on', (tester) async {
@@ -741,12 +734,10 @@ void main() {
       );
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump();
@@ -756,12 +747,16 @@ void main() {
         (w) => w is CustomPaint && w.painter is PulsePainter,
       );
       expect(pulseFinder, findsOneWidget);
-      expect(_scrimFinder, findsOneWidget,
-          reason: 'non-blur mode: the plain dim is still there');
+      expect(
+        _scrimFinder,
+        findsOneWidget,
+        reason: 'non-blur mode: the plain dim is still there',
+      );
     });
 
-    testWidgets('blur + pulse: the ring paints above the blur scrim',
-        (tester) async {
+    testWidgets('blur + pulse: the ring paints above the blur scrim', (
+      tester,
+    ) async {
       final link = LayerLink();
       final overlayKey = GlobalKey<OverlayState>();
       final registry = HintTargetRegistry();
@@ -770,9 +765,9 @@ void main() {
         extensions: [
           HintTheme.minimal(ColorScheme.fromSeed(seedColor: Colors.teal))
               .copyWith(
-            showPulse: true,
-            imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          ),
+                showPulse: true,
+                imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              ),
         ],
       );
 
@@ -781,12 +776,10 @@ void main() {
       );
       final ctx = tester.element(find.byType(CompositedTransformTarget));
       registry.register(
-          HintTargetRegistration(id: 'stats', link: link, context: ctx));
-
-      final engine = HintOverlayEngine(
-        registry: registry,
-        input: input,
+        HintTargetRegistration(id: 'stats', link: link, context: ctx),
       );
+
+      final engine = HintOverlayEngine(registry: registry, input: input);
       addTearDown(engine.dispose);
       engine.update(HintActive(tour: _tour('stats'), stepIndex: 0));
       await tester.pump(); // frame 1: position snapshot post-frame
@@ -815,8 +808,9 @@ void main() {
           (w.child is ClipPath || w.child is ValueListenableBuilder<Offset?>);
       final overlayStack = tester
           .widgetList<Stack>(find.byType(Stack))
-          .firstWhere((s) =>
-              s.children.any(isPulseLayer) && s.children.any(isBlurLayer));
+          .firstWhere(
+            (s) => s.children.any(isPulseLayer) && s.children.any(isBlurLayer),
+          );
       expect(
         overlayStack.children.indexWhere(isPulseLayer),
         greaterThan(overlayStack.children.indexWhere(isBlurLayer)),

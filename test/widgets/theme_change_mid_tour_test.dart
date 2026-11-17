@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
@@ -23,42 +23,49 @@ class _Themed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
-        valueListenable: mode,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData(colorScheme: _light),
-          darkTheme: ThemeData(colorScheme: _dark),
-          themeMode: themeMode,
-          home: Scaffold(
-            body: Stack(
-              children: [
-                Positioned(
-                  left: 40,
-                  top: 60,
-                  child: HintTarget(
-                    id: 'a',
-                    child: Container(
-                      key: const Key('a'),
-                      width: 100,
-                      height: 50,
-                      color: Colors.amber,
-                    ),
-                  ),
+    valueListenable: mode,
+    builder: (context, themeMode, _) => MaterialApp(
+      theme: ThemeData(colorScheme: _light),
+      darkTheme: ThemeData(colorScheme: _dark),
+      themeMode: themeMode,
+      home: Scaffold(
+        body: Stack(
+          children: [
+            Positioned(
+              left: 40,
+              top: 60,
+              child: HintTarget(
+                id: 'a',
+                child: Container(
+                  key: const Key('a'),
+                  width: 100,
+                  height: 50,
+                  color: Colors.amber,
                 ),
-              ],
+              ),
             ),
-            floatingActionButton: FloatingActionButton(
-              key: const Key('start'),
-              onPressed: () => unawaited(controller.showTour(HintTour(
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          key: const Key('start'),
+          onPressed: () => unawaited(
+            controller.showTour(
+              HintTour(
                 id: 't',
                 steps: const [
-                  HintStep(targetId: 'a', content: HintStepContent(title: 'A')),
+                  HintStep(
+                    targetId: 'a',
+                    content: HintStepContent(title: 'A'),
+                  ),
                 ],
-              ))),
-              child: const Icon(Icons.play_arrow),
+              ),
             ),
           ),
+          child: const Icon(Icons.play_arrow),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 final ColorScheme _light = ColorScheme.fromSeed(seedColor: Colors.teal);
@@ -78,8 +85,9 @@ TooltipTailPainter? _tail(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('mid-tour theme change repaints the tail with the new color',
-      (tester) async {
+  testWidgets('mid-tour theme change repaints the tail with the new color', (
+    tester,
+  ) async {
     final controller = HintController();
     addTearDown(controller.dispose);
     final mode = ValueNotifier<ThemeMode>(ThemeMode.light);
@@ -107,8 +115,11 @@ void main() {
     await tester.pump();
 
     expect(find.byType(DefaultTooltip), findsOneWidget);
-    expect(_tail(tester)?.color, _dark.inverseSurface,
-        reason: 'the tail follows the new theme, not the cached one');
+    expect(
+      _tail(tester)?.color,
+      _dark.inverseSurface,
+      reason: 'the tail follows the new theme, not the cached one',
+    );
 
     // Finish the tour (a tap on the spotlighted target advances it).
     await tester.tap(find.byKey(const Key('a')));

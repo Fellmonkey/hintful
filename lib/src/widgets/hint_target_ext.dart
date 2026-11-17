@@ -17,14 +17,13 @@ extension HintTargetX on Widget {
     String? semanticsLabel,
     FocusShape? focusShape,
     double? focusPadding,
-  }) =>
-      HintTarget(
-        key: key,
-        id: id,
-        registry: registry,
-        semanticsLabel: semanticsLabel,
-        focusShape: focusShape,
-        focusPadding: focusPadding,
-        child: this,
-      );
+  }) => HintTarget(
+    key: key,
+    id: id,
+    registry: registry,
+    semanticsLabel: semanticsLabel,
+    focusShape: focusShape,
+    focusPadding: focusPadding,
+    child: this,
+  );
 }
