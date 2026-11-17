@@ -191,8 +191,9 @@ import 'package:hintful/hintful.dart';
 ```
 
 Requires Dart ≥ 3.13 / Flutter ≥ 3.47 (`material_ui`). Apps that cannot move
-yet stay on the frozen 1.x line (Dart ≥ 3.2 / Flutter ≥ 3.16); see
-[the 1.x → 2.x migration guide](doc/FLUTTER_3_50_MIGRATION.md).
+yet stay on the frozen 1.x line (Dart ≥ 3.2 / Flutter ≥ 3.16) — it is still
+maintained; see [the support policy](doc/SUPPORT.md) and the
+[1.x → 2.x migration guide](doc/FLUTTER_3_50_MIGRATION.md).
 
 See `example/` for working demos:
 shaped holes, blur/pulse styles, custom animated tooltips, JSON tours, tap

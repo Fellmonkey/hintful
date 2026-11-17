@@ -302,8 +302,9 @@ TextStyle hintDefaultTitleStyle(Color foreground) =>
 /// Default description style — the foreground at 75 % opacity, the value the
 /// WCAG AA contrast tests assert. Shared by [HintTheme.minimal] and
 /// `DefaultTooltip` (same contract as [hintDefaultTitleStyle]);
-/// `withAlpha` is not deprecated across the supported 3.16+ range (unlike
-/// `withOpacity`, deprecated in 3.27 in favor of `withValues`).
+/// `withAlpha` is not deprecated across the supported range (unlike
+/// `withOpacity`, deprecated in 3.27 in favor of `withValues`). The 1.x line
+/// supports Flutter 3.16+, 2.x starts at 3.47 with `material_ui`.
 /// @internal — not part of the barrel contract.
 @internal
 TextStyle hintDefaultDescriptionStyle(Color foreground) =>
