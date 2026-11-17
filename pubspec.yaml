@@ -1,6 +1,6 @@
 name: hintful
 description: Onboarding tours and tooltips for Flutter. Registry-based targets, theme-aware coach marks, smart positioning, accessible by default — no overlay until a tour starts.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/Fellmonkey/hintful
 topics:
   - flutter
@@ -12,7 +12,10 @@ environment:
   # The floor is the single newest Flutter API the package touches:
   # MediaQuery.textScalerOf (default_tooltip.dart) — since Flutter 3.16
   # (Dart 3.2). Everything else is older and was verified against the git
-  # history of a local Flutter 3.47.0 checkout:
+  # history of local Flutter 3.47.0 and 3.50.0 checkouts. The 1.x line keeps
+  # the legacy `package:flutter/material.dart` import (deprecated in 3.50);
+  # its analyzer diagnostic is suppressed in analysis_options.yaml. The 2.x
+  # line migrates to `material_ui` and raises this floor:
   #   sealed machine states        — Dart 3.0 / Flutter 3.10,
   #   ThemeExtension               — Flutter 3.0 (PR #98033, Mar 2022),
   #   LayerLink.leaderSize         — Flutter 1.23 (PR #64930, Oct 2020),

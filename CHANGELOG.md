@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1
+
+Maintenance release for the Flutter 3.50 transition. **No public API change.**
+
+- Unblocked CI on Flutter 3.50 / Dart 3.14: the bundled
+  `package:flutter/material.dart` import is deprecated there in favour of
+  `package:material_ui/material_ui.dart`. The 1.x line deliberately keeps
+  the legacy import to preserve its frozen API, its zero-dependency story
+  and its Dart 3.2 / Flutter 3.16 floor; `deprecated_member_use` is scoped
+  to the analyzer configs with a removal TODO instead of changing code.
+- CI now checks the 1.x line against both Flutter 3.47.0 and 3.50.0. The
+  size golden stays pinned to 3.47.0 (it is SDK-specific).
+- The 2.x line migrates to `material_ui` and is released as 2.0.0.
+
 ## 1.0.0
 
 The first stable release. The 1.x API is frozen: the supported import is the
