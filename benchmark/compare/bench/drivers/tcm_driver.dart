@@ -77,10 +77,7 @@ class TcmDriver implements LibraryDriver {
       // One controller per show cycle: after finish() a fresh tour is needed
       // (warm-ups in S5/S6 show→hide repeatedly).
       _controller = TutorialCoachMark(
-        targets: [
-          _target(_row5Key, 1),
-          _target(_row6Key, 2),
-        ],
+        targets: [_target(_row5Key, 1), _target(_row6Key, 2)],
         textSkip: 'Skip',
         // pulseEnable: the target pulse otherwise runs a LOOPING animation
         // while the step is shown — a frame scheduled forever, so the
@@ -130,15 +127,15 @@ class TcmDriver implements LibraryDriver {
   static const int _kState2Row = 6;
 
   TargetFocus _target(GlobalKey key, int state) => TargetFocus(
-        keyTarget: key,
-        shape: ShapeLightFocus.RRect,
-        contents: [
-          TargetContent(
-            align: ContentAlign.top,
-            builder: (context, controller) => ContractCard(state: state),
-          ),
-        ],
-      );
+    keyTarget: key,
+    shape: ShapeLightFocus.RRect,
+    contents: [
+      TargetContent(
+        align: ContentAlign.top,
+        builder: (context, controller) => ContractCard(state: state),
+      ),
+    ],
+  );
 
   void _goToStep(int state) {
     final target = state == 2 ? 1 : 0;

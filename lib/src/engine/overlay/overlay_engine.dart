@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -72,9 +72,14 @@ class HintOverlayEngine implements HintOverlayHost {
     required HintTargetRegistry registry,
     required HintActions input,
     HintDiagnosticsHandler? diagnostics,
-  })  : _registry = registry,
-        _input = input,
-        _diagnostics = diagnostics;
+  }) : // Public parameter names are the constructor API; an initializing
+       // formal would make them private and uncallable from other libraries.
+       // ignore: prefer_initializing_formals
+       _registry = registry,
+       // ignore: prefer_initializing_formals
+       _input = input,
+       // ignore: prefer_initializing_formals
+       _diagnostics = diagnostics;
 
   final HintTargetRegistry _registry;
   final HintActions _input;
@@ -153,14 +158,17 @@ class HintOverlayEngine implements HintOverlayHost {
       HintActive(:final targetId) => targetId,
       _ => null,
     };
-    _diagnostics?.call(HintSkipEvent(
-      tourId: state?.tour?.id,
-      stepIndex: stepIndex,
-      targetId: targetId,
-      reason: HintSkipReason.overlayUnavailable,
-      detail: 'overlay unavailable: no mounted target to capture the root'
-          ' overlay from',
-    ));
+    _diagnostics?.call(
+      HintSkipEvent(
+        tourId: state?.tour?.id,
+        stepIndex: stepIndex,
+        targetId: targetId,
+        reason: HintSkipReason.overlayUnavailable,
+        detail:
+            'overlay unavailable: no mounted target to capture the root'
+            ' overlay from',
+      ),
+    );
   }
 
   OverlayEntry _createEntry(OverlayState overlay) {
@@ -324,10 +332,7 @@ class _HintOverlayViewState extends State<_HintOverlayView>
             ),
           )
         : CustomPaint(
-            painter: RectScrimPainter(
-              holes: const [],
-              color: theme.scrimColor,
-            ),
+            painter: RectScrimPainter(holes: const [], color: theme.scrimColor),
             child: const SizedBox.expand(),
           );
     return Stack(
@@ -525,16 +530,21 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
       if (screen.contains(rect.topLeft) && screen.contains(rect.bottomRight)) {
         return;
       }
-      Scrollable.ensureVisible(ctx,
-          duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
     } catch (e) {
       // The no-scrollable case is handled above (Scrollable.maybeOf);
       // anything reaching here is a real failure (e.g. a detached render
       // object mid-animation) and must stay diagnosable — debug only, this
       // is a dev aid, not a shipped contract.
       if (kDebugMode) {
-        debugPrint('hintful: autoScroll failed for target '
-            '${widget.step.targetId}: $e');
+        debugPrint(
+          'hintful: autoScroll failed for target '
+          '${widget.step.targetId}: $e',
+        );
       }
     }
   }
@@ -685,7 +695,7 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
             Positioned.fill(
               child: ValueListenableBuilder<Offset?>(
                 valueListenable: _holeNotifier,
-                builder: (context, _, __) {
+                builder: (context, _, _) {
                   final holes = _currentHoleRects();
                   if (blur == null) {
                     return IgnorePointer(
@@ -769,7 +779,9 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
         LayoutId(id: TooltipPlacementDelegate.primaryId, child: slots.first),
         for (var i = 0; i < extras.length; i++)
           LayoutId(
-              id: TooltipPlacementDelegate.extraId(i), child: slots[i + 1]),
+            id: TooltipPlacementDelegate.extraId(i),
+            child: slots[i + 1],
+          ),
       ],
     );
     return content;
@@ -855,7 +867,8 @@ class _ActiveOverlayContentState extends State<_ActiveOverlayContent>
     // Prefer the resolver's size: unlike the raw (unscaled) leaderSize it
     // applies a uniform ancestor scale, so the hole matches a scaled target.
     // Falls back to leaderSize before the primary resolver exists.
-    final size = _resolvers[primary.id]?.resolve()?.size ??
+    final size =
+        _resolvers[primary.id]?.resolve()?.size ??
         primary.link.leaderSize ??
         Size.zero;
     return (translation & size).inflate(_effectivePadding());

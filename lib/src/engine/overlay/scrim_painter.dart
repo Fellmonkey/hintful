@@ -90,9 +90,7 @@ class RectScrimPainter extends CustomPainter {
         );
       case FocusShape.roundedRect:
         final clamped = math.min(radius, hole.shortestSide / 2);
-        path.addRRect(
-          RRect.fromRectAndRadius(hole, Radius.circular(clamped)),
-        );
+        path.addRRect(RRect.fromRectAndRadius(hole, Radius.circular(clamped)));
       case FocusShape.rectangle:
         path.addRect(hole);
     }

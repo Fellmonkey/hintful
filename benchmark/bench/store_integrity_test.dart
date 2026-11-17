@@ -34,8 +34,10 @@ String findStorePath() {
     if (candidate.existsSync()) return candidate.path;
     dir = dir.parent;
   }
-  throw StateError('benchmarks.json not found from ${Directory.current.path} '
-      '— run from benchmark/ (`flutter test bench/`)');
+  throw StateError(
+    'benchmarks.json not found from ${Directory.current.path} '
+    '— run from benchmark/ (`flutter test bench/`)',
+  );
 }
 
 void main() {
@@ -45,10 +47,14 @@ void main() {
   test('every metric declared in the package defs has a recorded golden', () {
     for (final def in declared) {
       final value = store.load(def.key);
-      expect(value, isNotNull,
-          reason: '${def.key} (${def.label}) is a published contract metric '
-              'but has no golden in benchmarks.json — re-run the record '
-              '(`contract run --device --mode record`, size legs included).');
+      expect(
+        value,
+        isNotNull,
+        reason:
+            '${def.key} (${def.label}) is a published contract metric '
+            'but has no golden in benchmarks.json — re-run the record '
+            '(`contract run --device --mode record`, size legs included).',
+      );
     }
   });
 
@@ -59,11 +65,18 @@ void main() {
     for (final def in kDeviceMetricDefs) {
       for (final library in kLibraryRefs.keys) {
         final ref = kLibraryRefs[library]!;
-        final value =
-            store.load(def.key, preferRefs: [ref], fallbackAny: false);
-        expect(value, isNotNull,
-            reason: '${def.key} (${def.label}) has no golden under ref $ref '
-                '($library column) — re-run that solution\'s device record.');
+        final value = store.load(
+          def.key,
+          preferRefs: [ref],
+          fallbackAny: false,
+        );
+        expect(
+          value,
+          isNotNull,
+          reason:
+              '${def.key} (${def.label}) has no golden under ref $ref '
+              '($library column) — re-run that solution\'s device record.',
+        );
       }
     }
   });
@@ -73,10 +86,14 @@ void main() {
     // targets) — the renderer reads ref android, falling back to `any`.
     for (final def in kSizeMetricDefs) {
       final value = store.load(def.key, preferRefs: const ['android', 'any']);
-      expect(value, isNotNull,
-          reason: '${def.key} (${def.label}) has no golden under ref android '
-              'or any — re-run the size builds '
-              '(`contract run --scenarios size --legs native|web`).');
+      expect(
+        value,
+        isNotNull,
+        reason:
+            '${def.key} (${def.label}) has no golden under ref android '
+            'or any — re-run the size builds '
+            '(`contract run --scenarios size --legs native|web`).',
+      );
     }
   });
 }

@@ -1,6 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // The only import of the package — the public barrel: the engine internals,
@@ -190,8 +190,9 @@ class _ExampleAppState extends State<ExampleApp> {
       const HintStep(
         targetId: 'fab',
         content: HintStepContent(
-            title: 'This is the quick-log button',
-            description: 'One tip — no tour, no configuration.'),
+          title: 'This is the quick-log button',
+          description: 'One tip — no tour, no configuration.',
+        ),
       ),
     );
   }
@@ -240,8 +241,11 @@ class _ExampleAppState extends State<ExampleApp> {
     messenger?.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _toggleTheme() => setState(() => _themeMode =
-      _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
+  void _toggleTheme() => setState(
+    () => _themeMode = _themeMode == ThemeMode.light
+        ? ThemeMode.dark
+        : ThemeMode.light,
+  );
 
   void _onStyleChanged(HintStyle style) => setState(() => _hintStyle = style);
 
@@ -258,15 +262,15 @@ class _ExampleAppState extends State<ExampleApp> {
     return switch (_hintStyle) {
       HintStyle.plain => theme,
       HintStyle.blur => theme.copyWith(
-          imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          scrimColor: Colors.black.withAlpha(90), // blur dims too
-        ),
+        imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        scrimColor: Colors.black.withAlpha(90), // blur dims too
+      ),
       HintStyle.pulse => theme.copyWith(showPulse: true),
       HintStyle.blurPulse => theme.copyWith(
-          imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          scrimColor: Colors.black.withAlpha(90),
-          showPulse: true,
-        ),
+        imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        scrimColor: Colors.black.withAlpha(90),
+        showPulse: true,
+      ),
     };
   }
 

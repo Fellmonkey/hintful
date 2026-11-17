@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/registry.dart';
 
@@ -18,12 +18,16 @@ Future<BuildContext> _pumpContext(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('registration → lookup/ids; unregister by the owner — clean',
-      (tester) async {
+  testWidgets('registration → lookup/ids; unregister by the owner — clean', (
+    tester,
+  ) async {
     final ctx = await _pumpContext(tester);
     final registry = HintTargetRegistry();
-    final r =
-        HintTargetRegistration(id: 'filters', link: LayerLink(), context: ctx);
+    final r = HintTargetRegistration(
+      id: 'filters',
+      link: LayerLink(),
+      context: ctx,
+    );
 
     registry.register(r);
     expect(registry.lookup('filters'), same(r));
@@ -34,27 +38,32 @@ void main() {
     expect(registry.ids, isEmpty);
   });
 
-  testWidgets('listeners: notified on every real change, a no-op does not fire',
-      (tester) async {
-    final ctx = await _pumpContext(tester);
-    final registry = HintTargetRegistry();
-    final r = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);
-
-    var changes = 0;
-    registry.addListener(() => changes++);
-
-    registry.register(r);
-    expect(changes, 1);
-
-    registry.unregister(r);
-    expect(changes, 2);
-
-    registry.unregister(r); // a double unregister — no-op
-    expect(changes, 2);
-  });
-
   testWidgets(
-      'multiple listeners; removeListener unsubscribes; '
+    'listeners: notified on every real change, a no-op does not fire',
+    (tester) async {
+      final ctx = await _pumpContext(tester);
+      final registry = HintTargetRegistry();
+      final r = HintTargetRegistration(
+        id: 'a',
+        link: LayerLink(),
+        context: ctx,
+      );
+
+      var changes = 0;
+      registry.addListener(() => changes++);
+
+      registry.register(r);
+      expect(changes, 1);
+
+      registry.unregister(r);
+      expect(changes, 2);
+
+      registry.unregister(r); // a double unregister — no-op
+      expect(changes, 2);
+    },
+  );
+
+  testWidgets('multiple listeners; removeListener unsubscribes; '
       'subscribing twice — no-op', (tester) async {
     final ctx = await _pumpContext(tester);
     final registry = HintTargetRegistry();
@@ -94,8 +103,9 @@ void main() {
     expect(warnings.single, contains("'a'"));
   });
 
-  testWidgets("unregistering an old instance does not remove the new one",
-      (tester) async {
+  testWidgets("unregistering an old instance does not remove the new one", (
+    tester,
+  ) async {
     final ctx = await _pumpContext(tester);
     final registry = HintTargetRegistry();
     final r1 = HintTargetRegistration(id: 'a', link: LayerLink(), context: ctx);

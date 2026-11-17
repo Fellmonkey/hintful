@@ -17,47 +17,57 @@ const double _edgeEpsilon = 0.5;
 /// deflate inverts the rect when the insets exceed half the screen; the
 /// min/max construction never does.
 Rect _safeRectOf(Rect screen, EdgeInsets safeArea) {
-  final left =
-      math.min(screen.left + safeArea.left, screen.right - safeArea.right);
-  final top =
-      math.min(screen.top + safeArea.top, screen.bottom - safeArea.bottom);
-  final right =
-      math.max(screen.left + safeArea.left, screen.right - safeArea.right);
-  final bottom =
-      math.max(screen.top + safeArea.top, screen.bottom - safeArea.bottom);
+  final left = math.min(
+    screen.left + safeArea.left,
+    screen.right - safeArea.right,
+  );
+  final top = math.min(
+    screen.top + safeArea.top,
+    screen.bottom - safeArea.bottom,
+  );
+  final right = math.max(
+    screen.left + safeArea.left,
+    screen.right - safeArea.right,
+  );
+  final bottom = math.max(
+    screen.top + safeArea.top,
+    screen.bottom - safeArea.bottom,
+  );
   return Rect.fromLTRB(left, top, right, bottom);
 }
 
 /// Try order for an explicit [position]: preferred → mirrored → orthogonal.
 List<TooltipPosition> _sideOrder(
-        TooltipPosition position, Rect safe, Rect hole) =>
-    switch (position) {
-      TooltipPosition.bottom => const [
-          TooltipPosition.bottom,
-          TooltipPosition.top,
-          TooltipPosition.right,
-          TooltipPosition.left,
-        ],
-      TooltipPosition.top => const [
-          TooltipPosition.top,
-          TooltipPosition.bottom,
-          TooltipPosition.right,
-          TooltipPosition.left,
-        ],
-      TooltipPosition.right => const [
-          TooltipPosition.right,
-          TooltipPosition.left,
-          TooltipPosition.bottom,
-          TooltipPosition.top,
-        ],
-      TooltipPosition.left => const [
-          TooltipPosition.left,
-          TooltipPosition.right,
-          TooltipPosition.bottom,
-          TooltipPosition.top,
-        ],
-      TooltipPosition.auto => _autoOrder(safe, hole),
-    };
+  TooltipPosition position,
+  Rect safe,
+  Rect hole,
+) => switch (position) {
+  TooltipPosition.bottom => const [
+    TooltipPosition.bottom,
+    TooltipPosition.top,
+    TooltipPosition.right,
+    TooltipPosition.left,
+  ],
+  TooltipPosition.top => const [
+    TooltipPosition.top,
+    TooltipPosition.bottom,
+    TooltipPosition.right,
+    TooltipPosition.left,
+  ],
+  TooltipPosition.right => const [
+    TooltipPosition.right,
+    TooltipPosition.left,
+    TooltipPosition.bottom,
+    TooltipPosition.top,
+  ],
+  TooltipPosition.left => const [
+    TooltipPosition.left,
+    TooltipPosition.right,
+    TooltipPosition.bottom,
+    TooltipPosition.top,
+  ],
+  TooltipPosition.auto => _autoOrder(safe, hole),
+};
 
 /// auto: sides by descending free space inside the safe rect (negative
 /// space — the hole sticking out — sinks to the end of the list).
@@ -85,20 +95,14 @@ Offset _offsetFor(
         hole.top - gap - childSize.height,
       );
     case TooltipPosition.bottom:
-      return Offset(
-        _centerX(childSize.width, hole, safe),
-        hole.bottom + gap,
-      );
+      return Offset(_centerX(childSize.width, hole, safe), hole.bottom + gap);
     case TooltipPosition.left:
       return Offset(
         hole.left - gap - childSize.width,
         _centerY(childSize.height, hole, safe),
       );
     case TooltipPosition.right:
-      return Offset(
-        hole.right + gap,
-        _centerY(childSize.height, hole, safe),
-      );
+      return Offset(hole.right + gap, _centerY(childSize.height, hole, safe));
     case TooltipPosition.auto:
       throw StateError('auto resolves to concrete sides before layout');
   }
@@ -125,9 +129,9 @@ double _clamp(double value, double min, double max) =>
 /// there — so a clamped placement turns into the ideal one continuously as the
 /// target moves (no jump when autoScroll brings it in).
 Offset _clampIntoSafe(Offset offset, Size size, Rect safe) => Offset(
-      _clamp(offset.dx, safe.left, safe.right - size.width),
-      _clamp(offset.dy, safe.top, safe.bottom - size.height),
-    );
+  _clamp(offset.dx, safe.left, safe.right - size.width),
+  _clamp(offset.dy, safe.top, safe.bottom - size.height),
+);
 
 /// Tooltip fully inside the safe rect (edge epsilon) and not overlapping any
 /// rect in [avoid] (the holes + already-placed tooltips).
@@ -185,8 +189,11 @@ Offset placeTooltip({
   // continuously on the way in.
   if (!hole.overlaps(safe)) {
     for (final side in _sideOrder(position, safe, hole)) {
-      final clamped =
-          _clampIntoSafe(_offsetFor(side, size, hole, safe, gap), size, safe);
+      final clamped = _clampIntoSafe(
+        _offsetFor(side, size, hole, safe, gap),
+        size,
+        safe,
+      );
       // `avoid` still wins: a multi slot gives up its preferred side rather
       // than overlapping an already-placed tooltip.
       if (_fits(clamped, size, safe, avoid)) return clamped;

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The same scene as `lib/main.dart` (the engine entry) — but with zero
 /// hintful in the bundle. Baseline of the S7 size.web leg (manifest `size:`

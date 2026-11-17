@@ -18,17 +18,17 @@ sealed class HintState {
 
   /// The running tour; null in [HintIdle].
   HintTour? get tour => switch (this) {
-        HintIdle() => null,
-        HintWaiting(:final tour) => tour,
-        HintActive(:final tour) => tour,
-      };
+    HintIdle() => null,
+    HintWaiting(:final tour) => tour,
+    HintActive(:final tour) => tour,
+  };
 
   /// 0-based index of the current step; null in [HintIdle].
   int? get stepIndex => switch (this) {
-        HintIdle() => null,
-        HintWaiting(:final stepIndex) => stepIndex,
-        HintActive(:final stepIndex) => stepIndex,
-      };
+    HintIdle() => null,
+    HintWaiting(:final stepIndex) => stepIndex,
+    HintActive(:final stepIndex) => stepIndex,
+  };
 
   /// Whether the state is [HintIdle].
   bool get isIdle => this is HintIdle;
@@ -364,7 +364,7 @@ class HintMachine {
   /// Creates the machine, optionally seeded with [initialState]
   /// (defaults to [HintIdle]).
   HintMachine({HintState? initialState})
-      : _state = initialState ?? const HintIdle();
+    : _state = initialState ?? const HintIdle();
 
   HintState _state;
 
@@ -374,8 +374,7 @@ class HintMachine {
   static bool _allPresent(
     bool Function(String targetId)? targetPresent,
     HintStep step,
-  ) =>
-      step.targetIds.every((id) => _present(targetPresent, id));
+  ) => step.targetIds.every((id) => _present(targetPresent, id));
 
   /// The single entry point. Returns the transition and applies it to the
   /// internal state.
@@ -398,10 +397,20 @@ class HintMachine {
     final effects = <HintEffect>[];
     final next = switch (current) {
       HintIdle() => _reduceIdle(event, effects),
-      HintWaiting(:final tour, :final stepIndex) =>
-        _reduceWaiting(tour, stepIndex, event, effects, targetPresent),
-      HintActive(:final tour, :final stepIndex) =>
-        _reduceActive(tour, stepIndex, event, effects, targetPresent),
+      HintWaiting(:final tour, :final stepIndex) => _reduceWaiting(
+        tour,
+        stepIndex,
+        event,
+        effects,
+        targetPresent,
+      ),
+      HintActive(:final tour, :final stepIndex) => _reduceActive(
+        tour,
+        stepIndex,
+        event,
+        effects,
+        targetPresent,
+      ),
     };
     _state = next;
     return HintTransition(
@@ -458,11 +467,22 @@ class HintMachine {
   }) {
     switch (event) {
       case UserPrevious():
-        return _previous(tour, index, effects, targetPresent,
-            fromWaiting: fromWaiting);
+        return _previous(
+          tour,
+          index,
+          effects,
+          targetPresent,
+          fromWaiting: fromWaiting,
+        );
       case UserGoTo(index: final toIndex):
-        return _goTo(tour, index, toIndex, effects, targetPresent,
-            fromWaiting: fromWaiting);
+        return _goTo(
+          tour,
+          index,
+          toIndex,
+          effects,
+          targetPresent,
+          fromWaiting: fromWaiting,
+        );
       case UserSkip():
         if (fromWaiting) effects.add(const ClearTimeoutEffect());
         effects.add(
@@ -489,8 +509,14 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
   ) {
     final step = tour.steps[index];
-    final user = _reduceUser(tour, index, event, effects, targetPresent,
-        fromWaiting: true);
+    final user = _reduceUser(
+      tour,
+      index,
+      event,
+      effects,
+      targetPresent,
+      fromWaiting: true,
+    );
     if (user != null) return user;
     switch (event) {
       case TargetAppeared(:final targetId)
@@ -541,8 +567,14 @@ class HintMachine {
     bool Function(String targetId)? targetPresent,
   ) {
     final step = tour.steps[index];
-    final user = _reduceUser(tour, index, event, effects, targetPresent,
-        fromWaiting: false);
+    final user = _reduceUser(
+      tour,
+      index,
+      event,
+      effects,
+      targetPresent,
+      fromWaiting: false,
+    );
     if (user != null) return user;
     switch (event) {
       case TargetVanished(:final targetId)
@@ -553,9 +585,7 @@ class HintMachine {
         // the target comes back; the re-armed timeout still guards against a
         // permanent loss (a vanished target that never returns times out).
         effects.add(
-          ArmTimeoutEffect(
-            timeout: step.resolveTimeout(tour.stepTimeout),
-          ),
+          ArmTimeoutEffect(timeout: step.resolveTimeout(tour.stepTimeout)),
         );
         return HintWaiting(tour: tour, stepIndex: index);
       case UserNext():
@@ -659,6 +689,5 @@ class HintMachine {
   static bool _present(
     bool Function(String targetId)? targetPresent,
     String targetId,
-  ) =>
-      targetPresent?.call(targetId) ?? false;
+  ) => targetPresent?.call(targetId) ?? false;
 }

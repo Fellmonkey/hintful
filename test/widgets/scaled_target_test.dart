@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
@@ -29,32 +29,34 @@ class _ScaledScreenState extends State<_ScaledScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Stack(
-          children: [
-            Positioned(
-              left: 40,
-              top: 60,
-              // topLeft alignment keeps the origin at (40, 60) so the expected
-              // hole rect is exact.
-              child: Transform.scale(
-                scale: 2,
-                alignment: Alignment.topLeft,
-                child: HintTarget(
-                  id: 'a',
-                  child: Container(
-                    key: const Key('a'),
-                    width: 100,
-                    height: 50,
-                    color: Colors.amber,
-                  ),
-                ),
+    body: Stack(
+      children: [
+        Positioned(
+          left: 40,
+          top: 60,
+          // topLeft alignment keeps the origin at (40, 60) so the expected
+          // hole rect is exact.
+          child: Transform.scale(
+            scale: 2,
+            alignment: Alignment.topLeft,
+            child: HintTarget(
+              id: 'a',
+              child: Container(
+                key: const Key('a'),
+                width: 100,
+                height: 50,
+                color: Colors.amber,
               ),
             ),
-          ],
+          ),
         ),
-        floatingActionButton: FloatingActionButton(
-          key: const Key('start'),
-          onPressed: () => unawaited(_controller.showTour(HintTour(
+      ],
+    ),
+    floatingActionButton: FloatingActionButton(
+      key: const Key('start'),
+      onPressed: () => unawaited(
+        _controller.showTour(
+          HintTour(
             id: 't',
             steps: const [
               HintStep(
@@ -62,10 +64,12 @@ class _ScaledScreenState extends State<_ScaledScreen> {
                 content: HintStepContent(title: 'A'),
               ),
             ],
-          ))),
-          child: const Icon(Icons.play_arrow),
+          ),
         ),
-      );
+      ),
+      child: const Icon(Icons.play_arrow),
+    ),
+  );
 }
 
 List<RectScrimPainter> _scrimPainters(WidgetTester tester) {
@@ -86,8 +90,9 @@ Future<void> _frames(WidgetTester tester, int n) async {
 }
 
 void main() {
-  testWidgets('uniform scale: the scrim hole scales with the target',
-      (tester) async {
+  testWidgets('uniform scale: the scrim hole scales with the target', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: _ScaledScreen()));
     await _frames(tester, 3);
 

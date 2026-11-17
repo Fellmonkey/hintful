@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:hintful/hintful.dart';
 
 /// All demo tours of the example app, in one place.
@@ -14,206 +14,238 @@ import 'package:hintful/hintful.dart';
 /// the versioned-intro pattern: shown once per app version via the store
 /// gate in the app shell.
 HintTour introTour({String? minShowVersion}) => HintTour(
-      id: 'intro',
-      autoScroll: true,
-      minShowVersion: minShowVersion,
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Quick log',
-              description: 'Add sets with one tap — the main action '
-                  'of this screen.'),
-        ),
-        HintStep(
-          targetId: 'filter-daily',
-          content: HintStepContent(
-              title: 'Daily filter',
-              description: 'Narrow the list to one day — the summary '
-                  'below follows.'),
-        ),
-        HintStep(
-          targetId: 'stats',
-          content: HintStepContent(
-              title: 'Summary card',
-              description: 'It appeared on its own while this step '
-                  'waited for it — that is wait-for-target for '
-                  'deferred sections.'),
-        ),
-        HintStep(
-          targetId: 'entry-0',
-          content: HintStepContent(
-              title: 'Workout list',
-              description: 'Every entry is a target too. Done!'),
-        ),
-      ],
-    );
+  id: 'intro',
+  autoScroll: true,
+  minShowVersion: minShowVersion,
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Quick log',
+        description:
+            'Add sets with one tap — the main action '
+            'of this screen.',
+      ),
+    ),
+    HintStep(
+      targetId: 'filter-daily',
+      content: HintStepContent(
+        title: 'Daily filter',
+        description:
+            'Narrow the list to one day — the summary '
+            'below follows.',
+      ),
+    ),
+    HintStep(
+      targetId: 'stats',
+      content: HintStepContent(
+        title: 'Summary card',
+        description:
+            'It appeared on its own while this step '
+            'waited for it — that is wait-for-target for '
+            'deferred sections.',
+      ),
+    ),
+    HintStep(
+      targetId: 'entry-0',
+      content: HintStepContent(
+        title: 'Workout list',
+        description: 'Every entry is a target too. Done!',
+      ),
+    ),
+  ],
+);
 
 /// Multi-target: one step spotlighting two elements at once — each gets its
 /// own scrim hole and the tooltip never covers either of them — followed by
 /// a single-target step for contrast.
 HintTour multiTargetTour() => HintTour(
-      id: 'multi-target',
-      autoScroll: true,
-      steps: [
-        HintStep(
-          targetId: 'filter-all',
-          content: HintStepContent(
-              title: 'Both filters at once',
-              description: 'One step can spotlight several targets — '
-                  'each has its own scrim hole, the tooltip avoids them all.'),
-          additionalTargets: ['filter-daily'],
-        ),
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Back to one target',
-              description: 'This step spotlights a single target — '
-                  'contrast it with the previous one.'),
-        ),
-      ],
-    );
+  id: 'multi-target',
+  autoScroll: true,
+  steps: [
+    HintStep(
+      targetId: 'filter-all',
+      content: HintStepContent(
+        title: 'Both filters at once',
+        description:
+            'One step can spotlight several targets — '
+            'each has its own scrim hole, the tooltip avoids them all.',
+      ),
+      additionalTargets: ['filter-daily'],
+    ),
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Back to one target',
+        description:
+            'This step spotlights a single target — '
+            'contrast it with the previous one.',
+      ),
+    ),
+  ],
+);
 
 /// Multi-content: several tooltips around one target. The primary tooltip
 /// owns the controls; the extra slots are informational and never overlap
 /// each other or the target.
 HintTour multiContentTour() => HintTour(
-      id: 'multi-content',
-      steps: [
-        HintStep(
-          targetId: 'fab',
+  id: 'multi-content',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Primary tooltip',
+        description: 'The primary tooltip — it owns the tour controls.',
+      ),
+      additionalTooltips: [
+        HintAdditionalTooltip(
+          position: TooltipPosition.left,
           content: HintStepContent(
-              title: 'Primary tooltip',
-              description: 'The primary tooltip — it owns the tour controls.'),
-          additionalTooltips: [
-            HintAdditionalTooltip(
-              position: TooltipPosition.left,
-              content: HintStepContent(
-                  title: 'Left slot',
-                  description: 'An extra tooltip on the left — '
-                      'informational, no buttons.'),
-            ),
-            HintAdditionalTooltip(
-              position: TooltipPosition.top,
-              content: HintStepContent(
-                  title: 'Top slot',
-                  description: 'Another slot on top. Slots never overlap '
-                      'each other or the spotlighted target.'),
-            ),
-          ],
+            title: 'Left slot',
+            description:
+                'An extra tooltip on the left — '
+                'informational, no buttons.',
+          ),
+        ),
+        HintAdditionalTooltip(
+          position: TooltipPosition.top,
+          content: HintStepContent(
+            title: 'Top slot',
+            description:
+                'Another slot on top. Slots never overlap '
+                'each other or the spotlighted target.',
+          ),
         ),
       ],
-    );
+    ),
+  ],
+);
 
 /// Tap regions: a tap on a spotlighted target vs a tap on the scrim fire
 /// different callbacks (with the tap position); per-step you can also turn
 /// a region off entirely.
 HintTour tapRegionsTour(void Function(String message) notify) => HintTour(
-      id: 'tap-regions',
-      autoScroll: true,
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Tap target vs overlay',
-              description: 'Tap the button (target) or the dark area '
-                  '(overlay) — each fires its own callback with the tap '
-                  'position. Use Next to advance.'),
-          targetTap: HintTapBehavior.custom((ctx, details) => notify(
-                'Target tap at '
-                '${details.localPosition.dx.round()},'
-                '${details.localPosition.dy.round()}',
-              )),
-          overlayTap: HintTapBehavior.custom(
-            (ctx, details) => notify('Overlay tap — advance with Next'),
-          ),
+  id: 'tap-regions',
+  autoScroll: true,
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Tap target vs overlay',
+        description:
+            'Tap the button (target) or the dark area '
+            '(overlay) — each fires its own callback with the tap '
+            'position. Use Next to advance.',
+      ),
+      targetTap: HintTapBehavior.custom(
+        (ctx, details) => notify(
+          'Target tap at '
+          '${details.localPosition.dx.round()},'
+          '${details.localPosition.dy.round()}',
         ),
-        HintStep(
-          targetId: 'entry-0',
-          content: HintStepContent(
-              title: 'Overlay taps off',
-              description: 'Taps on the dimmed area do nothing here — '
-                  'only a tap on the target or the Next button advances '
-                  '(overlayTap: HintTapBehavior.ignore()).'),
-          overlayTap: const HintTapBehavior.ignore(),
-        ),
-      ],
-    );
+      ),
+      overlayTap: HintTapBehavior.custom(
+        (ctx, details) => notify('Overlay tap — advance with Next'),
+      ),
+    ),
+    HintStep(
+      targetId: 'entry-0',
+      content: HintStepContent(
+        title: 'Overlay taps off',
+        description:
+            'Taps on the dimmed area do nothing here — '
+            'only a tap on the target or the Next button advances '
+            '(overlayTap: HintTapBehavior.ignore()).',
+      ),
+      overlayTap: const HintTapBehavior.ignore(),
+    ),
+  ],
+);
 
 /// A plain tour behind the "Offer tour" demo, which first asks "Want a
 /// tour?" (see `showHintTourOffer`). Marking runs on any exit
 /// ([HintMarkPolicy.onAnyExit] in the app shell) — finish/skip/timeout all
 /// count as "the user has seen it".
 HintTour offerTour({String? minShowVersion}) => HintTour(
-      id: 'offer',
-      autoScroll: true,
-      minShowVersion: minShowVersion,
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Quick log',
-              description: 'A plain tour — the offer dialog decides '
-                  'whether it shows at all.'),
-        ),
-        HintStep(
-          targetId: 'filter-all',
-          content: HintStepContent(
-              title: 'All sets filter',
-              description: 'One step per element, declared top to bottom.'),
-        ),
-      ],
-    );
+  id: 'offer',
+  autoScroll: true,
+  minShowVersion: minShowVersion,
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Quick log',
+        description:
+            'A plain tour — the offer dialog decides '
+            'whether it shows at all.',
+      ),
+    ),
+    HintStep(
+      targetId: 'filter-all',
+      content: HintStepContent(
+        title: 'All sets filter',
+        description: 'One step per element, declared top to bottom.',
+      ),
+    ),
+  ],
+);
 
 /// New 51-feature demos — Visual demos card.
 
 HintTour circleHoleTour() => HintTour(
-      id: 'feat-circle',
-      steps: [
-        HintStep(
-            targetId: 'fab',
-            content: HintStepContent(title: 'Circle hole'),
-            focusShape: FocusShape.circle)
-      ],
-    );
+  id: 'feat-circle',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(title: 'Circle hole'),
+      focusShape: FocusShape.circle,
+    ),
+  ],
+);
 
 HintTour roundedHoleTour() => HintTour(
-      id: 'feat-rounded',
-      steps: [
-        HintStep(
-            targetId: 'fab',
-            content: HintStepContent(title: 'Rounded hole'),
-            focusShape: FocusShape.roundedRect)
-      ],
-    );
+  id: 'feat-rounded',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(title: 'Rounded hole'),
+      focusShape: FocusShape.roundedRect,
+    ),
+  ],
+);
 
 HintTour negativePaddingTour() => HintTour(
-      id: 'feat-neg-pad',
-      steps: [
-        HintStep(
-            targetId: 'fab',
-            content: HintStepContent(
-                title: 'Shrink the hole',
-                description: 'A negative focusPadding (-8) pulls the '
-                    'spotlight tight to the widget.'),
-            focusPadding: -8)
-      ],
-    );
+  id: 'feat-neg-pad',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Shrink the hole',
+        description:
+            'A negative focusPadding (-8) pulls the '
+            'spotlight tight to the widget.',
+      ),
+      focusPadding: -8,
+    ),
+  ],
+);
 
 HintTour hooksTour(void Function(String m) notify) => HintTour(
-      id: 'feat-hooks',
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Step hooks',
-              description: 'Analytics hooks: onStepEnter / onStepExit '
-                  'fire around every step visit.'),
-          onStepEnter: () async => notify('before hook'),
-          onStepExit: () async => notify('after hook'),
-        ),
-      ],
-    );
+  id: 'feat-hooks',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Step hooks',
+        description:
+            'Analytics hooks: onStepEnter / onStepExit '
+            'fire around every step visit.',
+      ),
+      onStepEnter: () async => notify('before hook'),
+      onStepExit: () async => notify('after hook'),
+    ),
+  ],
+);
 
 /// The end of the customization ladder: a fully custom entry (fade + rise)
 /// through `tooltipBuilder` — the engine places whatever the builder
@@ -222,73 +254,75 @@ HintTour hooksTour(void Function(String m) notify) => HintTour(
 /// the builder's job; reduce-motion is honored inline via
 /// `MediaQuery.disableAnimations`.
 HintTour fadeSlideTour() => HintTour(
-      id: 'feat-fade-slide',
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'Fade and rise',
-              description: 'Custom entry, custom button.'),
-          tooltipBuilder: (context, step, ctx) {
-            final theme = Theme.of(context).hintTheme;
-            final reduceMotion = MediaQuery.of(context).disableAnimations;
-            final duration = reduceMotion
-                ? Duration.zero
-                : const Duration(milliseconds: 400);
-            final card = Semantics(
-              container: true,
-              label: step.content.title,
-              child: Material(
-                color: theme.tooltipBackground,
-                borderRadius: theme.tooltipRadius,
-                elevation: 6,
-                child: Padding(
-                  padding: theme.tooltipPadding,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(step.content.title ?? '',
-                          style: theme.tooltipTitleStyle),
-                      if (step.content.description != null) ...[
-                        const SizedBox(height: 4),
-                        Text(step.content.description!,
-                            style: theme.tooltipDescriptionStyle),
-                      ],
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: ctx.actions.finish,
-                          child: const Text('Got it'),
-                        ),
-                      ),
-                    ],
+  id: 'feat-fade-slide',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'Fade and rise',
+        description: 'Custom entry, custom button.',
+      ),
+      tooltipBuilder: (context, step, ctx) {
+        final theme = Theme.of(context).hintTheme;
+        final reduceMotion = MediaQuery.of(context).disableAnimations;
+        final duration = reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 400);
+        final card = Semantics(
+          container: true,
+          label: step.content.title,
+          child: Material(
+            color: theme.tooltipBackground,
+            borderRadius: theme.tooltipRadius,
+            elevation: 6,
+            child: Padding(
+              padding: theme.tooltipPadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.content.title ?? '',
+                    style: theme.tooltipTitleStyle,
                   ),
-                ),
-              ),
-            );
-            if (duration == Duration.zero) return card;
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: duration,
-              curve: Curves.easeOut,
-              builder: (context, t, child) => Opacity(
-                opacity: t,
-                child: Transform.translate(
-                  offset: Offset(0, 20 * (1 - t)),
-                  child: Transform.scale(
-                    scale: 0.85 + 0.15 * t,
-                    child: child,
+                  if (step.content.description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      step.content.description!,
+                      style: theme.tooltipDescriptionStyle,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: ctx.actions.finish,
+                      child: const Text('Got it'),
+                    ),
                   ),
-                ),
+                ],
               ),
-              child: _Float(child: card),
-            );
-          },
-        ),
-      ],
-    );
+            ),
+          ),
+        );
+        if (duration == Duration.zero) return card;
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: duration,
+          curve: Curves.easeOut,
+          builder: (context, t, child) => Opacity(
+            opacity: t,
+            child: Transform.translate(
+              offset: Offset(0, 20 * (1 - t)),
+              child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+            ),
+          ),
+          child: _Float(child: card),
+        );
+      },
+    ),
+  ],
+);
 
 /// While-visible float — single ticker, no enter logic.
 class _Float extends StatefulWidget {
@@ -332,9 +366,8 @@ class _FloatState extends State<_Float> with SingleTickerProviderStateMixin {
 /// Server-driven shape without a server: the exact JSON a backend would
 /// serve, parsed by `HintTour.fromJson` — proves the wire format end to end
 /// (titles, descriptions, positions, timeouts all survive the round trip).
-HintTour jsonTour() => HintTour.fromJson(
-      jsonDecode(_jsonTourDocument) as Map<String, dynamic>,
-    );
+HintTour jsonTour() =>
+    HintTour.fromJson(jsonDecode(_jsonTourDocument) as Map<String, dynamic>);
 
 const _jsonTourDocument = '''
 {"id":"feat-json","autoScroll":true,"stepTimeoutMs":3000,"steps":[
@@ -344,38 +377,46 @@ const _jsonTourDocument = '''
 
 /// l10n via titleBuilder + target-level focus + withHint.
 HintTour l10nTour(BuildContext context) => HintTour(
-      id: 'feat-l10n',
-      steps: [
-        HintStep(
-          targetId: 'entry-5',
-          content: HintStepContent(
-              titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
-              description: 'The copy comes from the localizations via '
-                  'titleBuilder — no BuildContext in your tours file.'),
-          autoScroll: true,
-        ),
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'withHint + target shape',
-              description: 'FAB uses withHint + target-level circle.'),
-        ),
-      ],
-    );
+  id: 'feat-l10n',
+  steps: [
+    HintStep(
+      targetId: 'entry-5',
+      content: HintStepContent(
+        titleBuilder: (c) => MaterialLocalizations.of(c).okButtonLabel,
+        description:
+            'The copy comes from the localizations via '
+            'titleBuilder — no BuildContext in your tours file.',
+      ),
+      autoScroll: true,
+    ),
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'withHint + target shape',
+        description: 'FAB uses withHint + target-level circle.',
+      ),
+    ),
+  ],
+);
 
 /// Per-step autoScroll: only the offscreen step scrolls, the first stays.
 HintTour autoScrollStepTour() => HintTour(
-      id: 'feat-autoscroll-step',
-      steps: [
-        HintStep(
-          targetId: 'fab',
-          content: HintStepContent(
-              title: 'No scroll', description: 'Already visible.'),
-        ),
-        HintStep(
-            targetId: 'entry-5',
-            content: HintStepContent(
-                title: 'Scroll here', description: 'This step autoScrolls.'),
-            autoScroll: true),
-      ],
-    );
+  id: 'feat-autoscroll-step',
+  steps: [
+    HintStep(
+      targetId: 'fab',
+      content: HintStepContent(
+        title: 'No scroll',
+        description: 'Already visible.',
+      ),
+    ),
+    HintStep(
+      targetId: 'entry-5',
+      content: HintStepContent(
+        title: 'Scroll here',
+        description: 'This step autoScrolls.',
+      ),
+      autoScroll: true,
+    ),
+  ],
+);

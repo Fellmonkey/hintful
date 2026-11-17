@@ -165,8 +165,12 @@ class CallbackHintStore implements HintStore {
   CallbackHintStore({
     required String? Function(String key) read,
     required void Function(String key, String version) write,
-  })  : _read = read,
-        _write = write;
+  }) : // Public parameter names are the constructor API; an initializing
+       // formal would make them private and uncallable from other libraries.
+       // ignore: prefer_initializing_formals
+       _read = read,
+       // ignore: prefer_initializing_formals
+       _write = write;
 
   final String? Function(String key) _read;
   final void Function(String key, String version) _write;

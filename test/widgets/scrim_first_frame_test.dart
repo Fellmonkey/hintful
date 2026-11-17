@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
@@ -63,19 +63,23 @@ class _SyncScreenState extends State<_SyncScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         key: const Key('start'),
-        onPressed: () => unawaited(_controller.showTour(HintTour(
-          id: 't',
-          steps: const [
-            HintStep(
-              targetId: 'a',
-              content: HintStepContent(title: 'A', description: 'd'),
+        onPressed: () => unawaited(
+          _controller.showTour(
+            HintTour(
+              id: 't',
+              steps: const [
+                HintStep(
+                  targetId: 'a',
+                  content: HintStepContent(title: 'A', description: 'd'),
+                ),
+                HintStep(
+                  targetId: 'b',
+                  content: HintStepContent(title: 'B', description: 'd'),
+                ),
+              ],
             ),
-            HintStep(
-              targetId: 'b',
-              content: HintStepContent(title: 'B', description: 'd'),
-            ),
-          ],
-        ))),
+          ),
+        ),
         child: const Icon(Icons.play_arrow),
       ),
     );
@@ -119,9 +123,7 @@ void main() {
     expect(find.byType(DefaultTooltip), findsNothing);
   });
 
-  testWidgets('step change shows new content after one frame', (
-    tester,
-  ) async {
+  testWidgets('step change shows new content after one frame', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: _SyncScreen()));
     await _frames(tester, 3);
     await tester.tap(find.byKey(const Key('start')));
@@ -171,70 +173,72 @@ void main() {
     expect(find.byType(DefaultTooltip), findsNothing);
   });
 
-  testWidgets('late target (Waiting -> Active): the scrim has fresh hole rects',
-      (tester) async {
-    final controller = HintController();
-    addTearDown(controller.dispose);
-    var showTarget = false;
+  testWidgets(
+    'late target (Waiting -> Active): the scrim has fresh hole rects',
+    (tester) async {
+      final controller = HintController();
+      addTearDown(controller.dispose);
+      var showTarget = false;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) => Column(
-              children: [
-                if (showTarget)
-                  HintTarget(
-                    id: 'late',
-                    child: Container(
-                      key: const Key('late'),
-                      height: 120,
-                      color: Colors.amber,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: [
+                  if (showTarget)
+                    HintTarget(
+                      id: 'late',
+                      child: Container(
+                        key: const Key('late'),
+                        height: 120,
+                        color: Colors.amber,
+                      ),
                     ),
+                  TextButton(
+                    key: const Key('show'),
+                    onPressed: () => setState(() => showTarget = true),
+                    child: const Text('show'),
                   ),
-                TextButton(
-                  key: const Key('show'),
-                  onPressed: () => setState(() => showTarget = true),
-                  child: const Text('show'),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await _frames(tester, 3);
+      );
+      await _frames(tester, 3);
 
-    // Start while the target is absent -> Waiting (full scrim, no hole).
-    unawaited(
-      controller.showTour(
-        HintTour(
-          id: 't',
-          steps: const [
-            HintStep(
-              targetId: 'late',
-              content: HintStepContent(title: 'L', description: 'd'),
-            ),
-          ],
+      // Start while the target is absent -> Waiting (full scrim, no hole).
+      unawaited(
+        controller.showTour(
+          HintTour(
+            id: 't',
+            steps: const [
+              HintStep(
+                targetId: 'late',
+                content: HintStepContent(title: 'L', description: 'd'),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-    await _frames(tester, 3);
+      );
+      await _frames(tester, 3);
 
-    // Mount the target late -> Active with hole.
-    await tester.tap(find.byKey(const Key('show')));
-    await _frames(tester, 6);
+      // Mount the target late -> Active with hole.
+      await tester.tap(find.byKey(const Key('show')));
+      await _frames(tester, 6);
 
-    expect(find.byType(DefaultTooltip), findsOneWidget);
-    final painters = _scrimPainters(tester);
-    expect(painters, isNotEmpty);
-    for (final p in painters) {
-      expect(p.holes, isNotEmpty);
-    }
+      expect(find.byType(DefaultTooltip), findsOneWidget);
+      final painters = _scrimPainters(tester);
+      expect(painters, isNotEmpty);
+      for (final p in painters) {
+        expect(p.holes, isNotEmpty);
+      }
 
-    // Finish the tour so its wait-timeout timer does not outlive the test.
-    controller.finish();
-    await _frames(tester, 3);
-    expect(find.byType(DefaultTooltip), findsNothing);
-  });
+      // Finish the tour so its wait-timeout timer does not outlive the test.
+      controller.finish();
+      await _frames(tester, 3);
+      expect(find.byType(DefaultTooltip), findsNothing);
+    },
+  );
 }

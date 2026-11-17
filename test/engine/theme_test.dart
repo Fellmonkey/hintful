@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/labels.dart';
 import 'package:hintful/src/engine/theme/hint_theme.dart';
@@ -56,13 +56,11 @@ void main() {
 
   group('HintThemeX.hintTheme', () {
     test('without registration — minimal default from colorScheme', () {
-      final data =
-          ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal));
-      expect(data.hintTheme, isA<HintTheme>());
-      expect(
-        data.hintTheme.tooltipBackground,
-        data.colorScheme.inverseSurface,
+      final data = ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
       );
+      expect(data.hintTheme, isA<HintTheme>());
+      expect(data.hintTheme.tooltipBackground, data.colorScheme.inverseSurface);
     });
 
     test('with registration — custom theme', () {
@@ -186,8 +184,7 @@ void main() {
       expect(a.showTail, isTrue); // the original is unchanged
     });
 
-    test(
-        'copyWith(imageFilter:/showPulse:) sets them, the original is '
+    test('copyWith(imageFilter:/showPulse:) sets them, the original is '
         'unchanged', () {
       final blur = ImageFilter.blur(sigmaX: 6, sigmaY: 6);
       final changed = a.copyWith(imageFilter: blur, showPulse: true);
@@ -207,27 +204,29 @@ void main() {
       expect(blurred.copyWith().imageFilter, same(blur));
     });
 
-    test('withoutTitleStyle()/withoutDescriptionStyle() drop the overrides',
-        () {
-      expect(a.tooltipTitleStyle, isNotNull);
-      expect(a.tooltipDescriptionStyle, isNotNull);
+    test(
+      'withoutTitleStyle()/withoutDescriptionStyle() drop the overrides',
+      () {
+        expect(a.tooltipTitleStyle, isNotNull);
+        expect(a.tooltipDescriptionStyle, isNotNull);
 
-      final cleared = a.withoutTitleStyle().withoutDescriptionStyle();
-      expect(cleared.tooltipTitleStyle, isNull);
-      expect(cleared.tooltipDescriptionStyle, isNull);
+        final cleared = a.withoutTitleStyle().withoutDescriptionStyle();
+        expect(cleared.tooltipTitleStyle, isNull);
+        expect(cleared.tooltipDescriptionStyle, isNull);
 
-      // Only the given fields change.
-      expect(cleared.tooltipBackground, a.tooltipBackground);
-      expect(
-        a.withoutTitleStyle().tooltipDescriptionStyle,
-        a.tooltipDescriptionStyle,
-      );
-      expect(
-        a.copyWith(tooltipTitleStyle: null).tooltipTitleStyle,
-        a.tooltipTitleStyle,
-        reason: 'null keeps — clearing has its own call',
-      );
-    });
+        // Only the given fields change.
+        expect(cleared.tooltipBackground, a.tooltipBackground);
+        expect(
+          a.withoutTitleStyle().tooltipDescriptionStyle,
+          a.tooltipDescriptionStyle,
+        );
+        expect(
+          a.copyWith(tooltipTitleStyle: null).tooltipTitleStyle,
+          a.tooltipTitleStyle,
+          reason: 'null keeps — clearing has its own call',
+        );
+      },
+    );
 
     test('lerp(0) = a, lerp(1) = b, the middle — interpolation', () {
       expect(a.lerp(b, 0.0).tooltipBackground, a.tooltipBackground);
@@ -305,9 +304,11 @@ void main() {
 
       // The explicit clearer drops the override.
       expect(
-        localized
-            .withoutAnnounceStep()
-            .announce(stepIndex: 0, totalSteps: 3, title: 'T'),
+        localized.withoutAnnounceStep().announce(
+          stepIndex: 0,
+          totalSteps: 3,
+          title: 'T',
+        ),
         'Step 1 of 3: T',
       );
       // A null argument (or omitting it) keeps, like every other field.

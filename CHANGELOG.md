@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.0.0
+
+**Breaking: Flutter 3.50 Material decoupling.** This is the forward line;
+apps on older SDKs stay on 1.x (frozen API, Dart 3.2 / Flutter 3.16 floor).
+
+- **`package:flutter/material.dart` → `package:material_ui/material_ui.dart`
+  everywhere** (library, tests, example, benchmark). Flutter 3.50 deprecates
+  the in-SDK Material library; `material_ui` is the official replacement.
+- **Public theme types come from `material_ui` now.** `HintThemeX on ThemeData`
+  and `HintTheme.minimal(ColorScheme)` use `material_ui`'s `ThemeData` and
+  `ColorScheme`. An app still importing `flutter/material.dart` gets a
+  *different* `ThemeData` type: migrate its imports too (or bridge with
+  `MaterialUiCompatibilityBridge`, which cannot fix API-signature mismatches).
+  See `doc/FLUTTER_3_50_MIGRATION.md`.
+- **Floor raised:** Dart >= 3.13 / Flutter >= 3.47 (required by `material_ui`
+  1.11.1), from Dart 3.2 / Flutter 3.16 in 1.x.
+- **New runtime dependency:** `material_ui: ^1.11.1`. The engine itself is
+  unchanged; this is a source/ABI-level migration, not a behaviour change.
+- `hintful_prefs` must be upgraded to its 2.0.0 release (`hintful: ^2.0.0`).
+- CI checks both 3.47.0 and 3.50.0; the size golden stays pinned to 3.47.0
+  and needs a `bench-record` re-run before it can move.
+
 ## 1.0.1
 
 Maintenance release for the Flutter 3.50 transition. **No public API change.**

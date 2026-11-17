@@ -53,7 +53,7 @@ class HintTooltipLabels {
   /// Gets the 0-based [stepIndex], total count and resolved title (targetId
   /// when the step has none).
   final String Function(int stepIndex, int totalSteps, String title)?
-      announceStep;
+  announceStep;
 
   /// Announcement for a step via [announceStep] or the English default.
   String announce({
@@ -89,12 +89,12 @@ class HintTooltipLabels {
   /// The same labels without a custom [announceStep]: the default
   /// "Step N of M: <title>" announcement applies again.
   HintTooltipLabels withoutAnnounceStep() => HintTooltipLabels(
-        skip: skip,
-        back: back,
-        next: next,
-        done: done,
-        preparing: preparing,
-      );
+    skip: skip,
+    back: back,
+    next: next,
+    done: done,
+    preparing: preparing,
+  );
 
   @override
   bool operator ==(Object other) =>

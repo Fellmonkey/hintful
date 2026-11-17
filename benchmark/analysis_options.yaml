@@ -10,10 +10,6 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  errors:
-    # 1.x line: keep the legacy Material import compatible with Flutter 3.50.
-    # TODO(hintful): remove with the 2.x material_ui migration.
-    deprecated_member_use: ignore
   exclude:
     - build/**
     - compare/**

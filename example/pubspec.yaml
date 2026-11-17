@@ -4,10 +4,9 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  # Raised over the library floor: the demo reads
-  # ColorScheme.surfaceContainerHighest (home_screen.dart) — Flutter 3.22.
-  sdk: '>=3.4.0 <4.0.0'
-  flutter: '>=3.22.0'
+  # Follows the hintful 2.x floor (material_ui, Flutter 3.47 / Dart 3.13).
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
@@ -15,6 +14,8 @@ dependencies:
   # The only dependency on the package — through the public barrel.
   hintful:
     path: ../
+  # 2.x imports material_ui directly, so the example declares it too.
+  material_ui: ^1.11.1
   # Storage for the demo's store (lib/shared_prefs_hint_store.dart).
   shared_preferences: ^2.3.0
 

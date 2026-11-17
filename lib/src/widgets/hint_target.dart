@@ -85,7 +85,8 @@ class _HintTargetState extends State<HintTarget> {
     // it builds — without re-registering, a changed focusShape/focusPadding
     // would keep punching the old hole for the rest of the tour (and every
     // tour after it).
-    final holesChanged = !newTarget &&
+    final holesChanged =
+        !newTarget &&
         (oldWidget.focusShape != widget.focusShape ||
             oldWidget.focusPadding != widget.focusPadding);
     if (!newTarget && !holesChanged) return;
@@ -101,12 +102,12 @@ class _HintTargetState extends State<HintTarget> {
   }
 
   HintTargetRegistration _buildRegistration() => HintTargetRegistration(
-        id: widget.id,
-        link: _link,
-        context: context,
-        focusShape: widget.focusShape,
-        focusPadding: widget.focusPadding,
-      );
+    id: widget.id,
+    link: _link,
+    context: context,
+    focusShape: widget.focusShape,
+    focusPadding: widget.focusPadding,
+  );
 
   @override
   void dispose() {

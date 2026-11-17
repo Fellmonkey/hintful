@@ -33,11 +33,11 @@ enum HintSkipReason {
 
   /// Kebab-case reason name for one-line diagnostics and test mapping.
   String get label => switch (this) {
-        HintSkipReason.overlayUnavailable => 'overlay-unavailable',
-        HintSkipReason.timeout => 'timeout',
-        HintSkipReason.unknownTarget => 'unknown-target',
-        HintSkipReason.userSkipped => 'user-skipped',
-      };
+    HintSkipReason.overlayUnavailable => 'overlay-unavailable',
+    HintSkipReason.timeout => 'timeout',
+    HintSkipReason.unknownTarget => 'unknown-target',
+    HintSkipReason.userSkipped => 'user-skipped',
+  };
 }
 
 /// A single "step was not shown" event — the diagnostics payload.
@@ -89,7 +89,8 @@ class HintSkipEvent {
 
   /// One-line dump, same shape as [formatHintSkipped]'s payload.
   @override
-  String toString() => 'HintSkipEvent(tourId: $tourId, stepIndex: $stepIndex,'
+  String toString() =>
+      'HintSkipEvent(tourId: $tourId, stepIndex: $stepIndex,'
       ' targetId: $targetId, reason: ${reason.label}, detail: $detail)';
 }
 

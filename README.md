@@ -10,8 +10,10 @@ data, wrap targets in `HintTarget(id: ...)` — the engine renders, follows the
 targets through scrolling, waits for late ones, remembers what was shown and
 tells you why something didn't show.
 
-A code-first library: no SaaS, no no-code builder, no analytics — a
-dependency-free engine (Flutter SDK only) you own in your repo.
+A code-first library: no SaaS, no no-code builder, no analytics — a single
+`package:hintful` import you own in your repo. 2.x uses Flutter's official
+`material_ui` package (3.50 deprecates the in-SDK Material library); the 1.x
+line stays dependency-free on the legacy import.
 
 ## See it in action
 
@@ -143,7 +145,8 @@ overridable copy labels.
 
 **Engine** — pure state-machine core with a framework-agnostic state API
 (`ValueListenable<HintState>`); headless testing (`HintController.test()`,
-`Hintful.reset()`); diagnostics handler; zero runtime dependencies.
+`Hintful.reset()`); diagnostics handler; no runtime dependencies beyond
+Flutter and its official `material_ui` package.
 
 ## Accessibility
 
@@ -180,16 +183,17 @@ introduce a target that isn't in the shipped build. Details:
 
 ```yaml
 dependencies:
-  hintful: ^1.0.0
+  hintful: ^2.0.0
 ```
 
 ```dart
 import 'package:hintful/hintful.dart';
 ```
 
-Requires Dart ≥ 3.2 / Flutter ≥ 3.16. This 1.x line is still maintained for
-older Flutter SDKs — see [doc/SUPPORT.md](doc/SUPPORT.md); the forward line
-(2.x) uses `material_ui` and requires Flutter 3.47+.
+Requires Dart ≥ 3.13 / Flutter ≥ 3.47 (`material_ui`). Apps that cannot move
+yet stay on the frozen 1.x line (Dart ≥ 3.2 / Flutter ≥ 3.16) — it is still
+maintained; see [the support policy](doc/SUPPORT.md) and the
+[1.x → 2.x migration guide](doc/FLUTTER_3_50_MIGRATION.md).
 
 See `example/` for working demos:
 shaped holes, blur/pulse styles, custom animated tooltips, JSON tours, tap

@@ -11,7 +11,7 @@
 // The scene is inline (self-contained): MaterialApp + one HintTarget + a
 // start button, mirroring the size targets' minimal shape. No shared
 // harness — this file is the whole custom scenario.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
 import 'package:integration_test/integration_test.dart';
@@ -37,9 +37,11 @@ void main() {
     stopwatch.stop();
 
     // ignore: avoid_print
-    print('benchmark_startup_to_show: $frames frames to first tooltip '
-        'frame, ${stopwatch.elapsedMicroseconds} µs '
-        '(${stopwatch.elapsedMilliseconds} ms)');
+    print(
+      'benchmark_startup_to_show: $frames frames to first tooltip '
+      'frame, ${stopwatch.elapsedMicroseconds} µs '
+      '(${stopwatch.elapsedMilliseconds} ms)',
+    );
     reportMetric('custom.startup_to_show', frames);
 
     expect(
@@ -106,11 +108,11 @@ class _StartupScene extends StatelessWidget {
 }
 
 HintTour _tour() => HintTour(
-      id: 'startup',
-      steps: [
-        HintStep(
-          targetId: 'target',
-          content: HintStepContent(title: 'Step one', description: 'Target'),
-        ),
-      ],
-    );
+  id: 'startup',
+  steps: [
+    HintStep(
+      targetId: 'target',
+      content: HintStepContent(title: 'Step one', description: 'Target'),
+    ),
+  ],
+);

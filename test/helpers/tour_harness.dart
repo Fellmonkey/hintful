@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/src/engine/overlay/scrim_painter.dart';
 import 'package:hintful/hintful.dart';
@@ -58,9 +58,9 @@ class TourHarness {
     this.scrollable = false,
     this.themeExtensions = const [],
     this.leading,
-  })  : registry = registry ?? HintTargetRegistry(),
-        _customDiagnostics = diagnostics,
-        recorder = DiagnosticsRecorder();
+  }) : registry = registry ?? HintTargetRegistry(),
+       _customDiagnostics = diagnostics,
+       recorder = DiagnosticsRecorder();
 
   /// Scene targets; [reveal] adds more at runtime (deferred scenario).
   final List<HarnessTarget> targets;
@@ -105,10 +105,7 @@ class TourHarness {
   Future<void> pump(WidgetTester tester) async {
     if (!_pumped) {
       _pumped = true;
-      controller = HintController(
-        registry: registry,
-        diagnostics: diagnostics,
-      );
+      controller = HintController(registry: registry, diagnostics: diagnostics);
       addTearDown(_disposeOnce);
     }
     await tester.pumpWidget(_scene());
@@ -156,13 +153,22 @@ class TourHarness {
   /// Zero-idle assertion: when idle, the tree has no engine widget at all
   /// (the overlay is removed).
   void expectIdleClean() {
-    expect(find.byType(DefaultTooltip), findsNothing,
-        reason: 'idle: no tooltip');
+    expect(
+      find.byType(DefaultTooltip),
+      findsNothing,
+      reason: 'idle: no tooltip',
+    );
     expect(_scrimFinder, findsNothing, reason: 'idle: no scrim');
-    expect(find.text('Preparing…'), findsNothing,
-        reason: 'idle: no waiting layer');
-    expect(find.byType(CompositedTransformFollower), findsNothing,
-        reason: 'idle: no follower (it lives inside the entry)');
+    expect(
+      find.text('Preparing…'),
+      findsNothing,
+      reason: 'idle: no waiting layer',
+    );
+    expect(
+      find.byType(CompositedTransformFollower),
+      findsNothing,
+      reason: 'idle: no follower (it lives inside the entry)',
+    );
   }
 
   /// The scrim layer — a `CustomPaint` with `RectScrimPainter` (the shared
@@ -177,37 +183,30 @@ class TourHarness {
     final targets = [...this.targets, ..._extra];
 
     Widget target(HarnessTarget t) => HintTarget(
-          id: t.id,
-          registry: registry,
-          child: Container(
-            width: scrollable ? double.infinity : t.width,
-            height: t.height,
-            color: Colors.blue,
-            alignment: Alignment.center,
-            child: Text(
-              t.id,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        );
+      id: t.id,
+      registry: registry,
+      child: Container(
+        width: scrollable ? double.infinity : t.width,
+        height: t.height,
+        color: Colors.blue,
+        alignment: Alignment.center,
+        child: Text(t.id, style: const TextStyle(color: Colors.white)),
+      ),
+    );
 
     final Widget body = scrollable
         ? ListView(
             controller: scrollController,
             children: [
-              if (leading != null) leading!,
+              ?leading,
               for (final t in targets) ...[SizedBox(height: t.top), target(t)],
             ],
           )
         : Stack(
             children: [
-              if (leading != null) leading!,
+              ?leading,
               for (final t in targets)
-                Positioned(
-                  left: t.left,
-                  top: t.top,
-                  child: target(t),
-                ),
+                Positioned(left: t.left, top: t.top, child: target(t)),
             ],
           );
 

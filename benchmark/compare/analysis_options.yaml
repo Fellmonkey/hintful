@@ -10,10 +10,6 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  errors:
-    # 1.x line: rival drivers still import the legacy Material library.
-    # TODO(hintful): revisit with the 2.x material_ui migration.
-    deprecated_member_use: ignore
   exclude:
     - build/**
     - android/**

@@ -8,21 +8,20 @@ import 'package:hintful/src/engine/specs.dart';
 HintTour _tour({
   int steps = 2,
   Duration stepTimeout = const Duration(seconds: 3),
-}) =>
-    HintTour(
-      id: 't',
-      // These fixtures predate the 1.0 default (skipStep) and assert abort
-      // semantics, so they opt into abortTour explicitly.
-      missingTargetPolicy: HintMissingTargetPolicy.abortTour,
-      steps: [
-        for (var i = 0; i < steps; i++)
-          HintStep(
-            targetId: 'target$i',
-            content: HintStepContent(title: 'Step $i'),
-          ),
-      ],
-      stepTimeout: stepTimeout,
-    );
+}) => HintTour(
+  id: 't',
+  // These fixtures predate the 1.0 default (skipStep) and assert abort
+  // semantics, so they opt into abortTour explicitly.
+  missingTargetPolicy: HintMissingTargetPolicy.abortTour,
+  steps: [
+    for (var i = 0; i < steps; i++)
+      HintStep(
+        targetId: 'target$i',
+        content: HintStepContent(title: 'Step $i'),
+      ),
+  ],
+  stepTimeout: stepTimeout,
+);
 
 void expectTransition(
   HintTransition transition,
@@ -43,18 +42,26 @@ void main() {
       final b = HintWaiting(tour: tour, stepIndex: 1);
       expect(a, b);
       expect(a.hashCode, b.hashCode);
-      expect(HintActive(tour: tour, stepIndex: 0),
-          HintActive(tour: tour, stepIndex: 0));
+      expect(
+        HintActive(tour: tour, stepIndex: 0),
+        HintActive(tour: tour, stepIndex: 0),
+      );
     });
 
     test('a different state / step / tour instance — not equal', () {
-      expect(HintWaiting(tour: tour, stepIndex: 0),
-          isNot(HintActive(tour: tour, stepIndex: 0)));
-      expect(HintWaiting(tour: tour, stepIndex: 0),
-          isNot(HintWaiting(tour: tour, stepIndex: 1)));
+      expect(
+        HintWaiting(tour: tour, stepIndex: 0),
+        isNot(HintActive(tour: tour, stepIndex: 0)),
+      );
+      expect(
+        HintWaiting(tour: tour, stepIndex: 0),
+        isNot(HintWaiting(tour: tour, stepIndex: 1)),
+      );
       // A tour is compared by identity (it is rebuilt per entry point).
-      expect(HintWaiting(tour: tour, stepIndex: 0),
-          isNot(HintWaiting(tour: otherTour, stepIndex: 0)));
+      expect(
+        HintWaiting(tour: tour, stepIndex: 0),
+        isNot(HintWaiting(tour: otherTour, stepIndex: 0)),
+      );
     });
 
     test('two idles are equal', () {
@@ -64,9 +71,13 @@ void main() {
 
     test('toString names the state, the tour and the step', () {
       expect(
-          '${HintWaiting(tour: tour, stepIndex: 1)}', 'HintWaiting(t, step 1)');
+        '${HintWaiting(tour: tour, stepIndex: 1)}',
+        'HintWaiting(t, step 1)',
+      );
       expect(
-          '${HintActive(tour: tour, stepIndex: 0)}', 'HintActive(t, step 0)');
+        '${HintActive(tour: tour, stepIndex: 0)}',
+        'HintActive(t, step 0)',
+      );
       expect('${const HintIdle()}', 'HintIdle()');
     });
 
@@ -75,10 +86,10 @@ void main() {
       // public states — a new (or intermediate) subtype would break it, and
       // app code relies on this (the 1.x "closed" note on HintState).
       String describe(HintState state) => switch (state) {
-            HintIdle() => 'idle',
-            HintWaiting() => 'waiting',
-            HintActive() => 'active',
-          };
+        HintIdle() => 'idle',
+        HintWaiting() => 'waiting',
+        HintActive() => 'active',
+      };
       expect(describe(const HintIdle()), 'idle');
       expect(describe(HintWaiting(tour: tour, stepIndex: 0)), 'waiting');
       expect(describe(HintActive(tour: tour, stepIndex: 0)), 'active');
@@ -94,285 +105,292 @@ void main() {
     final active1 = HintActive(tour: tour, stepIndex: 1);
     const arm3 = ArmTimeoutEffect(timeout: Duration(seconds: 3));
 
-    final cases = <({
-      String name,
-      HintState from,
-      HintEvent event,
-      Map<String, bool> present,
-      HintState expected,
-      List<HintEffect> effects,
-    })>[
-      (
-        name: 'start from idle → waiting(0) + timer',
-        from: idle,
-        event: HintStart(tour: tour),
-        present: const {},
-        expected: waiting0,
-        effects: const [arm3],
-      ),
-      (
-        name: 'idle ignores everything except start',
-        from: idle,
-        event: const UserFinish(),
-        present: const {},
-        expected: idle,
-        effects: const [],
-      ),
-      (
-        name: 'idle ignores foreign targets appearing',
-        from: idle,
-        event: const TargetAppeared(targetId: 'target0'),
-        present: const {},
-        expected: idle,
-        effects: const [],
-      ),
-      (
-        name: 'the awaited target appears → active step',
-        from: waiting0,
-        event: const TargetAppeared(targetId: 'target0'),
-        present: const {'target0': true},
-        expected: active0,
-        effects: const [ClearTimeoutEffect()],
-      ),
-      (
-        name: 'a foreign target appearing while waiting is ignored',
-        from: waiting0,
-        event: const TargetAppeared(targetId: 'target1'),
-        present: const {},
-        expected: waiting0,
-        effects: const [],
-      ),
-      (
-        name: 'timeout while waiting → abort timeout',
-        from: waiting0,
-        event: const WaitTimeout(),
-        present: const {},
-        expected: idle,
-        effects: const [
-          ClearTimeoutEffect(),
-          AbortEffect(
-            reason: HintSkipReason.timeout,
-            detail: "target 'target0' did not appear within 0:00:03.000000",
+    final cases =
+        <
+          ({
+            String name,
+            HintState from,
+            HintEvent event,
+            Map<String, bool> present,
+            HintState expected,
+            List<HintEffect> effects,
+          })
+        >[
+          (
+            name: 'start from idle → waiting(0) + timer',
+            from: idle,
+            event: HintStart(tour: tour),
+            present: const {},
+            expected: waiting0,
+            effects: const [arm3],
           ),
-        ],
-      ),
-      (
-        name: 'next while waiting does not skip the wait',
-        from: waiting0,
-        event: const UserNext(),
-        present: const {},
-        expected: waiting0,
-        effects: const [],
-      ),
-      (
-        name: 'skip while waiting → abort userSkipped',
-        from: waiting0,
-        event: const UserSkip(),
-        present: const {},
-        expected: idle,
-        effects: const [
-          ClearTimeoutEffect(),
-          AbortEffect(
-            reason: HintSkipReason.userSkipped,
-            detail: 'user skipped',
+          (
+            name: 'idle ignores everything except start',
+            from: idle,
+            event: const UserFinish(),
+            present: const {},
+            expected: idle,
+            effects: const [],
           ),
-        ],
-      ),
-      (
-        name: 'finish while waiting → normal completion',
-        from: waiting0,
-        event: const UserFinish(),
-        present: const {},
-        expected: idle,
-        effects: const [
-          ClearTimeoutEffect(),
-          FinishedEffect(tourId: 't'),
-        ],
-      ),
-      (
-        name: 'any target vanishing while waiting — keep waiting',
-        from: waiting0,
-        event: const TargetVanished(targetId: 'target0'),
-        present: const {},
-        expected: waiting0,
-        effects: const [],
-      ),
-      (
-        name: 'the current target vanishing on an active step → re-wait '
-            '(not abort: scroll recycling/collapsed tab must not kill the '
-            'tour)',
-        from: active0,
-        event: const TargetVanished(targetId: 'target0'),
-        present: const {},
-        expected: waiting0,
-        effects: const [arm3],
-      ),
-      (
-        name: 'a future target vanishing does not touch the active step',
-        from: active0,
-        event: const TargetVanished(targetId: 'target1'),
-        present: const {},
-        expected: active0,
-        effects: const [],
-      ),
-      (
-        name: 'timeout while active is ignored (no timer is armed)',
-        from: active0,
-        event: const WaitTimeout(),
-        present: const {},
-        expected: active0,
-        effects: const [],
-      ),
-      (
-        name: 'previous from active step 1 → step 0 (target present)',
-        from: active1,
-        event: const UserPrevious(),
-        present: const {'target0': true},
-        expected: active0,
-        effects: const [],
-      ),
-      (
-        name: 'previous without step-0 target → waiting step 0 + timer',
-        from: active1,
-        event: const UserPrevious(),
-        present: const {},
-        expected: waiting0,
-        effects: const [arm3],
-      ),
-      (
-        name: 'previous on the first step — a no-op',
-        from: active0,
-        event: const UserPrevious(),
-        present: const {},
-        expected: active0,
-        effects: const [],
-      ),
-      (
-        name: 'previous from waiting step 1 → active step 0 (timer cleared)',
-        from: waiting1,
-        event: const UserPrevious(),
-        present: const {'target0': true},
-        expected: active0,
-        effects: const [ClearTimeoutEffect()],
-      ),
-      (
-        name: 'previous from waiting without the target → re-arm on step 0',
-        from: waiting1,
-        event: const UserPrevious(),
-        present: const {},
-        expected: waiting0,
-        effects: const [arm3],
-      ),
-      (
-        name: 'previous from waiting on the first step — no-op (timer kept)',
-        from: waiting0,
-        event: const UserPrevious(),
-        present: const {},
-        expected: waiting0,
-        effects: const [],
-      ),
-      (
-        name: 'goTo(1) with the target present → active step 1',
-        from: active0,
-        event: const UserGoTo(index: 1),
-        present: const {'target1': true},
-        expected: active1,
-        effects: const [],
-      ),
-      (
-        name: 'goTo(1) without the target → waiting step 1 + timer',
-        from: active0,
-        event: const UserGoTo(index: 1),
-        present: const {},
-        expected: waiting1,
-        effects: const [arm3],
-      ),
-      (
-        name: 'goTo(0) from active step 1 — back by index',
-        from: active1,
-        event: const UserGoTo(index: 0),
-        present: const {'target0': true},
-        expected: active0,
-        effects: const [],
-      ),
-      (
-        name: 'goTo the current index — a no-op',
-        from: active1,
-        event: const UserGoTo(index: 1),
-        present: const {},
-        expected: active1,
-        effects: const [],
-      ),
-      (
-        name: 'goTo from waiting → active step (timer cleared)',
-        from: waiting0,
-        event: const UserGoTo(index: 1),
-        present: const {'target1': true},
-        expected: active1,
-        effects: const [ClearTimeoutEffect()],
-      ),
-      (
-        name: 'goTo from waiting without the target → re-arm on target step',
-        from: waiting0,
-        event: const UserGoTo(index: 1),
-        present: const {},
-        expected: waiting1,
-        effects: const [arm3],
-      ),
-      (
-        name: 'next with a present target → immediately active step',
-        from: active0,
-        event: const UserNext(),
-        present: const {'target1': true},
-        expected: active1,
-        effects: const [],
-      ),
-      (
-        name: 'next without the target → waiting the next step + timer',
-        from: active0,
-        event: const UserNext(),
-        present: const {},
-        expected: waiting1,
-        effects: const [arm3],
-      ),
-      (
-        name: 'next on the last step → normal completion',
-        from: active1,
-        event: const UserNext(),
-        present: const {},
-        expected: idle,
-        effects: const [FinishedEffect(tourId: 't')],
-      ),
-      (
-        name: 'skip on an active step → abort userSkipped',
-        from: active0,
-        event: const UserSkip(),
-        present: const {},
-        expected: idle,
-        effects: const [
-          AbortEffect(
-            reason: HintSkipReason.userSkipped,
-            detail: 'user skipped',
+          (
+            name: 'idle ignores foreign targets appearing',
+            from: idle,
+            event: const TargetAppeared(targetId: 'target0'),
+            present: const {},
+            expected: idle,
+            effects: const [],
           ),
-        ],
-      ),
-      (
-        name: 'finish on an active step → normal completion',
-        from: active0,
-        event: const UserFinish(),
-        present: const {},
-        expected: idle,
-        effects: const [FinishedEffect(tourId: 't')],
-      ),
-      (
-        name: 'a target appearing on an active step — a no-op',
-        from: active1,
-        event: const TargetAppeared(targetId: 'target0'),
-        present: const {},
-        expected: active1,
-        effects: const [],
-      ),
-    ];
+          (
+            name: 'the awaited target appears → active step',
+            from: waiting0,
+            event: const TargetAppeared(targetId: 'target0'),
+            present: const {'target0': true},
+            expected: active0,
+            effects: const [ClearTimeoutEffect()],
+          ),
+          (
+            name: 'a foreign target appearing while waiting is ignored',
+            from: waiting0,
+            event: const TargetAppeared(targetId: 'target1'),
+            present: const {},
+            expected: waiting0,
+            effects: const [],
+          ),
+          (
+            name: 'timeout while waiting → abort timeout',
+            from: waiting0,
+            event: const WaitTimeout(),
+            present: const {},
+            expected: idle,
+            effects: const [
+              ClearTimeoutEffect(),
+              AbortEffect(
+                reason: HintSkipReason.timeout,
+                detail: "target 'target0' did not appear within 0:00:03.000000",
+              ),
+            ],
+          ),
+          (
+            name: 'next while waiting does not skip the wait',
+            from: waiting0,
+            event: const UserNext(),
+            present: const {},
+            expected: waiting0,
+            effects: const [],
+          ),
+          (
+            name: 'skip while waiting → abort userSkipped',
+            from: waiting0,
+            event: const UserSkip(),
+            present: const {},
+            expected: idle,
+            effects: const [
+              ClearTimeoutEffect(),
+              AbortEffect(
+                reason: HintSkipReason.userSkipped,
+                detail: 'user skipped',
+              ),
+            ],
+          ),
+          (
+            name: 'finish while waiting → normal completion',
+            from: waiting0,
+            event: const UserFinish(),
+            present: const {},
+            expected: idle,
+            effects: const [
+              ClearTimeoutEffect(),
+              FinishedEffect(tourId: 't'),
+            ],
+          ),
+          (
+            name: 'any target vanishing while waiting — keep waiting',
+            from: waiting0,
+            event: const TargetVanished(targetId: 'target0'),
+            present: const {},
+            expected: waiting0,
+            effects: const [],
+          ),
+          (
+            name:
+                'the current target vanishing on an active step → re-wait '
+                '(not abort: scroll recycling/collapsed tab must not kill the '
+                'tour)',
+            from: active0,
+            event: const TargetVanished(targetId: 'target0'),
+            present: const {},
+            expected: waiting0,
+            effects: const [arm3],
+          ),
+          (
+            name: 'a future target vanishing does not touch the active step',
+            from: active0,
+            event: const TargetVanished(targetId: 'target1'),
+            present: const {},
+            expected: active0,
+            effects: const [],
+          ),
+          (
+            name: 'timeout while active is ignored (no timer is armed)',
+            from: active0,
+            event: const WaitTimeout(),
+            present: const {},
+            expected: active0,
+            effects: const [],
+          ),
+          (
+            name: 'previous from active step 1 → step 0 (target present)',
+            from: active1,
+            event: const UserPrevious(),
+            present: const {'target0': true},
+            expected: active0,
+            effects: const [],
+          ),
+          (
+            name: 'previous without step-0 target → waiting step 0 + timer',
+            from: active1,
+            event: const UserPrevious(),
+            present: const {},
+            expected: waiting0,
+            effects: const [arm3],
+          ),
+          (
+            name: 'previous on the first step — a no-op',
+            from: active0,
+            event: const UserPrevious(),
+            present: const {},
+            expected: active0,
+            effects: const [],
+          ),
+          (
+            name:
+                'previous from waiting step 1 → active step 0 (timer cleared)',
+            from: waiting1,
+            event: const UserPrevious(),
+            present: const {'target0': true},
+            expected: active0,
+            effects: const [ClearTimeoutEffect()],
+          ),
+          (
+            name: 'previous from waiting without the target → re-arm on step 0',
+            from: waiting1,
+            event: const UserPrevious(),
+            present: const {},
+            expected: waiting0,
+            effects: const [arm3],
+          ),
+          (
+            name:
+                'previous from waiting on the first step — no-op (timer kept)',
+            from: waiting0,
+            event: const UserPrevious(),
+            present: const {},
+            expected: waiting0,
+            effects: const [],
+          ),
+          (
+            name: 'goTo(1) with the target present → active step 1',
+            from: active0,
+            event: const UserGoTo(index: 1),
+            present: const {'target1': true},
+            expected: active1,
+            effects: const [],
+          ),
+          (
+            name: 'goTo(1) without the target → waiting step 1 + timer',
+            from: active0,
+            event: const UserGoTo(index: 1),
+            present: const {},
+            expected: waiting1,
+            effects: const [arm3],
+          ),
+          (
+            name: 'goTo(0) from active step 1 — back by index',
+            from: active1,
+            event: const UserGoTo(index: 0),
+            present: const {'target0': true},
+            expected: active0,
+            effects: const [],
+          ),
+          (
+            name: 'goTo the current index — a no-op',
+            from: active1,
+            event: const UserGoTo(index: 1),
+            present: const {},
+            expected: active1,
+            effects: const [],
+          ),
+          (
+            name: 'goTo from waiting → active step (timer cleared)',
+            from: waiting0,
+            event: const UserGoTo(index: 1),
+            present: const {'target1': true},
+            expected: active1,
+            effects: const [ClearTimeoutEffect()],
+          ),
+          (
+            name:
+                'goTo from waiting without the target → re-arm on target step',
+            from: waiting0,
+            event: const UserGoTo(index: 1),
+            present: const {},
+            expected: waiting1,
+            effects: const [arm3],
+          ),
+          (
+            name: 'next with a present target → immediately active step',
+            from: active0,
+            event: const UserNext(),
+            present: const {'target1': true},
+            expected: active1,
+            effects: const [],
+          ),
+          (
+            name: 'next without the target → waiting the next step + timer',
+            from: active0,
+            event: const UserNext(),
+            present: const {},
+            expected: waiting1,
+            effects: const [arm3],
+          ),
+          (
+            name: 'next on the last step → normal completion',
+            from: active1,
+            event: const UserNext(),
+            present: const {},
+            expected: idle,
+            effects: const [FinishedEffect(tourId: 't')],
+          ),
+          (
+            name: 'skip on an active step → abort userSkipped',
+            from: active0,
+            event: const UserSkip(),
+            present: const {},
+            expected: idle,
+            effects: const [
+              AbortEffect(
+                reason: HintSkipReason.userSkipped,
+                detail: 'user skipped',
+              ),
+            ],
+          ),
+          (
+            name: 'finish on an active step → normal completion',
+            from: active0,
+            event: const UserFinish(),
+            present: const {},
+            expected: idle,
+            effects: const [FinishedEffect(tourId: 't')],
+          ),
+          (
+            name: 'a target appearing on an active step — a no-op',
+            from: active1,
+            event: const TargetAppeared(targetId: 'target0'),
+            present: const {},
+            expected: active1,
+            effects: const [],
+          ),
+        ];
 
     for (final c in cases) {
       test(c.name, () {
@@ -408,10 +426,9 @@ void main() {
       final machine = HintMachine();
 
       final start = machine.dispatch(HintStart(tour: tour));
-      expect(
-        start.effects,
-        const [ArmTimeoutEffect(timeout: Duration(seconds: 7))],
-      );
+      expect(start.effects, const [
+        ArmTimeoutEffect(timeout: Duration(seconds: 7)),
+      ]);
 
       machine.dispatch(
         const TargetAppeared(targetId: 'a'),
@@ -423,10 +440,9 @@ void main() {
         targetPresent: (id) => id == 'a',
       );
       expect(machine.state, HintWaiting(tour: tour, stepIndex: 1));
-      expect(
-        next.effects,
-        const [ArmTimeoutEffect(timeout: Duration(seconds: 3))],
-      );
+      expect(next.effects, const [
+        ArmTimeoutEffect(timeout: Duration(seconds: 3)),
+      ]);
     });
   });
 
@@ -436,9 +452,10 @@ void main() {
       missingTargetPolicy: HintMissingTargetPolicy.abortTour,
       steps: [
         HintStep(
-            targetId: 'a',
-            content: HintStepContent(title: 'A'),
-            additionalTargets: const ['b']),
+          targetId: 'a',
+          content: HintStepContent(title: 'A'),
+          additionalTargets: const ['b'],
+        ),
         HintStep(
           targetId: 'c',
           content: HintStepContent(title: 'C'),
@@ -487,8 +504,9 @@ void main() {
         targetPresent: (id) => id == 'a',
       );
       expect(transition.state, waiting0);
-      expect(transition.effects,
-          const [ArmTimeoutEffect(timeout: Duration(seconds: 3))]);
+      expect(transition.effects, const [
+        ArmTimeoutEffect(timeout: Duration(seconds: 3)),
+      ]);
     });
 
     test('re-appearing after the re-wait → active again', () {
@@ -501,22 +519,24 @@ void main() {
       expect(transition.effects, const [ClearTimeoutEffect()]);
     });
 
-    test('timeout while waiting for several targets — lists the missing ones',
-        () {
-      final machine = HintMachine(initialState: waiting0);
-      final transition = machine.dispatch(
-        const WaitTimeout(),
-        targetPresent: (id) => id == 'a', // 'b' still missing
-      );
-      expect(transition.state, const HintIdle());
-      expect(transition.effects, const [
-        ClearTimeoutEffect(),
-        AbortEffect(
-          reason: HintSkipReason.timeout,
-          detail: "target 'b' did not appear within 0:00:03.000000",
-        ),
-      ]);
-    });
+    test(
+      'timeout while waiting for several targets — lists the missing ones',
+      () {
+        final machine = HintMachine(initialState: waiting0);
+        final transition = machine.dispatch(
+          const WaitTimeout(),
+          targetPresent: (id) => id == 'a', // 'b' still missing
+        );
+        expect(transition.state, const HintIdle());
+        expect(transition.effects, const [
+          ClearTimeoutEffect(),
+          AbortEffect(
+            reason: HintSkipReason.timeout,
+            detail: "target 'b' did not appear within 0:00:03.000000",
+          ),
+        ]);
+      },
+    );
 
     test('timeout with several missing — the list format', () {
       final machine = HintMachine(initialState: waiting0);
@@ -542,24 +562,31 @@ void main() {
             content: HintStepContent(title: 'A'),
           ),
           HintStep(
-              targetId: 'b',
-              content: HintStepContent(title: 'B'),
-              additionalTargets: const ['c']),
+            targetId: 'b',
+            content: HintStepContent(title: 'B'),
+            additionalTargets: const ['c'],
+          ),
         ],
       );
       final machine = HintMachine();
       machine.dispatch(HintStart(tour: tour), targetPresent: (id) => id == 'a');
-      machine.dispatch(const TargetAppeared(targetId: 'a'),
-          targetPresent: (id) => id == 'a');
+      machine.dispatch(
+        const TargetAppeared(targetId: 'a'),
+        targetPresent: (id) => id == 'a',
+      );
       expect(machine.state, HintActive(tour: tour, stepIndex: 0));
 
       // 'c' is missing → waiting, not active.
-      final next = machine.dispatch(const UserNext(),
-          targetPresent: (id) => id == 'a' || id == 'b');
+      final next = machine.dispatch(
+        const UserNext(),
+        targetPresent: (id) => id == 'a' || id == 'b',
+      );
       expect(next.state, HintWaiting(tour: tour, stepIndex: 1));
 
-      final appeared = machine.dispatch(const TargetAppeared(targetId: 'c'),
-          targetPresent: (id) => id == 'a' || id == 'b' || id == 'c');
+      final appeared = machine.dispatch(
+        const TargetAppeared(targetId: 'c'),
+        targetPresent: (id) => id == 'a' || id == 'b' || id == 'c',
+      );
       expect(appeared.state, HintActive(tour: tour, stepIndex: 1));
     });
 
@@ -582,19 +609,19 @@ void main() {
 
   group('missing-target policy (skipStep vs abortTour)', () {
     HintTour skipTour() => HintTour(
-          id: 'skip',
-          missingTargetPolicy: HintMissingTargetPolicy.skipStep,
-          steps: [
-            HintStep(
-              targetId: 'target0',
-              content: HintStepContent(title: 'Step 0'),
-            ),
-            HintStep(
-              targetId: 'target1',
-              content: HintStepContent(title: 'Step 1'),
-            ),
-          ],
-        );
+      id: 'skip',
+      missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+      steps: [
+        HintStep(
+          targetId: 'target0',
+          content: HintStepContent(title: 'Step 0'),
+        ),
+        HintStep(
+          targetId: 'target1',
+          content: HintStepContent(title: 'Step 1'),
+        ),
+      ],
+    );
 
     test('timeout on a middle step → skip + waiting for the next step', () {
       final tour = skipTour();
@@ -606,14 +633,8 @@ void main() {
         targetPresent: (_) => false,
       );
 
-      expect(
-        transition.state,
-        HintWaiting(tour: tour, stepIndex: 1),
-      );
-      expect(
-        transition.effects[0],
-        const ClearTimeoutEffect(),
-      );
+      expect(transition.state, HintWaiting(tour: tour, stepIndex: 1));
+      expect(transition.effects[0], const ClearTimeoutEffect());
       expect(
         transition.effects[1],
         isA<StepSkippedEffect>()
@@ -638,14 +659,11 @@ void main() {
       );
 
       expect(transition.state, const HintIdle());
-      expect(
-        transition.effects,
-        [
-          const ClearTimeoutEffect(),
-          isA<StepSkippedEffect>().having((e) => e.stepIndex, 'stepIndex', 1),
-          const FinishedEffect(tourId: 'skip'),
-        ],
-      );
+      expect(transition.effects, [
+        const ClearTimeoutEffect(),
+        isA<StepSkippedEffect>().having((e) => e.stepIndex, 'stepIndex', 1),
+        const FinishedEffect(tourId: 'skip'),
+      ]);
     });
 
     test('skip lands active when the next target is present', () {
@@ -659,51 +677,47 @@ void main() {
       );
 
       expect(transition.state, HintActive(tour: tour, stepIndex: 1));
-      expect(
-        transition.effects,
-        [
-          const ClearTimeoutEffect(),
-          isA<StepSkippedEffect>(),
-        ],
-      );
+      expect(transition.effects, [
+        const ClearTimeoutEffect(),
+        isA<StepSkippedEffect>(),
+      ]);
     });
 
-    test('tour-level skipStep applies to every step (no per-step override)',
-        () {
-      final tour = HintTour(
-        id: 'mixed',
-        missingTargetPolicy: HintMissingTargetPolicy.skipStep,
-        steps: [
-          HintStep(
-            targetId: 'target0',
-            content: HintStepContent(title: 'Step 0'),
-          ),
-          HintStep(
-            targetId: 'target1',
-            content: HintStepContent(title: 'Step 1'),
-          ),
-        ],
-      );
-      final machine = HintMachine();
-      machine.dispatch(HintStart(tour: tour));
+    test(
+      'tour-level skipStep applies to every step (no per-step override)',
+      () {
+        final tour = HintTour(
+          id: 'mixed',
+          missingTargetPolicy: HintMissingTargetPolicy.skipStep,
+          steps: [
+            HintStep(
+              targetId: 'target0',
+              content: HintStepContent(title: 'Step 0'),
+            ),
+            HintStep(
+              targetId: 'target1',
+              content: HintStepContent(title: 'Step 1'),
+            ),
+          ],
+        );
+        final machine = HintMachine();
+        machine.dispatch(HintStart(tour: tour));
 
-      // Both steps skip on timeout (tour-level skipStep).
-      final skipped0 = machine.dispatch(
-        const WaitTimeout(),
-        targetPresent: (_) => false,
-      );
-      expect(skipped0.state, HintWaiting(tour: tour, stepIndex: 1));
+        // Both steps skip on timeout (tour-level skipStep).
+        final skipped0 = machine.dispatch(
+          const WaitTimeout(),
+          targetPresent: (_) => false,
+        );
+        expect(skipped0.state, HintWaiting(tour: tour, stepIndex: 1));
 
-      final skipped1 = machine.dispatch(
-        const WaitTimeout(),
-        targetPresent: (_) => false,
-      );
-      // Last-step timeout under tour-level skipStep: skip the step, then
-      // normal finish — not an abort (abort is the default abortTour policy).
-      expect(skipped1.state, isA<HintIdle>());
-      expect(
-        skipped1.effects,
-        [
+        final skipped1 = machine.dispatch(
+          const WaitTimeout(),
+          targetPresent: (_) => false,
+        );
+        // Last-step timeout under tour-level skipStep: skip the step, then
+        // normal finish — not an abort (abort is the default abortTour policy).
+        expect(skipped1.state, isA<HintIdle>());
+        expect(skipped1.effects, [
           const ClearTimeoutEffect(),
           isA<StepSkippedEffect>().having(
             (e) => e.reason,
@@ -711,16 +725,19 @@ void main() {
             HintSkipReason.timeout,
           ),
           const FinishedEffect(tourId: 'mixed'),
-        ],
-      );
-    });
+        ]);
+      },
+    );
 
     test('default policy is skipStep (1.0 behavior)', () {
       expect(
         HintTour(
           id: 'defaults',
           steps: const [
-            HintStep(targetId: 'a', content: HintStepContent(title: 'A')),
+            HintStep(
+              targetId: 'a',
+              content: HintStepContent(title: 'A'),
+            ),
           ],
         ).missingTargetPolicy,
         HintMissingTargetPolicy.skipStep,
@@ -748,12 +765,18 @@ void main() {
 
     test('state equality — by tour (identity) and step', () {
       final tour = _tour();
-      expect(HintWaiting(tour: tour, stepIndex: 0),
-          HintWaiting(tour: tour, stepIndex: 0));
-      expect(HintWaiting(tour: tour, stepIndex: 0),
-          isNot(HintWaiting(tour: tour, stepIndex: 1)));
-      expect(HintActive(tour: tour, stepIndex: 0),
-          isNot(HintWaiting(tour: tour, stepIndex: 0)));
+      expect(
+        HintWaiting(tour: tour, stepIndex: 0),
+        HintWaiting(tour: tour, stepIndex: 0),
+      );
+      expect(
+        HintWaiting(tour: tour, stepIndex: 0),
+        isNot(HintWaiting(tour: tour, stepIndex: 1)),
+      );
+      expect(
+        HintActive(tour: tour, stepIndex: 0),
+        isNot(HintWaiting(tour: tour, stepIndex: 0)),
+      );
       expect(const HintIdle(), const HintIdle());
     });
 
@@ -783,8 +806,13 @@ void main() {
         final present = {for (final id in ids) id: rng.nextBool()};
 
         for (var i = 0; i < 1000; i++) {
-          final event =
-              _randomEvent(rng, machine.state.isIdle, ids, present, tour);
+          final event = _randomEvent(
+            rng,
+            machine.state.isIdle,
+            ids,
+            present,
+            tour,
+          );
           final transition = machine.dispatch(
             event,
             targetPresent: (id) => present[id] ?? false,
@@ -832,11 +860,11 @@ HintEvent _randomEvent(
 
   final appearing = [
     for (final id in ids)
-      if (present[id]!) id
+      if (present[id]!) id,
   ];
   final vanishing = [
     for (final id in ids)
-      if (!present[id]!) id
+      if (!present[id]!) id,
   ];
   return switch (rng.nextInt(10)) {
     0 || 1 || 2 => TargetAppeared(targetId: pick(appearing, 'ghost')),

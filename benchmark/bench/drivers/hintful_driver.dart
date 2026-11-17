@@ -8,7 +8,7 @@
 // The driver lives consumer-side (bench/drivers/), never in the package's
 // lib/: it imports the solution under test (package:hintful), which the
 // published package must never depend on.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,19 +57,25 @@ class HintfulDriver implements LibraryDriver {
   @override
   Widget buildScene({required bool withLibrary, required SceneSpec spec}) {
     final scheme = ColorScheme.fromSeed(seedColor: Colors.teal);
-    return buildContractScene(
-      spec,
-      withLibrary: withLibrary,
-      theme: ThemeData(
+    // flutter_bench_contract 0.4.1 still exposes the in-SDK `ThemeData` in
+    // its `theme:` parameter. Pass null there and put a material_ui `Theme`
+    // above the scene: hintful 2.x reads HintTheme from material_ui's
+    // ThemeData, which is a different type from the SDK one.
+    return Theme(
+      data: ThemeData(
         colorScheme: scheme,
         extensions: [HintTheme.minimal(scheme)],
       ),
-      wrapRow: (index, row) {
-        final anchored =
-            withLibrary && (index == kSceneBRow || index == _kState2Row);
-        if (!anchored) return row;
-        return HintTarget(id: sceneRowKey(index), child: row);
-      },
+      child: buildContractScene(
+        spec,
+        withLibrary: withLibrary,
+        wrapRow: (index, row) {
+          final anchored =
+              withLibrary && (index == kSceneBRow || index == _kState2Row);
+          if (!anchored) return row;
+          return HintTarget(id: sceneRowKey(index), child: row);
+        },
+      ),
     );
   }
 
@@ -117,21 +123,21 @@ class HintfulDriver implements LibraryDriver {
   // ── Tour mapping ───────────────────────────────────────────────────────
 
   HintTour _tour() => HintTour(
-        id: 'contract',
-        steps: [
-          for (final s in _states)
-            HintStep(
-              targetId: sceneRowKey(s == 1 ? kSceneBRow : _kState2Row),
-              // Fixed side: an auto-placed tooltip re-anchors around B when
-              // the free space changes under scroll — legitimate UX, but it
-              // would corrupt S4's "content follows B" delta. A fixed side
-              // is the honest driver choice for a contract anchored to B.
-              position: TooltipPosition.bottom,
-              showSkip: false,
-              tooltipBuilder: (context, step, ctx) => ContractCard(state: s),
-            ),
-        ],
-      );
+    id: 'contract',
+    steps: [
+      for (final s in _states)
+        HintStep(
+          targetId: sceneRowKey(s == 1 ? kSceneBRow : _kState2Row),
+          // Fixed side: an auto-placed tooltip re-anchors around B when
+          // the free space changes under scroll — legitimate UX, but it
+          // would corrupt S4's "content follows B" delta. A fixed side
+          // is the honest driver choice for a contract anchored to B.
+          position: TooltipPosition.bottom,
+          showSkip: false,
+          tooltipBuilder: (context, step, ctx) => ContractCard(state: s),
+        ),
+    ],
+  );
 
   void _goToState(int state) {
     final index = _states.indexOf(state);

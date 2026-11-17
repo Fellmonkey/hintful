@@ -10,14 +10,6 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  errors:
-    # Flutter 3.50 deprecates the bundled `package:flutter/material.dart`
-    # library in favour of `package:material_ui/material_ui.dart`. The 1.x
-    # line keeps the legacy import on purpose: it preserves the frozen
-    # public API and the Dart 3.2 / Flutter 3.16 floor. The 2.x line adopts
-    # `material_ui` and drops this override.
-    # TODO(hintful): remove when the 1.x line reaches end of life.
-    deprecated_member_use: ignore
   # Sub-packages are analyzed in their own directory (their own pub get +
   # `flutter analyze` in CI) — a fresh checkout has no .dart_tool for them,
   # so analyzing them from here would resolve their imports against this

@@ -64,8 +64,11 @@ class PulsePainter extends CustomPainter {
     // stroked rect is sharp, a circle round (longer-side diameter), a rounded
     // rect clamped
     // the same way as the scrim's).
-    final path =
-        RectScrimPainter.holeShape(ringRect, focusShape, radius: holeRadius);
+    final path = RectScrimPainter.holeShape(
+      ringRect,
+      focusShape,
+      radius: holeRadius,
+    );
     if (path == null) return;
     canvas.drawPath(
       path,

@@ -60,9 +60,10 @@ class CompositorHintResolver implements HintPositionResolver {
       return null;
     }
     assert(
-        _isAxisAlignedOrUniformScale(transform),
-        'non-axis-aligned (rotated / non-uniformly scaled) transform: '
-        '${transform.storage}');
+      _isAxisAlignedOrUniformScale(transform),
+      'non-axis-aligned (rotated / non-uniformly scaled) transform: '
+      '${transform.storage}',
+    );
     // A **uniform** ancestor scale is representable as an axis-aligned rect:
     // the compositor's translation is the leader origin in follower space, and
     // the leader's local size scales with it. Rotation/shear and non-uniform

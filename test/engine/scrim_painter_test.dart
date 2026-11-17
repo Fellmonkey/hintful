@@ -16,10 +16,12 @@ void main() {
 
   /// Recorded dim rects: drawRect ops with a normal (non-clear) paint.
   Iterable<RecordedInvocation> dimRects(TestRecordingCanvas canvas) =>
-      canvas.invocations.where((record) =>
-          record.invocation.memberName == #drawRect &&
-          (record.invocation.positionalArguments[1] as Paint).blendMode !=
-              BlendMode.clear);
+      canvas.invocations.where(
+        (record) =>
+            record.invocation.memberName == #drawRect &&
+            (record.invocation.positionalArguments[1] as Paint).blendMode !=
+                BlendMode.clear,
+      );
 
   group('RectScrimPainter paint', () {
     test('dim + punch run inside an isolated layer', () {
@@ -31,14 +33,21 @@ void main() {
         holes: const [Rect.fromLTWH(100, 100, 200, 80)],
         color: const Color(0x80000000),
       ).paint(canvas, const Size(800, 600));
-      final ops =
-          canvas.invocations.map((r) => r.invocation.memberName).toList();
+      final ops = canvas.invocations
+          .map((r) => r.invocation.memberName)
+          .toList();
       expect(ops.first, #saveLayer);
       expect(ops.last, #restore);
-      expect(ops.where((m) => m == #drawRect).length, 1,
-          reason: 'the dim rect');
-      expect(ops.where((m) => m == #drawPath).length, 1,
-          reason: 'the punched hole path');
+      expect(
+        ops.where((m) => m == #drawRect).length,
+        1,
+        reason: 'the dim rect',
+      );
+      expect(
+        ops.where((m) => m == #drawPath).length,
+        1,
+        reason: 'the punched hole path',
+      );
     });
 
     test('positioned — one dim rect + one clear hole', () {
@@ -118,7 +127,9 @@ void main() {
 
     test('empty hole - null (cuts nothing)', () {
       expect(
-          RectScrimPainter.holeShape(Rect.zero, FocusShape.rectangle), isNull);
+        RectScrimPainter.holeShape(Rect.zero, FocusShape.rectangle),
+        isNull,
+      );
       expect(
         RectScrimPainter.holeShape(
           const Rect.fromLTWH(0, 0, 100, 50).inflate(-100),
@@ -237,16 +248,20 @@ void main() {
 
     test('cuts every shape without boolean ops', () {
       for (final shape in FocusShape.values) {
-        final path = RectScrimPainter.scrimClipPath(
-          screen,
-          const [Rect.fromLTWH(100, 100, 120, 80)],
-          shape,
-        );
+        final path = RectScrimPainter.scrimClipPath(screen, const [
+          Rect.fromLTWH(100, 100, 120, 80),
+        ], shape);
         expect(path.fillType, PathFillType.evenOdd);
-        expect(path.contains(const Offset(160, 140)), isFalse,
-            reason: 'shape $shape: hole center is cut out');
-        expect(path.contains(const Offset(10, 10)), isTrue,
-            reason: 'shape $shape: far corner stays clipped in');
+        expect(
+          path.contains(const Offset(160, 140)),
+          isFalse,
+          reason: 'shape $shape: hole center is cut out',
+        );
+        expect(
+          path.contains(const Offset(10, 10)),
+          isTrue,
+          reason: 'shape $shape: far corner stays clipped in',
+        );
       }
     });
 
@@ -266,21 +281,20 @@ void main() {
       List<Rect> holes = const [Rect.fromLTWH(100, 300, 120, 40)],
       FocusShape focusShape = FocusShape.rectangle,
       Color color = const Color(0xFF000000),
-    }) =>
-        RectScrimPainter(holes: holes, color: color, focusShape: focusShape);
+    }) => RectScrimPainter(holes: holes, color: color, focusShape: focusShape);
 
     test('only when the hole set, color or shape changes', () {
       final a = painter();
       expect(a.shouldRepaint(painter()), isFalse);
       expect(
-        a.shouldRepaint(
-          painter(holes: const [Rect.fromLTWH(0, 0, 10, 10)]),
-        ),
+        a.shouldRepaint(painter(holes: const [Rect.fromLTWH(0, 0, 10, 10)])),
         isTrue,
       );
       expect(a.shouldRepaint(painter(color: const Color(0x80000000))), isTrue);
       expect(
-          a.shouldRepaint(painter(focusShape: FocusShape.roundedRect)), isTrue);
+        a.shouldRepaint(painter(focusShape: FocusShape.roundedRect)),
+        isTrue,
+      );
     });
   });
 }

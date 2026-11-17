@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hintful/hintful.dart';
 
@@ -29,8 +29,7 @@ void main() {
     return rects;
   }
 
-  testWidgets(
-      'off-screen target: the tooltip waits at the edge and rides '
+  testWidgets('off-screen target: the tooltip waits at the edge and rides '
       'the page into place', (tester) async {
     final h = TourHarness(
       scrollable: true,
@@ -48,9 +47,10 @@ void main() {
           content: HintStepContent(title: 'Statistics'),
         ),
         const HintStep(
-            targetId: 'records',
-            content: HintStepContent(title: 'Records'),
-            autoScroll: true),
+          targetId: 'records',
+          content: HintStepContent(title: 'Records'),
+          autoScroll: true,
+        ),
       ],
     );
     await h.pump(tester);
@@ -58,22 +58,34 @@ void main() {
 
     final screen = tester.getRect(find.byType(Scaffold));
     Rect target() => tester.getRect(
-        find.byWidgetPredicate((w) => w is HintTarget && w.id == 'records'));
+      find.byWidgetPredicate((w) => w is HintTarget && w.id == 'records'),
+    );
 
     h.controller.next();
     final frames = await recordFrames(tester);
 
-    expect(frames.first, isNotNull,
-        reason: 'the tooltip is up on the first frame of the off-screen step '
-            '— autoScroll brings the target to it, not the other way round');
-    expect(frames.where((r) => r == null), isEmpty,
-        reason: 'no blink: nothing retracts the tooltip while the scroll is '
-            'still running');
+    expect(
+      frames.first,
+      isNotNull,
+      reason:
+          'the tooltip is up on the first frame of the off-screen step '
+          '— autoScroll brings the target to it, not the other way round',
+    );
+    expect(
+      frames.where((r) => r == null),
+      isEmpty,
+      reason:
+          'no blink: nothing retracts the tooltip while the scroll is '
+          'still running',
+    );
 
     for (final rect in frames) {
       final r = rect!;
-      expect(r.topLeft, isNot(const Offset(8, 8)),
-          reason: 'never parked in the safe-rect corner');
+      expect(
+        r.topLeft,
+        isNot(const Offset(8, 8)),
+        reason: 'never parked in the safe-rect corner',
+      );
       expect(r.left, greaterThanOrEqualTo(screen.left - 0.5));
       expect(r.right, lessThanOrEqualTo(screen.right + 0.5));
       expect(r.top, greaterThanOrEqualTo(screen.top - 0.5));
@@ -84,8 +96,11 @@ void main() {
     // bottom edge — the direction the target is coming from. (The list cannot
     // scroll it fully in: maxScrollExtent runs out.)
     final waiting = frames.first!;
-    expect(waiting.bottom, closeTo(screen.bottom, 1),
-        reason: 'waiting at the edge the target comes from');
+    expect(
+      waiting.bottom,
+      closeTo(screen.bottom, 1),
+      reason: 'waiting at the edge the target comes from',
+    );
 
     // At rest the tooltip sits right above the target — the placement gap
     // (12) measured from the VISUAL hole (target bounds + the 4 px focus
@@ -93,8 +108,11 @@ void main() {
     final settled = frames.last!;
     final hole = target();
     expect(settled.overlaps(hole), isFalse);
-    expect(hole.top - settled.bottom, closeTo(4 + 12, 1),
-        reason: 'settled above the target: focus padding + placement gap');
+    expect(
+      hole.top - settled.bottom,
+      closeTo(4 + 12, 1),
+      reason: 'settled above the target: focus padding + placement gap',
+    );
 
     h.disposeNow();
   });

@@ -1,6 +1,6 @@
 name: hintful
 description: Onboarding tours and tooltips for Flutter. Registry-based targets, theme-aware coach marks, smart positioning, accessible by default — no overlay until a tour starts.
-version: 1.0.1
+version: 2.0.0
 repository: https://github.com/Fellmonkey/hintful
 topics:
   - flutter
@@ -9,24 +9,20 @@ topics:
   - coach-marks
   - walkthrough
 environment:
-  # The floor is the single newest Flutter API the package touches:
-  # MediaQuery.textScalerOf (default_tooltip.dart) — since Flutter 3.16
-  # (Dart 3.2). Everything else is older and was verified against the git
-  # history of local Flutter 3.47.0 and 3.50.0 checkouts. The 1.x line keeps
-  # the legacy `package:flutter/material.dart` import (deprecated in 3.50);
-  # its analyzer diagnostic is suppressed in analysis_options.yaml. The 2.x
-  # line migrates to `material_ui` and raises this floor:
-  #   sealed machine states        — Dart 3.0 / Flutter 3.10,
-  #   ThemeExtension               — Flutter 3.0 (PR #98033, Mar 2022),
-  #   LayerLink.leaderSize         — Flutter 1.23 (PR #64930, Oct 2020),
-  #   CompositedTransform +
-  #   FollowerLayer.getLastTransform — Flutter 1.0 (2017).
-  sdk: '>=3.2.0 <4.0.0'
-  flutter: '>=3.16.0'
+  # 2.x imports `package:material_ui/material_ui.dart`: Flutter formally
+  # deprecated the bundled `package:flutter/material.dart` in 3.50 (it was
+  # already marked deprecated in 3.47). `material_ui` 1.11.1 requires
+  # Dart >=3.13 / Flutter >=3.47, so those are the new floors. Consumers on
+  # older SDKs stay on the 1.x line (frozen API, legacy import).
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  # Official, decoupled Material library. This replaces the in-SDK
+  # `flutter/material.dart` import that 3.50 deprecated.
+  material_ui: ^1.11.1
 
 dev_dependencies:
   flutter_test:
