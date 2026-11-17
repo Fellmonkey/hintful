@@ -187,7 +187,11 @@ dependencies:
 import 'package:hintful/hintful.dart';
 ```
 
-Requires Dart ≥ 3.2 / Flutter ≥ 3.16. See `example/` for working demos:
+Requires Dart ≥ 3.2 / Flutter ≥ 3.16. This 1.x line is still maintained for
+older Flutter SDKs — see [doc/SUPPORT.md](doc/SUPPORT.md); the forward line
+(2.x) uses `material_ui` and requires Flutter 3.47+.
+
+See `example/` for working demos:
 shaped holes, blur/pulse styles, custom animated tooltips, JSON tours, tap
 regions, multi-target and multi-content steps, the offer dialog, lifecycle
 hooks and the versioned intro.
